@@ -10,20 +10,21 @@
 Compression benchmark for Earth observation data. Lossless, near-lossless and
 lossy under one measurement protocol.
 
-A configuration declares one error budget, `tolerance`, as a maximum absolute
-error per element in the native units of the sample. `0` is lossless, a
-positive value is a near-lossless bound verified on every sample, and no budget
-at all is lossy. Ratios are only comparable at equal fidelity.
+**Lossless** reproduces the input exactly, and is compared on ratio and
+throughput.
 
-The budget each dataset can actually afford is in
-[docs/tolerance.md](docs/tolerance.md).
+**Near-lossless** declares a `tolerance`: a maximum absolute error per element,
+in the native units of the sample, that the benchmark verifies on every sample.
+Two configurations are comparable only at equal tolerance. The tolerance each
+dataset can afford, and why, is in [docs/tolerance.md](docs/tolerance.md).
+
+**Lossy** declares no bound. A single measurement is a point, so these are
+compared as rate-distortion curves over a sweep of operating points.
 
 Part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html),
-a three-year project funded by [ARIA](https://www.aria.org.uk/) and led by the
+a project funded by [ARIA](https://www.aria.org.uk/) and led by the
 [National Oceanography Centre](https://noc.ac.uk/) and
 [Asterisk Labs](https://asterisk.coop/).
-
-Early work. Nothing here is stable yet.
 
 ## License
 
