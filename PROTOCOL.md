@@ -4,9 +4,7 @@
 
 This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy.
 
-Each measurement uses one array in memory. The protocol covers compressed size, encode and decode time, and distortion. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule. Small samples still represent large archives reasonably well, because those archives are stored in chunks that rarely exceed 100 MB (ClimateBenchPress).
-
-The benchmark compares codecs. It does not establish that a codec is safe for a particular use; that requires validation against the use itself (Section 9).
+Each measurement uses one array in memory. The protocol covers compressed size, encode and decode time, and distortion. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule.
 
 ## 1. Starting representation
 
@@ -30,11 +28,9 @@ assert back.tobytes(order="C") == published.tobytes(order="C")
 
 The benchmark does not add quantisation. Quantisation already applied by the producer is part of the published data. If a corpus cannot reproduce that data exactly, `spec.md` must disclose the difference.
 
-ClimateBenchPress makes the opposite choice: it uses unquantised model output, so that the producer's quantisation stays out of the measurement. This protocol measures data in the form users receive it.
-
 `grid` is the quantisation step of the published data, in the sample's native unit. All error budgets use that unit. For an integer corpus, `grid = scale`. A float corpus whose values do not fall on a common step has no grid. When the step differs within a sample, for example per band, `scale` and `offset` are stored per slice.
 
-The published form can hide how the data was produced. ARCO-ERA5 republishes ERA5 as float32. In 2 m temperature, its values are spaced about 0.0016 K apart, about 2¹⁶ steps across the field's range, yet no `(scale, offset)` pair reproduces them bit for bit. By the rule above, ARCO-ERA5 remains float32. Quantising it to 0.01 K, as an earlier version of this corpus did, coarsens that spacing by a factor of about 6.4. ClimateBenchPress reports that ERA5 from the Climate Data Store is packed to 24 bits. Recovering the producer's integers requires the original GRIB messages and their packing parameters, not the republished float32.
+The published form can hide how the data was produced. ARCO-ERA5 republishes ERA5 as float32. In 2 m temperature, its values are spaced about 0.0016 K apart, about 2¹⁶ steps across the field's range, yet no `(scale, offset)` pair reproduces them bit for bit. By the rule above, ARCO-ERA5 remains float32. Quantising it to 0.01 K, as an earlier version of this corpus did, coarsens that spacing by a factor of about 6.4. Recovering the producer's integers requires the original GRIB messages and their packing parameters, not the republished float32.
 
 `exact` records whether the stored representation reproduces each published sample bit for bit. `build.py` asserts this property. If a corpus cannot meet it, `spec.md` must describe what was lost.
 
@@ -59,7 +55,7 @@ If a configuration breaks a promise for a sample, that row has `fidelity_ok = fa
 
 ### 2.1 Error bounds
 
-The term *relative error* is used inconsistently in compression literature (ClimateBenchPress, Z-checker). This protocol names the bound explicitly:
+The term *relative error* is used inconsistently in compression literature. This protocol names the bound explicitly:
 
 ```text
 absolute        |x - x̂| <= tau
@@ -67,11 +63,11 @@ relative        |x - x̂| <= tau · |x|              → requires exact zeros
 range-relative  |x - x̂| <= tau · (max x - min x)
 ```
 
-A relative bound requires `x̂ = 0` when `x = 0`. A range-relative bound, which SDRBench calls a value-range-based relative bound and which SZ3 and EBCC expose as their relative mode, is an absolute bound whose size the codec computes from the data it receives. Rule 1 of Section 3 excludes that, so a range-relative bound does not qualify as a near-lossless claim here. A codec that offers only a range-relative bound is measured in `lossy` mode.
+A relative bound requires `x̂ = 0` when `x = 0`. A range-relative bound is an absolute bound whose size the codec computes from the data it receives. Rule 1 of Section 3 excludes that, so a range-relative bound does not qualify as a near-lossless claim here. A codec that offers only a range-relative bound is measured in `lossy` mode.
 
-All bounds also allow `x ≡ x̂`, meaning an exactly preserved value passes even when subtraction is undefined. Without this clause, `∞ - ∞` would be NaN and a correctly preserved infinity would fail (ClimateBenchPress).
+All bounds also allow `x ≡ x̂`, meaning an exactly preserved value passes even when subtraction is undefined. Without this clause, `∞ - ∞` would be NaN and a correctly preserved infinity would fail.
 
-Use `absolute` bounds for fields with a bounded range and roughly uniform uncertainty, such as reflectance, elevation, and temperature. Use `relative` bounds for fields that span orders of magnitude, such as precipitation, trace concentrations, and biomass. ClimateBenchPress and Delaunay et al. make the same distinction.
+Use `absolute` bounds for fields with a bounded range and roughly uniform uncertainty, such as reflectance, elevation, and temperature. Use `relative` bounds for fields that span orders of magnitude, such as precipitation, trace concentrations, and biomass.
 
 ## 3. Error budgets
 
@@ -83,13 +79,13 @@ Values have uncertainty before compression. If that uncertainty is `sigma` and c
 | `matched` | uncertainty / 2 | 12% |
 | `aggressive` | uncertainty | 41% |
 
-ClimateBenchPress also uses three levels, but derives them from the 0%, 1%, and 5% percentiles of the ERA5 ensemble spread and checks them against bounds given by ECMWF scientists. Most corpora here have no ensemble, so this protocol starts from the product's published uncertainty. The three levels give more than one operating point for each codec. Budgets are rounded down to whole grid steps, making them no looser than the stated value. If a level falls below one grid step, that level is unavailable for the corpus.
+The three levels give more than one operating point for each codec. Budgets are rounded down to whole grid steps, making them no looser than the stated value. If a level falls below one grid step, that level is unavailable for the corpus.
 
 `docs/tolerance.md` records the uncertainty used for each corpus, its source, and the resulting budgets.
 
 The following rules apply:
 
-1. **Declare budgets independently of the sample.** A codec cannot derive any part of its budget from the data being compressed. EBCC and SZ3 internally convert a relative bound to `tau · (max x - min x)`. Because the range changes by chunk, this can apply different absolute bounds to chunks of the same dataset (ClimateBenchPress). The harness may tighten a budget to fit a codec's accepted bound kind (Section 8); it never loosens one.
+1. **Declare budgets independently of the sample.** A codec cannot derive any part of its budget from the data being compressed. EBCC and SZ3 internally convert a relative bound to `tau · (max x - min x)`. Because the range changes by chunk, this can apply different absolute bounds to chunks of the same dataset. The harness may tighten a budget to fit a codec's accepted bound kind (Section 8); it never loosens one.
 2. **Check every valid element.** Meeting a budget on average does not compensate for one element exceeding it.
 3. **Exclude NoData from the numeric budget.** `tau` applies only to valid elements. Sentinels must round-trip exactly in every mode.
 4. **Use the strictest applicable budget for heterogeneous planes.** If one array contains several physical quantities (`goes-abi-16`) or value types (`tessera-v2-128`), use the smallest defensible budget across its planes.
@@ -117,7 +113,7 @@ The sample container is for benchmarking, not data distribution. Starting from a
 
 `manifest.csv` contains `id`, `shape`, `dtype`, `grid`, `grid_unit`, `exact`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
 
-Exports do not replace the canonical corpus. `export_zarr.py` writes uncompressed Zarr v3, so codecs wrapped for numcodecs, as ClimateBenchPress requires, can run on the same samples without this harness. `export_netcdf.py` writes NetCDF-4 with CF attributes. Released corpora receive a version and DOI; previews are deposited separately.
+Exports do not replace the canonical corpus. `export_zarr.py` writes uncompressed Zarr v3, so another benchmark can run on the same samples without this harness. `export_netcdf.py` writes NetCDF-4 with CF attributes. Released corpora receive a version and DOI; previews are deposited separately.
 
 ## 5. Measurement
 
@@ -129,11 +125,11 @@ Exports do not replace the canonical corpus. `export_zarr.py` writes uncompresse
 - Report a 95% confidence interval for median throughput from 10,000 percentile-bootstrap resamples with seed 0.
 - Confirm that the compressed bytes and the decoded array do not change between rounds.
 
-Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result. Wall-clock time is not reproducible across machines; ClimateBenchPress reports WebAssembly instruction counts for that reason, and warns that fewer instructions do not guarantee faster decoding. This protocol reports wall-clock time with its environment.
+Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
 
 ## 6. Verification
 
-Each promised property has a check. The precedents below were observed in released compressors by ClimateBenchPress.
+Each promised property has a check. The examples below show why the checks are necessary.
 
 | check | assertion | observed precedent |
 | --- | --- | --- |
@@ -154,7 +150,7 @@ encode_MB_s       = input_bytes / encode_ns * 1,000
 decode_MB_s       = input_bytes / decode_ns * 1,000
 ```
 
-`input_bytes` is the size of `data` in its starting representation, excluding metadata and container overhead, as in ClimateBenchPress. Z-checker, Delaunay et al. and Baker et al. use file sizes instead, so their ratios depend on the file format; Baker et al. also define the ratio inverted, as compressed over original size. `MB` uses decimal units.
+`input_bytes` is the size of `data` in its starting representation, excluding metadata and container overhead. `MB` uses decimal units.
 
 Distortion is computed over the whole sample in float64, using native units:
 
@@ -164,7 +160,7 @@ rmse          = sqrt(mean (x-x̂)²)  mean_error = mean (x̂ - x)
 psnr_dB       = 20·log10(peak / rmse)
 ```
 
-`mean_error` detects bias, which Delaunay et al. track and which truncating codecs introduce towards zero (Baker et al.). `peak` is the dynamic range of the reference sample, not the range of its dtype, as in SDRBench and Z-checker. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, the error metrics are zero by construction.
+`mean_error` detects bias. `peak` is the dynamic range of the reference sample, not the range of its dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, the error metrics are zero by construction.
 
 Two additional metrics describe the distribution and spatial structure of error:
 
@@ -173,9 +169,7 @@ error_spread = p99(|x - x̂|) / max(|x - x̂|)
 error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 ```
 
-`error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values; Z-checker computes the same quantity over several lags. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
-
-Version 1.0 does not compute DSSIM or spectral error (ClimateBenchPress), 2D SSIM (SDRBench), or the Pearson correlation between original and decoded data (Z-checker).
+`error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
 
 `results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `bound_kind`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_MB_s`, `decode_MB_s`, the four CI bounds, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, `fidelity_ok`, and `converted`.
 
@@ -194,7 +188,7 @@ rmse              = sqrt(sum(rmse² · count) / sum(count))
 
 Do not aggregate `psnr_dB`, because its peak differs by sample. Include a configuration in aggregate results only if it completes every sample. Failed rows remain in `results.csv`.
 
-Results should show operating points and curves rather than name an overall winner. SDRBench found that no lossy compressor had the best rate-distortion at every bit rate. Comparisons follow these rules:
+Results should show operating points and curves rather than name an overall winner. Comparisons follow these rules:
 
 - Two `lossless` configurations can be compared directly.
 - Two `near-lossless` configurations can be compared at the same bound kind and `tau`.
@@ -202,7 +196,7 @@ Results should show operating points and curves rather than name an overall winn
 - Two `lossy` configurations can be compared over a sweep, rather than from a single row.
 - Ratios computed from different starting representations of the same data do not isolate codec performance.
 
-Mark a row `converted = true` when the harness transformed its budget to fit a codec that does not accept the original bound kind. Following ClimateBenchPress, the transforms are `tau_abs = min|x| · tau_rel` over nonzero values and `tau_rel = tau_abs / max|x|`. Both are conservative, so treat the resulting ratio as a lower bound. Any quoted ratio must include `tau` and `budget_level`.
+Mark a row `converted = true` when the harness transformed its budget to fit a codec that does not accept the original bound kind. The transforms are `tau_abs = min|x| · tau_rel` over nonzero values and `tau_rel = tau_abs / max|x|`. Both are conservative, so treat the resulting ratio as a lower bound. Any quoted ratio must include `tau` and `budget_level`.
 
 ## 9. Task validation
 
@@ -225,7 +219,3 @@ Detecting a compression effect does not establish that it matters for an analysi
 ## References
 
 - Baker, A. H., et al. (2016). Evaluating lossy data compression on climate simulation data within a large ensemble. *Geosci. Model Dev.*, 9, 4381–4403.
-- Delaunay, X., Courtois, A., and Gouillon, F. (2019). Evaluation of lossless and lossy algorithms for the compression of scientific datasets in netCDF-4 or HDF5 files. *Geosci. Model Dev.*, 12, 4099–4113.
-- Reichelt, T., et al. (2026). ClimateBenchPress (v1.0): a benchmark for lossy compression of climate data. *Geosci. Model Dev.*, 19, 5933–5960.
-- Tao, D., Di, S., Guo, H., Chen, Z., and Cappello, F. (2019). Z-checker: A framework for assessing lossy compression of scientific data. *Int. J. High Perform. Comput. Appl.*, 33, 285–303.
-- Zhao, K., et al. (2020). SDRBench: Scientific Data Reduction Benchmark for Lossy Compressors. *IEEE BigData 2020*.
