@@ -2,7 +2,7 @@
 
 **Status:** Draft
 
-This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy. Near-lossless here is what SDRBench and Z-checker call error-bounded lossy compression: every element stays within a declared bound.
+This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy.
 
 Each measurement uses one array in memory. The protocol covers compressed size, encode and decode time, and distortion. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule. Small samples still represent large archives reasonably well, because those archives are stored in chunks that rarely exceed 100 MB (ClimateBenchPress).
 
