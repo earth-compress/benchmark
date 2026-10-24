@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Reference PDFs are fetched, not redistributed. See docs/papers/README.md
+docs/papers/*.pdf
