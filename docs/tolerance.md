@@ -2,6 +2,21 @@
 
 The error budget each dataset can afford, and why.
 
+> **Status: superseded in part by [PROTOCOL.md](../PROTOCOL.md) v2.0.** Two
+> things in this document no longer match the protocol, and both need the
+> corpora rebuilt before they can be fixed here.
+>
+> 1. **One budget, not three.** The protocol defines `conservative`, `matched`
+>    and `aggressive` at uncertainty/5, /2 and /1. The single budget below is
+>    the `conservative` level.
+> 2. **The five ERA5 rows are wrong.** They assume a grid we imposed, not the
+>    one ECMWF transmits. Measured against ARCO-ERA5, the real grid is
+>    `(max - min) / 65535` per field and per time step: 0.0015564 K for 2 m
+>    temperature, not 0.01 K. The headroom is therefore about 320x, not 50x,
+>    and the budget below is 64 grid steps rather than the 10 it claims.
+>
+> Every other row stands. The rule in section 1 stands.
+
 A near-lossless configuration declares one budget, `tolerance`, as a maximum
 absolute error per element in the native units of the sample. This document
 sets the default budget for every corpus in the benchmark. It is the number a
