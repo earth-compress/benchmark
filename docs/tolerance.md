@@ -36,8 +36,8 @@ headroom = product uncertainty / quantisation step
 `quantisation step` is what one native unit is worth. `headroom` is how many
 steps of slack the producer left. A product stored far below its own
 uncertainty has a large headroom and can afford a real budget; a product
-stored at its own noise floor has none, and `tolerance = 0` is the only honest
-answer. The two extremes are both present in this benchmark: ERA5 2 m
+stored at its own noise floor has none, and such a corpus gets no
+near-lossless point at all. The two extremes are both present in this benchmark: ERA5 2 m
 temperature is stored in hundredths of a kelvin against an uncertainty near
 half a kelvin, a headroom of about fifty, while GOES ABI already quantises each
 band to about half its own noise-equivalent temperature difference.
@@ -143,14 +143,16 @@ magnitude below the speckle that dominates any single pixel. A budget of
 
 ## 3. Corpora with no near-lossless budget
 
-Three corpora are lossless-only. This is not caution, it is arithmetic: there
-is no error in these arrays that is small enough to be harmless.
+Three corpora are measured in lossless mode only, and are not offered a
+near-lossless configuration at any tolerance. This is not caution, it is
+arithmetic: there is no error in these arrays that is small enough to be
+harmless.
 
-| corpus | `tolerance` | why |
-| --- | ---: | --- |
-| `esa-wc-v200` | 0 | The values are land-cover class codes. An error of 1 does not make the class slightly wrong, it makes it a different class, and the codes are not ordered: 95 is mangrove and 100 is moss. `max_abs_error` is meaningless here; the metric would be the fraction of relabelled pixels. |
-| `tessera-v2-128` | 0 | Planes 0–127 hold `int8` embedding codes, planes 128–131 hold the four little-endian bytes of a per-pixel `float32` scale. An error of 1 in an exponent byte scales that pixel's whole embedding by a factor of two. No single budget can cover both kinds of plane, so the corpus admits none. A codec that treats the scale planes separately could declare a budget on the code planes alone, and the protocol would then need a per-plane budget it does not currently have. |
-| `alphaearth-v1-64` | 0 | The producer already quantised the embedding to `int8`, so one native unit is 1/254 of the full range and the headroom is one. A budget of 1 LSB is measurable and may well be harmless, but "harmless" for an embedding is a statement about a downstream task, not about the array, and we have not measured it. Until it is measured this corpus stays lossless. |
+| corpus | why |
+| --- | --- |
+| `esa-wc-v200` | The values are land-cover class codes. An error of 1 does not make the class slightly wrong, it makes it a different class, and the codes are not ordered: 95 is mangrove and 100 is moss. `max_abs_error` is meaningless here; the metric would be the fraction of relabelled pixels. |
+| `tessera-v2-128` | Planes 0–127 hold `int8` embedding codes, planes 128–131 hold the four little-endian bytes of a per-pixel `float32` scale. An error of 1 in an exponent byte scales that pixel's whole embedding by a factor of two. No single budget can cover both kinds of plane, so the corpus admits none. A codec that treats the scale planes separately could declare a budget on the code planes alone, and the protocol would then need a per-plane budget it does not currently have. |
+| `alphaearth-v1-64` | The producer already quantised the embedding to `int8`, so one native unit is 1/254 of the full range and the headroom is one. A budget of 1 LSB is measurable and may well be harmless, but "harmless" for an embedding is a statement about a downstream task, not about the array, and we have not measured it. Until it is measured this corpus stays lossless. |
 
 ## 4. Rules that apply to every budget
 
