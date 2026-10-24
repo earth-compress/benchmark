@@ -102,7 +102,7 @@ Lossless mode only, at any budget.
 
 | corpus | why |
 | --- | --- |
-| `esa-wc-v200` | Land-cover class codes, unordered: 95 is mangrove, 100 is moss. An error of one makes a different class, so `max_abs_error` means nothing here. The 50 samples hold 11 distinct codes with a GCD of 5, so the corpus stores dense indices and the symbol table — which also recovers the factor of two wasted by putting 11 symbols in 8 bits. |
+| `esa-wc-v200` | Land-cover class codes, unordered: 95 is mangrove, 100 is moss. An error of one makes a different class, so `max_abs_error` means nothing here. The corpus stores the published codes. |
 | `tessera-v2-128` | Planes 0–127 are int8 embedding codes; planes 128–131 are the four little-endian bytes of a per-element float32 scale. An error of one in an exponent byte scales that element's embedding by two. No single budget covers both. |
 | `alphaearth-v1-64` | Already int8 from the producer, so one grid step is 1/254 of the range and headroom is one. A one-step budget may be harmless, but harmlessness for an embedding is a claim about a task, and PROTOCOL.md section 9 has not been run on it. |
 
