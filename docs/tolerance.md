@@ -37,10 +37,11 @@ headroom = product uncertainty / quantisation step
 steps of slack the producer left. A product stored far below its own
 uncertainty has a large headroom and can afford a real budget; a product
 stored at its own noise floor has none, and such a corpus gets no
-near-lossless point at all. The two extremes are both present in this benchmark: ERA5 2 m
-temperature is stored in hundredths of a kelvin against an uncertainty near
-half a kelvin, a headroom of about fifty, while GOES ABI already quantises each
-band to about half its own noise-equivalent temperature difference.
+near-lossless point at all. The two extremes are both present in this
+benchmark: ERA5 2 m temperature is stored in hundredths of a kelvin against an
+uncertainty near half a kelvin, a headroom of about fifty, while GOES ABI
+already quantises each band to about half its own noise-equivalent temperature
+difference.
 
 Where the producer's uncertainty is a distribution rather than a bound, the
 figure used is the one that governs a single element: the vertical accuracy of
