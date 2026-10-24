@@ -10,16 +10,14 @@
 Compression benchmark for Earth observation data. Lossless, near-lossless and
 lossy under one measurement protocol.
 
-**Lossless** reproduces the input exactly, and is compared on ratio and
-throughput.
+| mode | what it guarantees | how it is compared |
+| --- | --- | --- |
+| lossless | the input is reproduced exactly | ratio and throughput |
+| near-lossless | a `tolerance`: a maximum absolute error per element, in the native units of the sample, verified on every sample | ratio and throughput, at equal tolerance only |
+| lossy | nothing | rate-distortion curves over a sweep of operating points, since one measurement is only a point |
 
-**Near-lossless** declares a `tolerance`: a maximum absolute error per element,
-in the native units of the sample, that the benchmark verifies on every sample.
-Two configurations are comparable only at equal tolerance. The tolerance each
-dataset can afford, and why, is in [docs/tolerance.md](docs/tolerance.md).
-
-**Lossy** declares no bound. A single measurement is a point, so these are
-compared as rate-distortion curves over a sweep of operating points.
+The tolerance each dataset can afford, and why, is in
+[docs/tolerance.md](docs/tolerance.md).
 
 Part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html),
 a project funded by [ARIA](https://www.aria.org.uk/) and led by the
