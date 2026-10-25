@@ -1,4 +1,4 @@
-"""The error budgets of `docs/tolerance.md`, in machine-readable form.
+"""The error budgets of `TOLERANCE.md`, in machine-readable form.
 
 Protocol section 3: a budget is declared before the run and is identical for
 every sample of the corpus. It is therefore a property of the corpus, not of a

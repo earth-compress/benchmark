@@ -17,7 +17,7 @@ lossy under one measurement protocol.
 | lossy | nothing | rate-distortion curves over a sweep of operating points, since one measurement is only a point |
 
 The tolerance each dataset can afford, and why, is in
-[docs/tolerance.md](docs/tolerance.md).
+[TOLERANCE.md](TOLERANCE.md).
 
 Part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html),
 a project funded by [ARIA](https://www.aria.org.uk/) and led by the

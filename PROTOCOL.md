@@ -56,7 +56,7 @@ absolute   |x - x̂| <= tau          same allowance for every element
 relative   |x - x̂| <= tau · |x|    allowance proportional to the value; zeros stay zero
 ```
 
-Each corpus uses one kind, recorded in `docs/tolerance.md`. Absolute suits fields with uniform uncertainty, such as elevation or reflectance. Relative suits fields that span orders of magnitude, such as precipitation.
+Each corpus uses one kind, recorded in `TOLERANCE.md`. Absolute suits fields with uniform uncertainty, such as elevation or reflectance. Relative suits fields that span orders of magnitude, such as precipitation.
 
 A bound that the codec scales by the range of the data it receives is not accepted, because its size depends on the data (Section 3, rule 1).
 
@@ -74,7 +74,7 @@ Values have uncertainty before compression. If that uncertainty is `sigma` and c
 
 The three levels give more than one operating point for each codec. Budgets are in the native unit and are rounded down to whole steps of `scale`. If a level is smaller than one step, it is unavailable for the corpus.
 
-`docs/tolerance.md` records the uncertainty used for each corpus, its source, and the resulting budgets.
+`TOLERANCE.md` records the uncertainty used for each corpus, its source, and the resulting budgets.
 
 The following rules apply:
 

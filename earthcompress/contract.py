@@ -74,7 +74,7 @@ PROMISES: dict[Mode, frozenset[Promise]] = {
 class Budget:
     """An error budget, in the native unit of the sample.
 
-    ``level`` names which of the three levels of `docs/tolerance.md` this is.
+    ``level`` names which of the three levels of `TOLERANCE.md` this is.
     It is optional, because an ablation may measure a budget that is not one of
     them, but a result quoted without a level is not a result from the protocol.
     """

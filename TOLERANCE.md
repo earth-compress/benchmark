@@ -6,7 +6,7 @@ A near-lossless configuration declares `tau`, a maximum absolute error per
 element in the native unit of the sample. The budgets here exist to make ratios
 comparable at equal fidelity, not to recommend a fidelity: anyone applying lossy
 compression validates their own budget for their own use. See
-[PROTOCOL.md](../PROTOCOL.md) v1.0.
+[PROTOCOL.md](PROTOCOL.md) v1.0.
 
 ## 1. The rule
 
