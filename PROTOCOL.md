@@ -107,7 +107,7 @@ Throughput depends on the machine as well as the codec. `environment.json` recor
 
 ## 6. Verification
 
-Each promised property has a check. The examples below show why the checks are necessary.
+Each promised property has a check. The examples below, observed by Reichelt et al. (2026) in released compressors, show why the checks are necessary.
 
 | check | assertion | observed precedent |
 | --- | --- | --- |
@@ -115,7 +115,7 @@ Each promised property has a check. The examples below show why the checks are n
 | `sentinel` | Sentinels remain in place and appear nowhere else | SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error |
 | `zero` | Exact zeros survive | ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values |
 
-Two other properties are recorded without causing failure. For **subnormals**, record whether the input contains them and whether they survive; bit rounding has failed on such values. For **declared corpus properties**, record whether compression changes them.
+Two other properties are recorded without causing failure. For **subnormals**, record whether the input contains them and whether they survive; bit rounding has failed on such values (Reichelt et al., 2026). For **declared corpus properties**, record whether compression changes them.
 
 If a check cannot run, report it as *not run* rather than *passed*.
 
@@ -197,3 +197,4 @@ Detecting a compression effect does not establish that it matters for an analysi
 ## References
 
 - Baker, A. H., et al. (2016). Evaluating lossy data compression on climate simulation data within a large ensemble. *Geosci. Model Dev.*, 9, 4381–4403.
+- Reichelt, T., et al. (2026). ClimateBenchPress (v1.0): a benchmark for lossy compression of climate data. *Geosci. Model Dev.*, 19, 5933–5960.
