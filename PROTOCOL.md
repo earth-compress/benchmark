@@ -94,7 +94,7 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 - Decompress the sample before timing. Each codec receives `data` as an in-memory array; corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
 - A codec may use internal planes or blocks. Its transforms, quantisation, model selection, entropy coding, and assembly are all timed.
-- Compressed bytes must contain everything needed for decoding except shape and dtype. This includes quantisation steps, offsets, symbol tables, dictionaries, and shared state.
+- Compressed bytes must contain everything needed for decoding except shape and dtype.
 - Use one thread. After one untimed warm-up, run five timed rounds. In each round, repeat the operation until the total reaches one second, then report the median time per operation.
 - Report a 95% confidence interval for median throughput from 10,000 percentile-bootstrap resamples with seed 0.
 - Confirm that the compressed bytes and the decoded array do not change between rounds.
