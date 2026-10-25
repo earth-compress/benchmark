@@ -87,8 +87,6 @@ corpora/<corpus-id>/
 
 Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It contains `data`, plus `scale` and `offset` when they are not 1 and 0, and `sentinel` where applicable. `scale` and `offset` may be arrays, because a producer may pack each band or field with its own range.
 
-The sample container is for benchmarking, not data distribution. Starting from a Zarr or NetCDF store with its own compressor would mix the store's behavior with the codec measurement. Here, corpus decompression happens before timing, and the codec receives only the in-memory array.
-
 `manifest.csv` contains `id`, `shape`, `dtype`, `unit`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
 
 Exports do not replace the canonical corpus. `export_zarr.py` writes uncompressed Zarr v3, so another benchmark can run on the same samples without this harness. `export_netcdf.py` writes NetCDF-4 with CF attributes. Released corpora receive a version and DOI; previews are deposited separately.
