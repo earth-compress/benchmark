@@ -91,6 +91,8 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 
 ## 5. Measurement
 
+The official run measures the configurations listed in `CODECS.md`.
+
 - Decompress the sample before timing. Each codec receives `data` as an in-memory array; corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
 - A codec may use internal planes or blocks. Its transforms, quantisation, model selection, entropy coding, and assembly are all timed.
