@@ -4,7 +4,7 @@
 
 This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy.
 
-Each measurement uses one array in memory. The protocol covers compressed size, encode and decode time, and distortion. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule.
+Each measurement uses one array in memory. The protocol covers compressed size, decode time, distortion, and an indicative encode time. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule.
 
 ## 1. Starting representation
 
@@ -99,11 +99,9 @@ The official run measures the configurations listed in `CODECS.md`.
 - Compressed bytes must contain everything needed for decoding except shape and dtype.
 - Use one thread.
 
-Size and speed are measured separately, because compressed size and distortion do not change between calls and time does.
-
-- **Size and error.** Encode and decode every sample once. The compressed size and the distortion come from that call.
-- **Speed.** Use three samples per corpus: the first, the middle, and the last in the manifest. Call encode and decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The size pass runs first and serves as the warm-up.
-- Every call on the same sample must return the same compressed bytes and the same decoded array.
+- **Size, error, and encode time.** Encode and decode every sample once. The compressed size, the distortion, and the encode time come from that call. The encode time is one call without warm-up, so it is indicative.
+- **Decode time.** Use three samples per corpus, the first, the middle, and the last in the manifest. Call decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The size pass serves as the warm-up.
+- **Determinism.** On the same three samples, encode once more and check that the bytes match the first call. Every decode of the same bytes must return the same array.
 
 Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
 
@@ -151,7 +149,7 @@ error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 
 `error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
 
-`results.csv` has one row per sample and configuration; the timing columns are empty for samples outside the speed set: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_ns_min`, `encode_ns_max`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
+`results.csv` has one row per sample and configuration; the decode timing columns are empty for samples outside the decode set: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
 
 ## 8. Aggregation and comparability
 
@@ -160,8 +158,8 @@ Compute aggregate rates from totals across samples, not from averages of per-sam
 ```text
 compression_ratio = sum(input_bytes) / sum(compressed_bytes)
 bits_per_value    = sum(compressed_bytes) * 8 / sum(count)
-encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000      over the speed set
-decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over the speed set
+encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000      over all samples
+decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over the decode set
 max_abs_error     = max over samples
 rmse              = sqrt(sum(rmse² · count) / sum(count))
 ```
