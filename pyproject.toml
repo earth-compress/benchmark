@@ -24,7 +24,6 @@ dependencies = ["numpy>=1.24", "typer>=0.20,<1", "zstandard>=0.22"]
 
 [project.optional-dependencies]
 corpus = ["Pillow>=10", "rasterio>=1.4"]
-export = ["zarr>=3", "netCDF4>=1.6"]
 
 [project.scripts]
 earthcompress = "earthcompress.__main__:main"

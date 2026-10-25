@@ -89,8 +89,6 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 
 `manifest.csv` contains `id`, `shape`, `dtype`, `unit`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
 
-Exports do not replace the canonical corpus. `export_zarr.py` writes uncompressed Zarr v3. `export_netcdf.py` writes NetCDF-4 with CF attributes. Released corpora receive a version and DOI; previews are deposited separately.
-
 ## 5. Measurement
 
 - Decompress the sample before timing. Each codec receives `data` as an in-memory array; corpus read time is excluded.
