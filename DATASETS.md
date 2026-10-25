@@ -7,7 +7,7 @@ Each sample is a window cut from a published product, on its native grid, with b
 ## Corpora
 
 | corpus | contents | shape | dtype | samples | MB | source |
-| --- | --- | --- | --- | ---: | ---: | --- | --- |
+| --- | --- | --- | --- | ---: | ---: | --- |
 | `s2-l1c-10m-4` | Sentinel-2 L1C, bands B2, B3, B4, B8 at 10 m | 4×512×512 | uint16 | 50 | 104.9 | `COPERNICUS/S2_HARMONIZED` |
 | `s2-l1c-20m-6` | Sentinel-2 L1C, red-edge, narrow NIR and SWIR bands at 20 m | 6×512×512 | uint16 | 50 | 157.3 | `COPERNICUS/S2_HARMONIZED` |
 | `s2-l1c-60m-3` | Sentinel-2 L1C, aerosol, water vapour and cirrus bands at 60 m | 3×512×512 | uint16 | 50 | 78.6 | `COPERNICUS/S2_HARMONIZED` |
