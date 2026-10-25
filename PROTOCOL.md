@@ -176,21 +176,15 @@ Any quoted ratio must include `tau` and `budget_level`.
 
 ## 9. Task validation
 
-An elementwise bound does not guarantee that a derived result is stable. Baker et al. calculated that compressing two radiative fluxes to relative errors of 0.3% and 0.02% would give their difference, the top-of-model energy balance, a relative error of 8.0%, and compressed both fluxes less aggressively for that reason. Subtracting nearly equal values can amplify the relative effect of small errors. Band indices can have the same problem.
+An elementwise bound does not guarantee that a derived result is stable. Subtracting two nearly equal fields, for example, amplifies their compression errors (Baker et al., 2016).
 
-Task validation runs an analysis on both the original and decoded arrays, then compares the analysis outputs against a stated criterion. It is a separate protocol built on these measurements.
+Task validation is a separate protocol. It runs an analysis on the original and decoded arrays and compares the outputs, not the arrays.
 
 | task | corpus | effect tested |
 | --- | --- | --- |
 | NDVI | `s2-l1c-10m-4` | Difference between two similar bands |
 | slope | `cop-dem-glo30` | Sensitivity of a spatial derivative |
-| rain mask | `imerg-pcp-12` | Threshold crossing |
-
-The rain-mask task comes from an Earth Compress measurement on IMERG at a 0.05 mm/hr absolute bound. All 41.0 million exact zeros survived, but 690,198 light-rain values at or below the bound decoded as zero. The elementwise bound held while the number of raining elements changed.
-
-Variables used together in a standard derived quantity should receive the same budget. In Baker et al., the surface energy balance of the compressed ensemble members fell outside the ensemble spread because latent heat flux had been compressed more aggressively than the other three fluxes; with equal precision, the anomaly disappeared.
-
-Detecting a compression effect does not establish that it matters for an analysis. A blind study with domain scientists, mixing original and compressed data without labels, can test whether the difference affects their own work.
+| rain mask | `imerg-pcp-12` | Threshold crossing; on IMERG, a 0.05 mm/hr bound held while 690,198 light-rain values decoded as zero |
 
 ## References
 
