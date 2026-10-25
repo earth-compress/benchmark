@@ -26,9 +26,7 @@ assert back.shape == published.shape and back.dtype == published.dtype
 assert back.tobytes(order="C") == published.tobytes(order="C")
 ```
 
-The benchmark does not add quantisation. Quantisation already applied by the producer is part of the published data. If a corpus cannot reproduce that data exactly, its description (Section 4) must disclose the difference.
-
-`exact` records whether the stored sample reproduces the published data bit for bit. If it does not, the corpus description must state what was lost.
+The benchmark does not add quantisation. Quantisation already applied by the producer is part of the published data.
 
 ## 2. Fidelity modes
 
@@ -107,7 +105,7 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 
 The sample container is for benchmarking, not data distribution. Starting from a Zarr or NetCDF store with its own compressor would mix the store's behavior with the codec measurement. Here, corpus decompression happens before timing, and the codec receives only the in-memory array.
 
-`manifest.csv` contains `id`, `shape`, `dtype`, `unit`, `exact`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
+`manifest.csv` contains `id`, `shape`, `dtype`, `unit`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
 
 Exports do not replace the canonical corpus. `export_zarr.py` writes uncompressed Zarr v3, so another benchmark can run on the same samples without this harness. `export_netcdf.py` writes NetCDF-4 with CF attributes. Released corpora receive a version and DOI; previews are deposited separately.
 
