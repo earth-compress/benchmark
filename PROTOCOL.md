@@ -47,21 +47,20 @@ Every configuration declares a mode. The mode determines which properties the ru
 
 If a configuration breaks a promise for a sample, that row has `fidelity_ok = false`, empty measurements, and no place in the aggregate results.
 
-### 2.1 Error bounds
+### 2.1 Error bound
 
-The term *relative error* is used inconsistently in compression literature. This protocol names the bound explicitly:
+A near-lossless configuration declares a bound `tau` of one of two kinds:
 
 ```text
-absolute        |x - x̂| <= tau
-relative        |x - x̂| <= tau · |x|              → requires exact zeros
-range-relative  |x - x̂| <= tau · (max x - min x)
+absolute   |x - x̂| <= tau          same allowance for every element
+relative   |x - x̂| <= tau · |x|    allowance proportional to the value; zeros stay zero
 ```
 
-A relative bound requires `x̂ = 0` when `x = 0`. A range-relative bound is an absolute bound whose size the codec computes from the data it receives. Rule 1 of Section 3 excludes that, so a range-relative bound does not qualify as a near-lossless claim here. A codec that offers only a range-relative bound is measured in `lossy` mode.
+Each corpus uses one kind, recorded in `docs/tolerance.md`. Absolute suits fields with uniform uncertainty, such as elevation or reflectance. Relative suits fields that span orders of magnitude, such as precipitation.
 
-All bounds also allow `x ≡ x̂`, meaning an exactly preserved value passes even when subtraction is undefined. Without this clause, `∞ - ∞` would be NaN and a correctly preserved infinity would fail.
+A bound that the codec scales by the range of the data it receives is not accepted, because its size depends on the data (Section 3, rule 1).
 
-Use `absolute` bounds for fields with a bounded range and roughly uniform uncertainty, such as reflectance, elevation, and temperature. Use `relative` bounds for fields that span orders of magnitude, such as precipitation, trace concentrations, and biomass.
+An element decoded to exactly its input value always passes, including infinities.
 
 ## 3. Error budgets
 
