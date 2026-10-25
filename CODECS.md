@@ -7,17 +7,17 @@ The configurations measured in the official run, and one reference measured once
 | id | group | definition | software |
 | --- | --- | --- | --- |
 | `zstd-c3` | baseline | Zstandard level 3 over the raw bytes | python-zstandard |
-| `eopf` | baseline | Blosc with Zstandard level 3 and bit shuffle, the setting of the EOPF Sentinel Zarr products | python-blosc (c-blosc) |
+| `blosc-zstd3-bitshuffle` | baseline | Blosc with Zstandard level 3 and bit shuffle, the setting of the EOPF Sentinel Zarr products | python-blosc (c-blosc) |
 | `deflate-c6` | baseline | DEFLATE level 6 over the raw bytes | Python zlib |
 | `lzw` | baseline | LZW over the raw bytes, as in a TIFF written with LZW and no predictor | imagecodecs |
-| `gtiff-zstd` | baseline | horizontal differencing as TIFF `PREDICTOR=2`, then Zstandard level 9 as GDAL writes a ZSTD GeoTIFF | NumPy and python-zstandard |
+| `hdiff-zstd9` | baseline | horizontal differencing as TIFF `PREDICTOR=2`, then Zstandard level 9 as GDAL writes a ZSTD GeoTIFF | NumPy and python-zstandard |
 | `openzl-generic` | OpenZL | `compress_generic` at level 7 | openzl 0.3.0 |
 | `openzl-delta-fieldlz` | OpenZL | `delta>field_lz` | openzl 0.3.0 |
 | `openzl-delta-pivco` | OpenZL | `delta>zigzag>transpose>huffman_pivco` | openzl 0.3.0 |
 | `geozl-planar-pfor` | GeoZL | `planar>zigzag>pfor` | geozl 0.19.0 on openzl 0.3.0 |
 | `geozl-planar-pivco` | GeoZL | `planar>zigzag>transpose>pivco` | geozl 0.19.0 on openzl 0.3.0 |
 
-`gtiff-zstd` reproduces the codec inside the file, not the file. There is no TIFF container, each sample is one tile, and bands are pixel-interleaved before differencing.
+`hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, and bands are pixel-interleaved before differencing.
 
 The OpenZL configurations use no GeoZL codec.
 
