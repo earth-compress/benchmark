@@ -59,14 +59,14 @@ An element decoded to exactly its input value always passes, including infinitie
 
 ## 3. Error budgets
 
-Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units and rounded down to whole steps of `scale`; a level smaller than one step is not available for that corpus.
+Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of `scale`, and a level smaller than one step is not available for that corpus.
 
 The following rules apply:
 
 1. **Fixed budget.** Each corpus has one `tau` per level, listed in `TOLERANCE.md`, in native units. The codec receives that number and must keep every element within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset.
 2. **Every element.** The bound limits the largest error, not the average.
 3. **NoData is not counted.** `tau` applies to valid elements; NoData values must decode unchanged.
-4. **Mixed planes take the smallest budget.** If an array mixes quantities, such as reflectance and brightness temperature in `goes-abi-16`, use the budget of the most sensitive plane.
+4. **Mixed planes take the smallest budget.** If an array mixes quantities in one native unit, use the budget of the most sensitive plane.
 
 ### 3.1 Corpora without a near-lossless point
 
