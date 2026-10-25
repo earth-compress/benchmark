@@ -95,9 +95,13 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
 - A codec may use internal planes or blocks. Its transforms, quantisation, model selection, entropy coding, and assembly are all timed.
 - Compressed bytes must contain everything needed for decoding except shape and dtype.
-- Use one thread. After one untimed warm-up, run five timed rounds. In each round, repeat the operation until the total reaches one second, then report the median time per operation.
-- Report a 95% confidence interval for median throughput from 10,000 percentile-bootstrap resamples with seed 0.
-- Confirm that the compressed bytes and the decoded array do not change between rounds.
+- Use one thread.
+
+Size and speed are measured separately, because compressed size and distortion do not change between calls and time does.
+
+- **Size and error.** Encode and decode every sample once. The compressed size and the distortion come from that call.
+- **Speed.** Use three samples per corpus: the first, the middle, and the last in the manifest. Call encode and decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The size pass runs first and serves as the warm-up.
+- Every call on the same sample must return the same compressed bytes and the same decoded array.
 
 Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
 
@@ -145,7 +149,7 @@ error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 
 `error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
 
-`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_MB_s`, `decode_MB_s`, the four CI bounds, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
+`results.csv` has one row per sample and configuration; the timing columns are empty for samples outside the speed set: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_ns_min`, `encode_ns_max`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
 
 ## 8. Aggregation and comparability
 
@@ -154,8 +158,8 @@ Compute aggregate rates from totals across samples, not from averages of per-sam
 ```text
 compression_ratio = sum(input_bytes) / sum(compressed_bytes)
 bits_per_value    = sum(compressed_bytes) * 8 / sum(count)
-encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000
-decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000
+encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000      over the speed set
+decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over the speed set
 max_abs_error     = max over samples
 rmse              = sqrt(sum(rmse² · count) / sum(count))
 ```
