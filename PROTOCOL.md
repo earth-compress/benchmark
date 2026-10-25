@@ -100,8 +100,8 @@ The official run measures the configurations listed in `CODECS.md`.
 - Use one thread.
 
 - **Size, error, and encode time.** Encode each sample and decode the result. The compressed size and the encode time come from the encode, and the distortion from the decode. The encode time is a single call without warm-up, so it is indicative.
-- **Decode time.** Use three samples per corpus, the first, the middle, and the last in the manifest. Call decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode in the first bullet serves as the warm-up.
-- **Determinism.** On the same three samples, encode once more and check that the bytes match the first call. Every decode of the same bytes must return the same array.
+- **Decode time.** On every sample, call decode up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode in the first bullet serves as the warm-up.
+- **Determinism.** The repeated decodes of each sample must return the same array. On three samples per corpus, the first, the middle, and the last in the manifest, encode once more and check that the bytes match the first encode.
 
 Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
 
@@ -149,7 +149,7 @@ error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 
 `error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
 
-`results.csv` has one row per sample and configuration; the decode timing columns are empty for samples outside the decode set: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
+`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
 
 ## 8. Aggregation and comparability
 
@@ -159,7 +159,7 @@ Compute aggregate rates from totals across samples, not from averages of per-sam
 compression_ratio = sum(input_bytes) / sum(compressed_bytes)
 bits_per_value    = sum(compressed_bytes) * 8 / sum(count)
 encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000      over all samples
-decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over the decode set
+decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over all samples
 max_abs_error     = max over samples
 rmse              = sqrt(sum(rmse² · count) / sum(count))
 ```
