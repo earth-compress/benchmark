@@ -59,13 +59,15 @@ An element decoded to exactly its input value always passes, including infinitie
 
 ## 3. Error budgets
 
-Values have uncertainty before compression. If that uncertainty is `sigma` and compression contributes an independent error of `sigma / k`, their quadrature sum is `sigma · sqrt(1 + 1/k²)`.
+Data already carry an uncertainty `sigma` before compression: instrument noise, retrieval error, or model spread. If compression adds an independent error of `sigma / k`, the two add in quadrature and the total error becomes `sigma · sqrt(1 + 1/k²)`. The three budget levels set `k` to 5, 2, and 1:
 
-| level | `tau` | increase in total error |
-| --- | --- | ---: |
-| `conservative` | uncertainty / 5 | 2% |
-| `matched` | uncertainty / 2 | 12% |
-| `aggressive` | uncertainty | 41% |
+| level | `tau` | total error | increase |
+| --- | --- | --- | ---: |
+| `conservative` | `sigma / 5` | `sigma · sqrt(1 + 1/25) = 1.02 · sigma` | 2% |
+| `matched` | `sigma / 2` | `sigma · sqrt(1 + 1/4) = 1.12 · sigma` | 12% |
+| `aggressive` | `sigma` | `sigma · sqrt(1 + 1) = 1.41 · sigma` | 41% |
+
+The values of `k` are a choice of this protocol. At `k = 5`, compression adds 2% to the error the data already had; at `k = 1`, the compression error equals it. Because `tau` is a maximum rather than a spread, the actual compression error is smaller than `tau` for most elements, so these increases are upper bounds.
 
 The three levels give more than one operating point for each codec. Budgets are in the native unit and are rounded down to whole steps of `scale`. If a level is smaller than one step, it is unavailable for the corpus.
 
