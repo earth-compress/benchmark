@@ -28,11 +28,9 @@ assert back.tobytes(order="C") == published.tobytes(order="C")
 
 The benchmark does not add quantisation. Quantisation already applied by the producer is part of the published data. If a corpus cannot reproduce that data exactly, its description (Section 4) must disclose the difference.
 
-`grid` is the quantisation step of the published data, in the sample's native unit. All error budgets use that unit. For an integer corpus, `grid = scale`. A float corpus whose values do not fall on a common step has no grid. When the step differs within a sample, for example per band, `scale` and `offset` are stored per slice.
+`grid` is the quantisation step of the published data, in its native unit. Error budgets are expressed in that unit. Float data without a common step has no grid.
 
-The published form can hide how the data was produced. ARCO-ERA5 republishes ERA5 as float32. In 2 m temperature, its values are spaced about 0.0016 K apart, about 2¹⁶ steps across the field's range, yet no `(scale, offset)` pair reproduces them bit for bit. By the rule above, ARCO-ERA5 remains float32. Quantising it to 0.01 K, as an earlier version of this corpus did, coarsens that spacing by a factor of about 6.4. Recovering the producer's integers requires the original GRIB messages and their packing parameters, not the republished float32.
-
-`exact` records whether the stored representation reproduces each published sample bit for bit. The script that builds the corpus asserts this property. If a corpus cannot meet it, its description must state what was lost.
+`exact` records whether the stored sample reproduces the published data bit for bit. If it does not, the corpus description must state what was lost.
 
 ## 2. Fidelity modes
 
