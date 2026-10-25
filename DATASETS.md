@@ -38,3 +38,13 @@ Each sample is a window cut from a published product, on its native grid, with b
 Sources in capitals are Earth Engine collections.
 
 Each corpus folder holds a `spec.md` with its native unit and licence.
+
+## Rebuilding
+
+Each corpus can be rebuilt from its `manifest.csv`, which names the source asset, CRS, geotransform, dates, and bands of every sample:
+
+```bash
+python corpora/<corpus-id>/build.py build
+```
+
+The rebuild fails if any sample does not match its `input_sha256`. Earth Engine sources need an authenticated Earth Engine account.

@@ -77,7 +77,7 @@ Some corpora have no meaningful nonzero error budget. This applies to categorica
 ```text
 corpora/<corpus-id>/
 ├── spec.md               sample definition, native unit, licence
-├── build.py              sample generation and exactness assertions
+├── build.py              sample selection, rebuild, and exactness assertions
 ├── manifest.csv          one row per sample
 ├── npz/<sample>.npz.zst  sample data
 ├── png/<sample>.png      preview; never measured
@@ -87,7 +87,32 @@ corpora/<corpus-id>/
 
 Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It contains `data`, plus `scale` and `offset` when they are not 1 and 0, and `sentinel` where applicable. `scale` and `offset` may be arrays, with one value per band or field.
 
-`manifest.csv` contains `id`, `shape`, `dtype`, `unit`, `input_sha256`, `npz_path`, `png_path`, and any source metadata.
+`manifest.csv` has one row per sample, with these columns:
+
+| column | content |
+| --- | --- |
+| `id` | sample id |
+| `source` | collection or product, with its version |
+| `asset` | exact id of the source scene, granule, or tile |
+| `crs` | EPSG code or WKT |
+| `transform` | six values of the affine geotransform, in GDAL order |
+| `datetime_start`, `datetime_end` | ISO 8601 UTC; for products without an acquisition time, the period they cover |
+| `bands` | source name of each plane, in array order |
+| `shape`, `dtype` | of `data` |
+| `unit` | native unit after `scale` and `offset` |
+| `scale`, `offset` | as stored in the sample |
+| `nodata` | sentinel value, empty if none |
+| `input_sha256` | SHA-256 of `data` |
+| `npz_path`, `png_path` | relative paths |
+
+Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date.
+
+`build.py` has two steps:
+
+1. `select` chooses the samples and writes `manifest.csv`. It runs once.
+2. `build` reads only `manifest.csv`, fetches each `asset` over the window given by `transform` and `shape`, writes the sample, and checks `input_sha256`.
+
+A rebuild runs `build` only.
 
 ## 5. Measurement
 
