@@ -49,16 +49,11 @@ If a configuration breaks a promise for a sample, that row has `fidelity_ok = fa
 
 ### 2.1 Error bound
 
-A near-lossless configuration declares a bound `tau` of one of two kinds:
+A near-lossless configuration declares an absolute bound `tau`, in the native unit of the sample:
 
 ```text
-absolute   |x - x̂| <= tau          same allowance for every element
-relative   |x - x̂| <= tau · |x|    allowance proportional to the value; zeros stay zero
+|x - x̂| <= tau
 ```
-
-Each corpus uses one kind, recorded in `TOLERANCE.md`. Absolute suits fields with uniform uncertainty, such as elevation or reflectance. Relative suits fields that span orders of magnitude, such as precipitation.
-
-A bound that the codec scales by the range of the data it receives is not accepted, because its size depends on the data (Section 3, rule 1).
 
 An element decoded to exactly its input value always passes, including infinities.
 
@@ -78,7 +73,7 @@ The three levels give more than one operating point for each codec. Budgets are 
 
 The following rules apply:
 
-1. **Declare budgets independently of the sample.** A codec cannot derive any part of its budget from the data being compressed. EBCC and SZ3 internally convert a relative bound to `tau · (max x - min x)`. Because the range changes by chunk, this can apply different absolute bounds to chunks of the same dataset. The harness may tighten a budget to fit a codec's accepted bound kind (Section 8); it never loosens one.
+1. **Declare budgets independently of the sample.** A codec cannot derive any part of its budget from the data being compressed. EBCC and SZ3 internally convert a relative bound to `tau · (max x - min x)`. Because the range changes by chunk, this can apply different absolute bounds to chunks of the same dataset.
 2. **Check every valid element.** Meeting a budget on average does not compensate for one element exceeding it.
 3. **Exclude NoData from the numeric budget.** `tau` applies only to valid elements. Sentinels must round-trip exactly in every mode.
 4. **Use the strictest applicable budget for heterogeneous planes.** If one array contains several physical quantities (`goes-abi-16`) or value types (`tessera-v2-128`), use the smallest defensible budget across its planes.
@@ -130,7 +125,7 @@ Each promised property has a check. The examples below show why the checks are n
 | `sentinel` | Sentinels remain in place and appear nowhere else | SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error |
 | `zero` | Exact zeros survive | ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values |
 
-Two other properties are recorded without causing failure. For **subnormals**, record whether the input contains them and whether they survive; bit rounding has failed a relative bound on such values. For **declared corpus properties**, record whether compression changes them.
+Two other properties are recorded without causing failure. For **subnormals**, record whether the input contains them and whether they survive; bit rounding has failed on such values. For **declared corpus properties**, record whether compression changes them.
 
 If a check cannot run, report it as *not run* rather than *passed*.
 
@@ -164,7 +159,7 @@ error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 
 `error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
 
-`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `bound_kind`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_MB_s`, `decode_MB_s`, the four CI bounds, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, `fidelity_ok`, and `converted`.
+`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `encode_MB_s`, `decode_MB_s`, the four CI bounds, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, `subnormals_ok`, and `fidelity_ok`.
 
 ## 8. Aggregation and comparability
 
@@ -184,12 +179,12 @@ Do not aggregate `psnr_dB`, because its peak differs by sample. Include a config
 Results should show operating points and curves rather than name an overall winner. Comparisons follow these rules:
 
 - Two `lossless` configurations can be compared directly.
-- Two `near-lossless` configurations can be compared at the same bound kind and `tau`.
+- Two `near-lossless` configurations can be compared at the same `tau`.
 - A `near-lossless` configuration and a `lossy` one can be compared as curves, with the difference in their guarantees stated.
 - Two `lossy` configurations can be compared over a sweep, rather than from a single row.
 - Ratios computed from different starting representations of the same data do not isolate codec performance.
 
-Mark a row `converted = true` when the harness transformed its budget to fit a codec that does not accept the original bound kind. The transforms are `tau_abs = min|x| · tau_rel` over nonzero values and `tau_rel = tau_abs / max|x|`. Both are conservative, so treat the resulting ratio as a lower bound. Any quoted ratio must include `tau` and `budget_level`.
+Any quoted ratio must include `tau` and `budget_level`.
 
 ## 9. Task validation
 
@@ -203,7 +198,7 @@ Task validation runs an analysis on both the original and decoded arrays, then c
 | slope | `cop-dem-glo30` | Sensitivity of a spatial derivative |
 | rain mask | `imerg-pcp-12` | Threshold crossing |
 
-The rain-mask task comes from an Earth Compress measurement on IMERG at a 0.05 mm/hr absolute bound. All 41.0 million exact zeros survived, but 690,198 light-rain values at or below the bound decoded as zero. The elementwise bound held while the number of raining elements changed. A relative bound with `tau < 1` would have kept every nonzero value nonzero.
+The rain-mask task comes from an Earth Compress measurement on IMERG at a 0.05 mm/hr absolute bound. All 41.0 million exact zeros survived, but 690,198 light-rain values at or below the bound decoded as zero. The elementwise bound held while the number of raining elements changed.
 
 Variables used together in a standard derived quantity should receive the same budget. In Baker et al., the surface energy balance of the compressed ensemble members fell outside the ensemble spread because latent heat flux had been compressed more aggressively than the other three fluxes; with equal precision, the anomaly disappeared.
 
