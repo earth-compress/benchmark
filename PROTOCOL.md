@@ -40,7 +40,7 @@ Every configuration declares a mode. The mode determines which properties the ru
 
 - **`structure`:** decoded shape and dtype match the input.
 - **`determinism`:** the same input produces the same bytes, and the same bytes decode to the same array. When a codec provides more than one decoder, such as CPU and GPU, every decoder must produce the same array.
-- **`exactness`:** decoded bytes equal input bytes in C order. Equal numerical values with different byte representations do not pass.
+- **`exactness`:** the decoded array is identical to the input, bit for bit.
 - **`bound`:** the error bound defined in Section 2.1 holds.
 - **`sentinel`:** every NoData value remains in its original position, and no valid input value becomes a sentinel.
 - **`zero`:** every exact zero remains an exact zero.
