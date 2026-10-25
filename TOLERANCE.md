@@ -10,15 +10,22 @@ compression validates their own budget for their own use. See
 
 ## 1. The rule
 
-Every value already carries an error before any codec touches it, and the two
-add in quadrature. A compression error of `sigma / k` against uncertainty
-`sigma` raises the total by `sqrt(1 + 1/k²)`:
+Data already carry an uncertainty `sigma` before compression: instrument noise,
+retrieval error, or model spread. If compression adds an independent error of
+`sigma / k`, the two add in quadrature and the total error becomes
+`sigma · sqrt(1 + 1/k²)`. The three levels set `k` to 5, 2, and 1:
 
-| level | `tau` | total error raised by |
-| --- | --- | ---: |
-| `conservative` | uncertainty / 5 | 2% |
-| `matched` | uncertainty / 2 | 12% |
-| `aggressive` | uncertainty | 41% |
+| level | `tau` | total error | increase |
+| --- | --- | --- | ---: |
+| `conservative` | `sigma / 5` | `sigma · sqrt(1 + 1/25) = 1.02 · sigma` | 2% |
+| `matched` | `sigma / 2` | `sigma · sqrt(1 + 1/4) = 1.12 · sigma` | 12% |
+| `aggressive` | `sigma` | `sigma · sqrt(1 + 1) = 1.41 · sigma` | 41% |
+
+The values of `k` are a choice of this benchmark. At `k = 5`, compression adds
+2% to the error the data already had; at `k = 1`, the compression error equals
+it. Because `tau` is a maximum rather than a spread, the actual compression
+error is smaller than `tau` for most elements, so these increases are upper
+bounds.
 
 `grid` is the quantisation step of the published data: the distance between two
 values the producer can represent. Budgets round **down** to whole grid steps,
