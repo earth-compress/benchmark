@@ -100,7 +100,7 @@ The official run measures the configurations listed in `CODECS.md`.
 - Use one thread.
 
 - **Size, error, and encode time.** Encode and decode every sample once. The compressed size, the distortion, and the encode time come from that call. The encode time is one call without warm-up, so it is indicative.
-- **Decode time.** Use three samples per corpus, the first, the middle, and the last in the manifest. Call decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The size pass serves as the warm-up.
+- **Decode time.** Use three samples per corpus, the first, the middle, and the last in the manifest. Call decode on each up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode in the first bullet serves as the warm-up.
 - **Determinism.** On the same three samples, encode once more and check that the bytes match the first call. Every decode of the same bytes must return the same array.
 
 Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
