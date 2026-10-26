@@ -394,18 +394,20 @@ def build() -> None:
             )
 
         spec = folder / "spec.md"
-        spec_html = (
-            markdown.markdown(spec.read_text().split("\n", 1)[1], extensions=["tables"])
-            if spec.exists()
-            else ""
+        blocks = spec.read_text().split("\n## ")[1:] if spec.exists() else []
+        spec_html = "".join(
+            f"<div><h3>{html.escape(b.split(chr(10), 1)[0])}</h3>"
+            f"{markdown.markdown(b.split(chr(10), 1)[1], extensions=['tables'])}</div>"
+            for b in blocks
         )
         body = f"""{crumbs("../../", ("Datasets", "datasets/"), (cid, None))}
 <h1>{cid}</h1>
 <p class="lead">{inline(row["contents"])}.</p>
 <p class="facts"><span>{inline(row["shape"])}</span><span>{inline(row["dtype"])}</span><span>{inline(row["samples"])} samples</span><span>{inline(row["MB"])} MB</span><span>{inline(row["source"])}</span></p>
+<section class="spec">{spec_html}</section>
+<p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
 {chart_block(badge=badge, key=cid)}
-<section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>
-<section class="spec">{spec_html}<p><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p></section>"""
+<section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>"""
         target = OUT / "datasets" / cid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(

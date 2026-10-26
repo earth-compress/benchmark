@@ -77,9 +77,10 @@ thead th, table tr:first-child th { font-weight: 500; color: var(--muted); font-
 h1 { font: 600 28px var(--mono); margin: 0 0 6px; letter-spacing: -0.01em; }
 .lead { font-size: 17px; margin: 0 0 8px; }
 .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; font: 13px var(--mono); color: var(--muted); }
-.spec { font-size: 15px; max-width: 820px; }
-.spec h2 { font-size: 17px; margin: 22px 0 4px; }
-.spec p { margin: 0 0 10px; }
+.spec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 40px; padding: 26px 0 8px; border-bottom: 0; font-size: 15px; }
+.spec h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px; }
+.spec p { margin: 0 0 8px; }
+.folder { font-size: 14px; margin: 0 0 4px; }
 
 .sample { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 36px; padding: 12px 0 32px; }
 .figure img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--tint); }
@@ -107,5 +108,6 @@ footer p { margin: 0 0 8px; }
   .soon { display: none; }
   .chart .label { font-size: 11px; }
   .sample { grid-template-columns: 1fr; gap: 16px; }
+  .spec { grid-template-columns: 1fr; }
   h1 { font-size: 22px; }
 }
