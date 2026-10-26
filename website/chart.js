@@ -20,41 +20,15 @@ const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const rate = entry => ({
   ratio: entry.input / entry.compressed,
   speed: entry.input / 1e6 / (entry.decode_ns / 1e9),
-  entry,
 });
-const mbs = (bytes, ns) => Math.round(bytes / 1e6 / (ns / 1e9)).toLocaleString("en");
-const mb = bytes => (bytes / 1e6).toLocaleString("en", { maximumFractionDigits: 1 });
-function details(id, group, p) {
-  const e = p.entry;
-  const span = e.samples === 1
-    ? `${mbs(e.input, e.decode_max_ns)} to ${mbs(e.input, e.decode_min_ns)} MB/s over the repeated calls`
-    : `${e.samples} samples${e.corpora ? ` in ${e.corpora} corpora` : ""}`;
-  return `<strong>${id}</strong>${group ? `<span class="group">${group}</span>` : ""}
-<dl>
-<dt>ratio</dt><dd>${p.ratio.toFixed(3)}</dd>
-<dt>bits per value</dt><dd>${(e.compressed * 8 / e.elements).toFixed(2)}</dd>
-<dt>decode</dt><dd>${mbs(e.input, e.decode_ns)} MB/s</dd>
-<dt>encode</dt><dd>${mbs(e.input, e.encode_ns)} MB/s</dd>
-<dt>size</dt><dd>${mb(e.input)} MB to ${mb(e.compressed)} MB</dd>
-</dl>
-<p>${span}</p>
-<p>${e.version}</p>`;
-}
-function hover(box, target, html, x, y) {
-  const show = () => {
-    const tip = box.querySelector(".tip");
-    tip.innerHTML = html;
-    tip.hidden = false;
-    const top = box.querySelector("svg").getBoundingClientRect().top - box.getBoundingClientRect().top;
-    const left = x + 14 + tip.offsetWidth > box.clientWidth ? x - 14 - tip.offsetWidth : x + 14;
-    tip.style.left = `${Math.max(0, left)}px`;
-    tip.style.top = `${Math.max(0, top + y - 12)}px`;
-  };
-  const hide = () => { box.querySelector(".tip").hidden = true; };
-  target.addEventListener("pointerenter", show);
-  target.addEventListener("pointerleave", hide);
-  target.addEventListener("focus", show);
-  target.addEventListener("blur", hide);
+function hover(svg, target) {
+  // Bring the hovered point and its name to the front and dim the rest.
+  const on = () => { svg.append(target); svg.classList.add("focus"); target.classList.add("active"); };
+  const off = () => { svg.classList.remove("focus"); target.classList.remove("active"); };
+  target.addEventListener("pointerenter", on);
+  target.addEventListener("pointerleave", off);
+  target.addEventListener("focus", on);
+  target.addEventListener("blur", off);
 }
 function legend(groups, present) {
   const div = document.createElement("div");
@@ -106,7 +80,7 @@ function draw(box, totals, CODECS, groups, reference) {
     svg.append(g);
     const w = text.length * (SMALL_TEXT ? 5.6 : 6.6);
     placed.push({ x: L + 6, y: y - 18, w, h: 15 });
-    hover(box, g, details(reference, "reference", ref), L + 6 + w, y);
+    hover(svg, g);
   }
   const front = frontier(points);
   if (front.length > 1) {
@@ -123,7 +97,7 @@ function draw(box, totals, CODECS, groups, reference) {
     g.setAttribute("aria-label", `${p.id}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`);
     g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 6 }));
     g.append(el("circle", { class: "hit", cx: X(p.speed), cy: Y(p.ratio), r: 14 }));
-    hover(box, g, details(p.id, p.group, p), X(p.speed), Y(p.ratio));
+    hover(svg, g);
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
     const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.9), cx = X(p.speed), cy = Y(p.ratio);
     const spots = [[cx + 10, cy + 4, "start"], [cx - 10, cy + 4, "end"], [cx + 8, cy - 10, "start"], [cx + 8, cy + 20, "start"], [cx - 8, cy - 10, "end"], [cx - 8, cy + 20, "end"]];
@@ -137,10 +111,7 @@ function draw(box, totals, CODECS, groups, reference) {
     svg.append(g);
   });
   if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, "No results yet"));
-  const tip = document.createElement("div");
-  tip.className = "tip";
-  tip.hidden = true;
-  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg, tip);
+  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg);
   const path = svg.querySelector(".pareto");
   if (path && !STILL) {
     const length = path.getTotalLength();
@@ -152,6 +123,8 @@ function draw(box, totals, CODECS, groups, reference) {
   }
   svg.getBoundingClientRect();
   svg.classList.add("in");
+  // After the entrance, hover changes should not wait for the staggered delays.
+  setTimeout(() => svg.classList.add("ready"), STILL ? 0 : order.length * 90 + 700);
 }
 
 function mountChart(box, read) {

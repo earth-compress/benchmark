@@ -74,16 +74,7 @@ def lossless_rows(corpus: Path) -> list[dict]:
         ]
 
 
-KEYS = (
-    "input",
-    "compressed",
-    "decode_ns",
-    "decode_min_ns",
-    "decode_max_ns",
-    "encode_ns",
-    "elements",
-    "samples",
-)
+KEYS = ("input", "compressed", "decode_ns")
 
 
 def entry(rows: list[dict]) -> dict:
@@ -92,15 +83,6 @@ def entry(rows: list[dict]) -> dict:
         "input": sum(int(r["input_bytes"]) for r in rows),
         "compressed": sum(int(r["compressed_bytes"]) for r in rows),
         "decode_ns": sum(int(r["decode_ns"]) for r in rows),
-        "decode_min_ns": sum(int(r["decode_ns_min"]) for r in rows),
-        "decode_max_ns": sum(int(r["decode_ns_max"]) for r in rows),
-        "encode_ns": sum(int(r["encode_ns"]) for r in rows),
-        "elements": sum(
-            round(int(r["compressed_bytes"]) * 8 / float(r["bits_per_value"]))
-            for r in rows
-        ),
-        "samples": len(rows),
-        "version": rows[0]["codec_version"],
     }
 
 
@@ -129,11 +111,7 @@ def summary(data: dict[str, dict]) -> dict[str, dict]:
         return {}
     common = set.intersection(*(set(corpus) for corpus in measured))
     return {
-        config: {
-            **{key: sum(corpus[config][key] for corpus in measured) for key in KEYS},
-            "version": measured[0][config]["version"],
-            "corpora": len(measured),
-        }
+        config: {key: sum(corpus[config][key] for corpus in measured) for key in KEYS}
         for config in sorted(common)
     }
 
