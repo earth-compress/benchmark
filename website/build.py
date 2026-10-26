@@ -403,7 +403,6 @@ def build() -> None:
         body = f"""{crumbs("../../", ("Datasets", "datasets/"), (cid, None))}
 <h1>{cid}</h1>
 <p class="lead">{inline(row["contents"])}.</p>
-<p class="facts"><span>{inline(row["shape"])}</span><span>{inline(row["dtype"])}</span><span>{inline(row["samples"])} samples</span><span>{inline(row["MB"])} MB</span><span>{inline(row["source"])}</span></p>
 <section class="spec">{spec_html}</section>
 <p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
 {chart_block(badge=badge, key=cid)}

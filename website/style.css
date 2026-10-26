@@ -76,7 +76,6 @@ thead th, table tr:first-child th { font-weight: 500; color: var(--muted); font-
 .crumbs a { color: var(--muted); }
 h1 { font: 600 28px var(--mono); margin: 0 0 6px; letter-spacing: -0.01em; }
 .lead { font-size: 17px; margin: 0 0 8px; }
-.facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; font: 13px var(--mono); color: var(--muted); }
 .spec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 40px; padding: 26px 0 8px; border-bottom: 0; font-size: 15px; }
 .spec h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px; }
 .spec p { margin: 0 0 8px; }
