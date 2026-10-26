@@ -8,9 +8,12 @@ from pathlib import Path
 
 import numpy as np
 import zstandard as zstd
+from huggingface_hub import snapshot_download
 
 from .build import split
 from .spec import ArraySpec
+
+DATASET = "earth-compress/benchmark"
 
 
 @dataclass(frozen=True)
@@ -31,9 +34,27 @@ def values(text: str, default: float) -> tuple[float, ...]:
     return tuple(float(v) for v in split(text)) or (default,)
 
 
+def download(corpus: Path, paths: list[str]) -> None:
+    """Fetch sample files of ``corpus`` from the Hugging Face dataset."""
+    snapshot_download(
+        DATASET,
+        repo_type="dataset",
+        allow_patterns=[f"{corpus.name}/{path}" for path in paths],
+        local_dir=corpus.parent,
+    )
+
+
 def load_samples(corpus: Path, limit: int | None = None) -> list[Sample]:
     with (corpus / "manifest.csv").open(newline="") as stream:
         rows = list(csv.DictReader(stream))[:limit]
+
+    missing = [
+        row["npz_path"]
+        for row in rows
+        if row["npz_path"] and not (corpus / row["npz_path"]).is_file()
+    ]
+    if missing:
+        download(corpus, missing)
 
     samples = []
     for row in rows:

@@ -58,9 +58,7 @@ def _discover(root: Path) -> tuple[Path, ...]:
     corpora = tuple(
         path.resolve()
         for path in sorted(root.iterdir())
-        if path.is_dir()
-        and (path / "manifest.csv").is_file()
-        and (path / "npz").is_dir()
+        if path.is_dir() and (path / "manifest.csv").is_file()
     )
     if not corpora:
         raise ValueError(f"no corpora found in {root}")

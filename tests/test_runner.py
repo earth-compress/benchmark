@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from conftest import write_corpus
 
+from earthcompress import corpus as corpus_module
 from earthcompress.codecs.base import CodecConfiguration
 from earthcompress.contract import Budget, Level, Mode
 from earthcompress.corpus import load_samples
@@ -239,3 +240,25 @@ def test_the_corpus_carries_scale_offset_and_sentinel_to_the_sample(tmp_path: Pa
     assert sample.scale == (0.25, 0.5) and sample.offset == (10.0, -3.0)
     assert sample.sentinel == 0.0
     assert sample.spec.steps(1.0) == 2
+
+
+def test_the_corpus_downloads_only_the_missing_samples(corpus: Path, monkeypatch):
+    removed = corpus / "npz" / "demo-01.npz.zst"
+    kept = removed.read_bytes()
+    removed.unlink()
+    calls = []
+
+    def fake(repo_id, *, repo_type, allow_patterns, local_dir):
+        calls.append((repo_id, repo_type, allow_patterns, Path(local_dir)))
+        removed.write_bytes(kept)
+
+    monkeypatch.setattr(corpus_module, "snapshot_download", fake)
+    assert len(load_samples(corpus)) == 4
+    assert calls == [
+        (
+            "earth-compress/benchmark",
+            "dataset",
+            ["demo/npz/demo-01.npz.zst"],
+            corpus.parent,
+        )
+    ]
