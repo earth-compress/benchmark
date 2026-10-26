@@ -83,6 +83,7 @@ def describe_environment(threads: int = 1) -> dict[str, Any]:
         "machine": platform.machine(),
         "python_version": platform.python_version(),
         "threads": threads,
+        "load_average": [round(v, 2) for v in os.getloadavg()],
         "encode_calls": 1,
         "decode_calls": f"{DECODE_MIN_CALLS} to {DECODE_MAX_CALLS}, stopping after {DECODE_SECONDS} s",
     }
