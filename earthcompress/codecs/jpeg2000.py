@@ -30,7 +30,7 @@ def integers(spec: ArraySpec) -> bool:
 
 
 VERSION = (
-    f"imagecodecs {imagecodecs.__version__} (OpenJPEG {imagecodecs.jpeg2k_version()})"
+    f"imagecodecs {imagecodecs.__version__} ({imagecodecs.jpeg2k_version()})"
 )
 REFERENCE = (
     lossless(

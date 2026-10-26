@@ -74,31 +74,51 @@ def lossless_rows(corpus: Path) -> list[dict]:
         ]
 
 
+KEYS = (
+    "input",
+    "compressed",
+    "decode_ns",
+    "decode_min_ns",
+    "decode_max_ns",
+    "encode_ns",
+    "elements",
+    "samples",
+)
+
+
+def entry(rows: list[dict]) -> dict:
+    """Sums of the measurements of ``rows``, one configuration on one or more samples."""
+    return {
+        "input": sum(int(r["input_bytes"]) for r in rows),
+        "compressed": sum(int(r["compressed_bytes"]) for r in rows),
+        "decode_ns": sum(int(r["decode_ns"]) for r in rows),
+        "decode_min_ns": sum(int(r["decode_ns_min"]) for r in rows),
+        "decode_max_ns": sum(int(r["decode_ns_max"]) for r in rows),
+        "encode_ns": sum(int(r["encode_ns"]) for r in rows),
+        "elements": sum(
+            round(int(r["compressed_bytes"]) * 8 / float(r["bits_per_value"]))
+            for r in rows
+        ),
+        "samples": len(rows),
+        "version": rows[0]["codec_version"],
+    }
+
+
 def totals(rows: list[dict]) -> dict[str, dict]:
     """Totals of each configuration that completed every sample."""
     count = len({row["sample_id"] for row in rows})
-    out = {}
-    for config, total in aggregate(rows, count).items():
-        if not total.get("complete"):
-            continue
-        selected = [r for r in rows if r["configuration"] == config]
-        out[config] = {
-            "input": sum(int(r["input_bytes"]) for r in selected),
-            "compressed": sum(int(r["compressed_bytes"]) for r in selected),
-            "decode_ns": sum(int(r["decode_ns"]) for r in selected),
-        }
-    return out
+    return {
+        config: entry([r for r in rows if r["configuration"] == config])
+        for config, total in aggregate(rows, count).items()
+        if total.get("complete")
+    }
 
 
 def per_sample(rows: list[dict]) -> dict[str, dict[str, dict]]:
     out: dict[str, dict[str, dict]] = {}
     for row in rows:
         if row["fidelity_ok"]:
-            out.setdefault(row["sample_id"], {})[row["configuration"]] = {
-                "input": int(row["input_bytes"]),
-                "compressed": int(row["compressed_bytes"]),
-                "decode_ns": int(row["decode_ns"]),
-            }
+            out.setdefault(row["sample_id"], {})[row["configuration"]] = entry([row])
     return out
 
 
@@ -108,9 +128,12 @@ def summary(data: dict[str, dict]) -> dict[str, dict]:
     if not measured:
         return {}
     common = set.intersection(*(set(corpus) for corpus in measured))
-    keys = ("input", "compressed", "decode_ns")
     return {
-        config: {key: sum(corpus[config][key] for corpus in measured) for key in keys}
+        config: {
+            **{key: sum(corpus[config][key] for corpus in measured) for key in KEYS},
+            "version": measured[0][config]["version"],
+            "corpora": len(measured),
+        }
         for config in sorted(common)
     }
 
