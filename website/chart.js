@@ -58,7 +58,7 @@ function draw(box, totals, CODECS, groups, reference) {
   hover(svg);
   const speeds = points.map(p => p.speed), ratios = points.map(p => p.ratio);
   const x0 = Math.log10(Math.min(...speeds, 100) / 1.5), x1 = Math.log10(Math.max(...speeds, 1000) * 1.5);
-  const y0 = 1, y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, ref ? ref.ratio : 1, 1) * 1.1 * 4) / 4);
+  const y0 = Math.min(1, Math.floor(Math.min(...ratios) * 0.95 * 4) / 4), y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, ref ? ref.ratio : 1, 1) * 1.1 * 4) / 4);
   const X = v => L + (Math.log10(v) - x0) / (x1 - x0) * (W - L - R);
   const Y = v => H - B - (v - y0) / (y1 - y0) * (H - T - B);
   const axes = el("g", { class: "axes" });
@@ -105,12 +105,15 @@ function draw(box, totals, CODECS, groups, reference) {
     g.append(el("circle", { class: "hit", cx: X(p.speed), cy: Y(p.ratio), r: 14 }));
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
     const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.3), cx = X(p.speed), cy = Y(p.ratio);
-    const spots = [[cx + 10, cy + 4, "start"], [cx - 10, cy + 4, "end"], [cx + 8, cy - 10, "start"], [cx + 8, cy + 20, "start"], [cx - 8, cy - 10, "end"], [cx - 8, cy + 20, "end"]];
+    const offsets = [[10, 4], [-10, 4], [8, -10], [8, 20], [-8, -10], [-8, 20], [8, -24], [8, 34], [-8, -24], [-8, 34]];
+    const spots = offsets.map(([dx, dy]) => [cx + dx, cy + dy, dx > 0 ? "start" : "end"]);
     const fits = s => {
       const b = { x: s[2] === "end" ? s[0] - w : s[0], y: s[1] - 12, w, h: 15 };
       return b.x > L && b.x + w < W ? b : null;
     };
-    const spot = spots.find(s => fits(s) && free(fits(s))) || spots.find(fits) || spots[0];
+    // With no free spot, take the one that covers the fewest other labels.
+    const overlap = b => placed.reduce((sum, o) => sum + Math.max(0, Math.min(b.x + b.w, o.x + o.w) - Math.max(b.x, o.x)) * Math.max(0, Math.min(b.y + b.h, o.y + o.h) - Math.max(b.y, o.y)), 0);
+    const spot = spots.find(s => fits(s) && free(fits(s))) || spots.filter(fits).sort((a, b) => overlap(fits(a)) - overlap(fits(b)))[0] || spots[0];
     if (fits(spot)) placed.push(fits(spot));
     g.append(el("text", { x: spot[0], y: spot[1], "text-anchor": spot[2], class: "label" }, p.id));
     svg.append(g);
