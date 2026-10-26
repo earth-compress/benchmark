@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth Compress benchmark</title>
+<meta name="description" content="{tagline}">
+<link rel="icon" href="earth-compress.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+<div class="wrap bar">
+<a class="brand" href="#top"><picture><source media="(prefers-color-scheme: dark)" srcset="earth-compress-dark.svg"><img src="earth-compress.svg" alt="Earth Compress" height="30"></picture><span class="version">benchmark v1.0</span></a>
+<nav><a href="#results">Results</a><a href="#datasets">Datasets</a><a href="#codecs">Codecs</a><a href="#protocol">Protocol</a><a href="{repo}">GitHub</a></nav>
+</div>
+</header>
+<main id="top" class="wrap">
+<section class="intro">
+<h1>{tagline}</h1>
+<p class="facts"><span>{corpora} corpora</span><span>{configurations} configurations</span><span>v1.0 measures lossless</span></p>
+</section>
+
+<section class="modes">
+<div class="mode on"><h3>Lossless</h3><p>{lossless}</p></div>
+<div class="mode"><h3>Near-lossless <span class="soon">Coming soon</span></h3><p>{near}</p></div>
+<div class="mode"><h3>Lossy <span class="soon">Coming soon</span></h3><p>{lossy}</p></div>
+</section>
+
+<section id="results">
+<div class="head"><h2>Lossless results</h2>
+<div class="switch" role="group" aria-label="Metric"><button type="button" data-m="ratio" aria-pressed="true">Compression ratio</button><button type="button" data-m="decode" aria-pressed="false">Decode MB/s</button></div></div>
+<p class="note">Totals over all samples of each corpus, one thread. Higher is better.</p>
+{status}
+<div class="scroll"><table class="results"><thead><tr><th>corpus</th>{head_cells}</tr></thead><tbody>{body_rows}</tbody></table></div>
+</section>
+
+<section id="datasets">
+<h2>Datasets</h2>
+<p class="note">Each sample is a window of a published product on its native grid. Open a corpus for its source, representation, licence, and samples.</p>
+<div class="grid">
+{cards}
+</div>
+</section>
+
+<section id="codecs">
+<h2>Codecs</h2>
+<div class="scroll"><table class="codecs"><tr><th>id</th><th>definition</th><th>software</th></tr>{codec_rows}</table></div>
+</section>
+
+<section id="protocol">
+<h2>Protocol</h2>
+<details class="protocol"><summary>Read the measurement protocol v1.0</summary><div class="doc">{protocol}</div></details>
+</section>
+</main>
+<footer><div class="wrap">Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="{repo}/blob/main/LICENSE">Apache 2.0</a>.</div></footer>
+<script>
+const DATA = {data};
+const cells = document.querySelectorAll(".results td");
+function show(metric) {{
+  cells.forEach(td => {{
+    const corpus = td.parentElement.querySelector("th a").textContent;
+    const value = (DATA[corpus] || {{}})[td.dataset.c];
+    td.textContent = value ? (metric === "ratio" ? value.ratio.toFixed(2) : Math.round(value.decode).toLocaleString("en")) : "·";
+  }});
+  document.querySelectorAll(".switch button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === metric)));
+}}
+document.querySelectorAll(".switch button").forEach(b => b.addEventListener("click", () => show(b.dataset.m)));
+show("ratio");
+document.querySelectorAll(".results th a").forEach(a => a.addEventListener("click", () => {{
+  const target = document.getElementById(a.getAttribute("href").slice(1));
+  if (target) target.open = true;
+}}));
+</script>
+</body>
+</html>

@@ -28,8 +28,11 @@ corpus = [
     "rasterio>=1.4",
     "earthengine-api>=1.5",
     "cdsapi>=0.7",
-    "eccodes>=2.42", "eccodeslib>=2.42",
+    "eccodes>=2.42",
+    "eccodeslib>=2.42",
+    "pyarrow>=15",
 ]
+site = ["markdown>=3.5", "Pillow>=10"]
 
 [project.scripts]
 earthcompress = "earthcompress.__main__:main"

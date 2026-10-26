@@ -227,3 +227,4 @@ corpora/*/npz/
 corpora/*/png/
 corpora/*/results.csv
 corpora/*/environment.json
+website/dist/
