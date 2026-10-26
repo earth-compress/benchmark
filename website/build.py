@@ -260,14 +260,20 @@ def speed(entry: dict) -> float:
     return entry["input"] / 1e6 / (entry["decode_ns"] / 1e9)
 
 
-def results_table(entries: dict[str, dict], codecs: list[str], itemsize: int) -> str:
-    rows = "".join(
-        f"<tr><td><code>{c}</code></td><td>{ratio(entries[c]):.3f}</td>"
-        f"<td>{entries[c]['compressed'] * 8 * itemsize / entries[c]['input']:.2f}</td>"
-        f"<td>{speed(entries[c]):,.0f}</td></tr>"
-        for c in codecs
-        if c in entries
-    )
+def results_table(
+    entries: dict[str, dict], codecs: list[str], reference: list[str], itemsize: int
+) -> str:
+    rows = ""
+    for c in codecs + reference:
+        if c not in entries:
+            continue
+        mark = ' class="reference"' if c in reference else ""
+        note = ' <span class="note">reference</span>' if c in reference else ""
+        bits = entries[c]["compressed"] * 8 * itemsize / entries[c]["input"]
+        rows += (
+            f"<tr{mark}><td><code>{c}</code>{note}</td><td>{ratio(entries[c]):.3f}</td>"
+            f"<td>{bits:.2f}</td><td>{speed(entries[c]):,.0f}</td></tr>"
+        )
     if not rows:
         return '<p class="note">No results yet.</p>'
     return (
@@ -319,6 +325,9 @@ def build() -> None:
     codecs = [
         plain(r["id"])
         for r in table((ROOT / "CODECS.md").read_text(), "## Official run")
+    ]
+    reference = [
+        plain(r["id"]) for r in table((ROOT / "CODECS.md").read_text(), "## Reference")
     ]
     label = '<span class="example">Example data</span>'
     any_example = False
@@ -372,7 +381,7 @@ def build() -> None:
 {f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
 <div><h1>{html.escape(s["id"])}</h1>
 <h2>Results {badge}</h2>
-{results_table(by_sample.get(s["id"], {}), codecs, np.dtype(s["dtype"]).itemsize)}
+{results_table(by_sample.get(s["id"], {}), codecs, reference, np.dtype(s["dtype"]).itemsize)}
 <h2>Metadata</h2>
 {metadata(s)}</div>
 </div>
