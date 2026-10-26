@@ -54,6 +54,7 @@ def plain(text: str) -> str:
 
 
 def results(corpus: Path) -> dict[str, dict]:
+    """Totals of each lossless configuration that completed every sample."""
     path = corpus / "results.csv"
     if not path.exists():
         return {}
@@ -61,9 +62,35 @@ def results(corpus: Path) -> dict[str, dict]:
         rows = [
             {**row, "fidelity_ok": row["fidelity_ok"] == "True"}
             for row in csv.DictReader(stream)
+            if row["mode"] == "lossless"
         ]
     count = len({row["sample_id"] for row in rows})
-    return {k: v for k, v in aggregate(rows, count).items() if v.get("complete")}
+    totals = {}
+    for config, total in aggregate(rows, count).items():
+        if not total.get("complete"):
+            continue
+        selected = [r for r in rows if r["configuration"] == config]
+        totals[config] = {
+            "input": sum(int(r["input_bytes"]) for r in selected),
+            "compressed": sum(int(r["compressed_bytes"]) for r in selected),
+            "decode_ns": sum(int(r["decode_ns"]) for r in selected),
+        }
+    return totals
+
+
+def summary(data: dict[str, dict]) -> dict[str, dict]:
+    """Totals over every corpus that has results, for configurations present in all of them."""
+    measured = [corpus for corpus in data.values() if corpus]
+    if not measured:
+        return {}
+    common = set.intersection(*(set(corpus) for corpus in measured))
+    return {
+        config: {
+            key: sum(corpus[config][key] for corpus in measured)
+            for key in ("input", "compressed", "decode_ns")
+        }
+        for config in sorted(common)
+    }
 
 
 def thumbnail(corpus: Path) -> str | None:
@@ -96,10 +123,6 @@ def page() -> str:
     readme = (ROOT / "README.md").read_text()
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
     codecs = table((ROOT / "CODECS.md").read_text(), "## Official run")
-    reference = table((ROOT / "CODECS.md").read_text(), "## Reference")
-    protocol_html = markdown.markdown(
-        (ROOT / "PROTOCOL.md").read_text(), extensions=["tables", "fenced_code"]
-    )
     tagline = " ".join(readme.split("# benchmark", 1)[1].split("\n\n")[1].split())
     modes = {
         plain(r["mode"]): r["what it guarantees"][:1].upper()
@@ -114,15 +137,7 @@ def page() -> str:
     for row in datasets:
         cid = plain(row["corpus"])
         folder = ROOT / "corpora" / cid
-        found = results(folder)
-        data[cid] = {
-            c: {
-                "ratio": found[c]["compression_ratio"],
-                "decode": found[c]["decode_MB_s"],
-            }
-            for c in codec_ids
-            if c in found
-        }
+        data[cid] = results(folder)
         image = thumbnail(folder) if folder.exists() else None
         spec = folder / "spec.md"
         spec_html = (
@@ -153,36 +168,21 @@ def page() -> str:
 </details>"""
         )
 
-    head_cells = "".join(f"<th>{html.escape(c)}</th>" for c in codec_ids)
-    body_rows = "".join(
-        f'<tr><th><a href="#{plain(r["corpus"])}">{plain(r["corpus"])}</a></th>'
-        + "".join(f'<td data-c="{c}"></td>' for c in codec_ids)
-        + "</tr>"
-        for r in datasets
-    )
-    codec_rows = "".join(
-        f"<tr><td><code>{plain(r['id'])}</code></td><td>{inline(r['definition'])}</td><td>{inline(r['software'])}</td></tr>"
-        for r in codecs + reference
-    )
-    measured = any(data[c] for c in data)
-
+    measured = [cid for cid, found in data.items() if found]
+    options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     return TEMPLATE.format(
         tagline=html.escape(tagline),
         lossless=inline(modes["lossless"]),
         near=inline(modes["near-lossless"]),
         lossy=inline(modes["lossy"]),
         corpora=len(datasets),
-        configurations=len(codecs),
-        head_cells=head_cells,
-        body_rows=body_rows,
-        status=""
-        if measured
-        else '<p class="status">Results appear here after the official run.</p>',
+        configurations=len(codec_ids),
+        measured=len(measured),
+        options=options,
         cards="\n".join(cards),
-        codec_rows=codec_rows,
-        protocol=protocol_html,
         repo=REPO,
-        data=json.dumps(data),
+        data=json.dumps({"all": summary(data), **{cid: data[cid] for cid in measured}}),
+        codecs=json.dumps(codec_ids),
     )
 
 
