@@ -41,8 +41,6 @@ nav .icon:hover { opacity: 0.75; }
 .doc li { margin: 4px 0; }
 .doc pre { background: var(--tint); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
 .doc pre code { font-size: 13px; }
-.doc blockquote { margin: 0 0 16px; padding: 10px 14px; border-left: 3px solid var(--geozl); background: var(--tint); border-radius: 0 6px 6px 0; }
-.doc blockquote p { margin: 0; }
 .codehilite .k, .codehilite .kn, .codehilite .kc, .codehilite .ow { color: var(--geozl); font-weight: 500; }
 .codehilite .s, .codehilite .s1, .codehilite .s2 { color: var(--raster); }
 .codehilite .mi, .codehilite .mf { color: var(--openzl); }
