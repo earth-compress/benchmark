@@ -225,6 +225,4 @@ docs/papers/*.pdf
 # Corpus samples and previews are published on Hugging Face, not in git
 corpora/*/npz/
 corpora/*/png/
-corpora/*/results.csv
-corpora/*/environment.json
 website/dist/
