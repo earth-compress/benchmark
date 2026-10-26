@@ -39,3 +39,32 @@ It runs on integer corpora of up to 16 bits.
 - One thread for every codec.
 - Checksums are disabled for Zstandard and OpenZL. GeoZL writes a frame checksum that its Python API cannot turn off; decoding skips its verification.
 - Library versions not listed above are pinned in `uv.lock`.
+
+## Adding a configuration
+
+Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS`. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`.
+
+```python
+import mycodec
+
+from ..spec import ArraySpec
+from .base import lossless, unpack
+
+
+class MyCodec:
+    def __init__(self, spec: ArraySpec):
+        self.spec = spec
+
+    def encode(self, array):
+        return mycodec.compress(array.tobytes())
+
+    def decode(self, data):
+        return unpack(mycodec.decompress(data), self.spec)
+
+
+CONFIGURATIONS = (lossless("mycodec", "mycodec", mycodec.__version__, MyCodec),)
+```
+
+```bash
+uv run earthcompress corpora/s2-l1c-10m-4 --codec mycodec
+```

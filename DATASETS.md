@@ -1,6 +1,6 @@
 # Datasets
 
-The corpora measured by the benchmark. The sample files are published in a Hugging Face dataset of the `earth-compress` organisation. This repository keeps, for each corpus, the script that builds it, its description, and its manifest.
+The corpora measured by the benchmark. The sample files are published in the Hugging Face dataset [earth-compress/benchmark](https://huggingface.co/datasets/earth-compress/benchmark), and the benchmark downloads a corpus the first time it runs on it. This repository keeps, for each corpus, the script that builds it, its description, and its manifest.
 
 Each sample is a window of a published product on its native grid, with bands or time steps on the first axis. ERA5 samples are whole global fields, and Clay samples are blocks of MajorTOM cells.
 
