@@ -323,7 +323,9 @@ def metadata(row: dict[str, str]) -> str:
 def document(name: str) -> str:
     """A Markdown document of the repository as HTML, with links to its pages."""
     out = markdown.markdown(
-        (ROOT / name).read_text(), extensions=["tables", "fenced_code"]
+        (ROOT / name).read_text(),
+        extensions=["tables", "fenced_code", "codehilite"],
+        extension_configs={"codehilite": {"guess_lang": False}},
     )
     for other, slug in PAGES.items():
         out = out.replace(f'href="{other}"', f'href="../{slug}/"')

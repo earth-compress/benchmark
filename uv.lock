@@ -640,6 +640,7 @@ corpus = [
 site = [
     { name = "markdown" },
     { name = "pillow" },
+    { name = "pygments" },
 ]
 
 [package.dev-dependencies]
@@ -665,6 +666,7 @@ requires-dist = [
     { name = "pillow", marker = "extra == 'corpus'", specifier = ">=10" },
     { name = "pillow", marker = "extra == 'site'", specifier = ">=10" },
     { name = "pyarrow", marker = "extra == 'corpus'", specifier = ">=15" },
+    { name = "pygments", marker = "extra == 'site'", specifier = ">=2.17" },
     { name = "rasterio", marker = "extra == 'corpus'", specifier = ">=1.4" },
     { name = "typer", specifier = ">=0.20,<1" },
     { name = "zstandard", specifier = ">=0.22" },
