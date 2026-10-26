@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --ink: #143031;
   --muted: #56706f;
   --faint: #8aa09f;
@@ -8,18 +9,6 @@
   --page: #ffffff;
   --sans: "Figtree", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  .example { color: #f3c77a; background: #3a2a08; }
-  :root {
-    --ink: #e6eeed;
-    --muted: #a3b8b7;
-    --faint: #6f8786;
-    --line: #233a3b;
-    --tint: #142526;
-    --accent: #5cc2c2;
-    --page: #0c1a1b;
-  }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 72px; }

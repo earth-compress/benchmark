@@ -234,8 +234,7 @@ def main() -> None:
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
-    for name in ("earth-compress.svg", "earth-compress-dark.svg"):
-        shutil.copy(ROOT / "docs" / "assets" / name, OUT / name)
+    shutil.copy(ROOT / "docs" / "assets" / "earth-compress.svg", OUT / "earth-compress.svg")
     css = (Path(__file__).resolve().parent / "style.css").read_bytes()
     (OUT / "style.css").write_bytes(css)
     version = hashlib.sha256(css).hexdigest()[:10]
