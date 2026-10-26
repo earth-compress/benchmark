@@ -1,14 +1,19 @@
 {
-  "generated_at": "2026-10-26T05:46:55+00:00",
+  "generated_at": "2026-10-26T19:05:05+00:00",
   "earthcompress_version": "0.1.0",
-  "cpu": "AMD EPYC 9654 96-Core Processor",
-  "cpu_count": 192,
-  "memory_bytes": 540474769408,
-  "platform": "Linux-6.8.0-101-generic-x86_64-with-glibc2.39",
-  "system": "Linux",
-  "machine": "x86_64",
-  "python_version": "3.12.3",
+  "cpu": "Apple M5",
+  "cpu_count": 10,
+  "memory_bytes": 17179869184,
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "system": "Darwin",
+  "machine": "arm64",
+  "python_version": "3.13.12",
   "threads": 1,
+  "load_average": [
+    2.7,
+    2.92,
+    2.9
+  ],
   "encode_calls": 1,
   "decode_calls": "3 to 10, stopping after 0.5 s"
 }
