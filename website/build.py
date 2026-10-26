@@ -10,12 +10,10 @@ when they are built locally, and otherwise from the Hugging Face dataset.
 
 from __future__ import annotations
 
-import argparse
 import csv
 import hashlib
 import html
 import json
-import random
 import re
 import shutil
 import urllib.error
@@ -36,21 +34,6 @@ HF_DATASET = "earth-compress/benchmark"
 HF = f"https://huggingface.co/datasets/{HF_DATASET}/resolve/main"
 THUMB = 192
 LARGE = 768
-
-# Invented values for designing the site before the official run. Never published.
-EXAMPLE = {
-    "zstd-c3": (1.55, 1200),
-    "blosc-zstd3-bitshuffle": (1.75, 2400),
-    "deflate-c6": (1.45, 350),
-    "lzw": (1.25, 180),
-    "hdiff-zstd9": (1.85, 900),
-    "openzl-generic": (2.05, 650),
-    "openzl-delta-fieldlz": (1.95, 1100),
-    "openzl-delta-pivco": (2.1, 800),
-    "geozl-planar-pfor": (2.2, 1700),
-    "geozl-planar-pivco": (2.3, 1000),
-}
-
 
 # Reading the repository
 
@@ -141,26 +124,6 @@ def summary(data: dict[str, dict]) -> dict[str, dict]:
         config: {key: sum(corpus[config][key] for corpus in measured) for key in keys}
         for config in sorted(common)
     }
-
-
-def invented(seed: str, size: int, scale: tuple[float, float]) -> dict[str, dict]:
-    rng = random.Random(seed)
-    gain, speed = scale
-    return {
-        codec: {
-            "input": size,
-            "compressed": round(
-                size / max(1.02, 1 + (ratio - 1) * gain * rng.uniform(0.9, 1.1))
-            ),
-            "decode_ns": round(size / (mb_s * speed * rng.uniform(0.85, 1.15)) * 1000),
-        }
-        for codec, (ratio, mb_s) in EXAMPLE.items()
-    }
-
-
-def corpus_scale(corpus: str) -> tuple[float, float]:
-    rng = random.Random(corpus)
-    return rng.uniform(0.7, 1.6), rng.uniform(0.6, 1.4)
 
 
 # Images
@@ -361,13 +324,14 @@ def metadata(row: dict[str, str]) -> str:
     return f'<table class="meta-table">{"".join(items)}</table>'
 
 
-def build(use_example: bool) -> None:
+def build() -> None:
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
     codecs = [
         plain(r["id"])
         for r in table((ROOT / "CODECS.md").read_text(), "## Official run")
     ]
-    badge = '<span class="example">Example data</span>' if use_example else ""
+    label = '<span class="example">Example data</span>'
+    any_example = False
 
     corpus_totals: dict[str, dict] = {}
     corpus_cards = []
@@ -378,17 +342,9 @@ def build(use_example: bool) -> None:
         rows = lossless_rows(folder)
         found = totals(rows)
         by_sample = per_sample(rows)
-        if use_example and samples:
-            found = invented(cid, 100_000_000, corpus_scale(cid))
-            gain, fast = corpus_scale(cid)
-            by_sample = {
-                s["id"]: invented(
-                    s["id"],
-                    4_000_000,
-                    (gain * random.Random(s["id"]).uniform(0.85, 1.15), fast),
-                )
-                for s in samples
-            }
+        example = any(r["codec_version"] == "example" for r in rows)
+        any_example = any_example or example
+        badge = label if example else ""
         corpus_totals[cid] = found
         meta = f"{inline(row['shape'])} · {inline(row['dtype'])}"
 
@@ -465,6 +421,7 @@ def build(use_example: bool) -> None:
     measured = [cid for cid, found in corpus_totals.items() if found]
     options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{options}</select>'
+    badge = label if any_example else ""
     chart = {
         "data": {
             "all": summary(corpus_totals),
@@ -497,11 +454,6 @@ def build(use_example: bool) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--example", action="store_true", help="invented results, for design only"
-    )
-    args = parser.parse_args()
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
@@ -512,7 +464,7 @@ def main() -> None:
         content = (HERE / name).read_bytes()
         (OUT / name).write_bytes(content)
         VERSION[name] = hashlib.sha256(content).hexdigest()[:10]
-    build(args.example)
+    build()
     print(f"wrote {OUT}")
 
 
