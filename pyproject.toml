@@ -9,7 +9,7 @@ description = "Compression benchmark for Earth observation arrays."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-authors = [{ name = "Asterisk Labs" }]
+authors = [{ name = "Asterisk Labs" }, { name = "National Oceanography Centre" }]
 keywords = ["compression", "earth-observation", "remote-sensing", "benchmark"]
 classifiers = [
     "Development Status :: 3 - Alpha",
