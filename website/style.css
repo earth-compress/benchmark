@@ -67,13 +67,13 @@ select { font: 14px var(--mono); color: var(--ink); background: var(--page); bor
 .chart .g-openzl { --c: var(--openzl); }
 .chart .g-raster-files { --c: var(--raster); }
 .chart .g-array-stores { --c: var(--arrays); }
-.chart .point circle { fill: var(--c, var(--faint)); fill-opacity: 0.55; }
-.chart .point.front circle:not(.hit) { fill-opacity: 1; stroke: var(--ink); stroke-width: 1.5; }
-.chart .label { font: 13px var(--mono); fill: var(--muted); }
+.chart .point circle { fill: var(--c, var(--faint)); }
+.chart .point.front circle:not(.hit) { stroke: var(--ink); stroke-width: 1.5; }
+.chart .label { font: 12px var(--mono); fill: var(--muted); }
 .chart .point.front .label { fill: var(--ink); }
-.chart .pareto { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; opacity: 0.55; }
+.chart .pareto { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; }
 .chart .reference line { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 5; }
-.chart .reference text { font: 12px var(--mono); fill: var(--muted); }
+.chart .reference text { font: 11px var(--mono); fill: var(--muted); }
 .legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 18px; font-size: 13px; color: var(--muted); margin-bottom: -6px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
@@ -144,9 +144,7 @@ footer p { margin: 0 0 8px; }
 .chart .point, .chart .reference { outline: none; }
 .chart .point:focus-visible circle:not(.hit) { stroke: var(--accent); stroke-width: 3; }
 .chart .point text, .chart .point circle, .chart .reference text { transition: font-size 0.15s ease, opacity 0.15s ease, r 0.15s ease; }
-.chart svg.focus .point:not(.active), .chart svg.focus .reference:not(.active), .chart svg.focus .pareto { opacity: 0.2; }
-.chart .point.active .label { font-size: 16px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 4px; }
-.chart .point.active circle:not(.hit) { r: 8; fill-opacity: 1; }
-.chart .reference.active text { font-size: 14px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 4px; }
-.chart .reference.active line:not(.hit) { stroke: var(--ink); }
+.chart .point.active .label { font-size: 14px; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 4px; }
+.chart .point.active circle:not(.hit) { r: 7; }
+.chart .reference.active text { font-size: 13px; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 4px; }
 .chart svg.ready .point, .chart svg.ready .reference, .chart svg.ready .pareto { transition: opacity 0.15s ease; transition-delay: 0s; }

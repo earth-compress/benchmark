@@ -1,7 +1,7 @@
 // The compression ratio against decode speed chart, drawn from a JSON block on the page.
 const NS = "http://www.w3.org/2000/svg";
 const STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-// Labels are 11 px below this width and 13 px above it, as in style.css.
+// Labels are 11 px below this width and 12 px above it, as in style.css.
 const SMALL_TEXT = window.matchMedia("(max-width: 760px)").matches;
 function el(name, attrs, text) {
   const node = document.createElementNS(NS, name);
@@ -21,14 +21,20 @@ const rate = entry => ({
   ratio: entry.input / entry.compressed,
   speed: entry.input / 1e6 / (entry.decode_ns / 1e9),
 });
-function hover(svg, target) {
-  // Bring the hovered point and its name to the front and dim the rest.
-  const on = () => { svg.append(target); svg.classList.add("focus"); target.classList.add("active"); };
-  const off = () => { svg.classList.remove("focus"); target.classList.remove("active"); };
-  target.addEventListener("pointerenter", on);
-  target.addEventListener("pointerleave", off);
-  target.addEventListener("focus", on);
-  target.addEventListener("blur", off);
+function hover(svg) {
+  // Grow the point under the pointer and its name a little and bring them to the front.
+  // Moving a node resets the browser's hover state, so the svg tracks the point itself.
+  let active = null;
+  const set = target => {
+    if (target === active) return;
+    active?.classList.remove("active");
+    active = target;
+    if (target) { svg.append(target); target.classList.add("active"); }
+  };
+  svg.addEventListener("pointermove", e => set(e.target.closest(".point, .reference")));
+  svg.addEventListener("pointerleave", () => set(null));
+  svg.addEventListener("focusin", e => e.target.classList.add("active"));
+  svg.addEventListener("focusout", e => e.target.classList.remove("active"));
 }
 function legend(groups, present) {
   const div = document.createElement("div");
@@ -49,6 +55,7 @@ function draw(box, totals, CODECS, groups, reference) {
   const H = Math.round(Math.max(300, Math.min(520, W * 0.56)));
   const L = 48, R = W < 600 ? 96 : 150, T = 40, B = 54;
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Compression ratio against decode speed" });
+  hover(svg);
   const speeds = points.map(p => p.speed), ratios = points.map(p => p.ratio);
   const x0 = Math.log10(Math.min(...speeds, 100) / 1.5), x1 = Math.log10(Math.max(...speeds, 1000) * 1.5);
   const y0 = 1, y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, ref ? ref.ratio : 1, 1) * 1.1 * 4) / 4);
@@ -80,7 +87,6 @@ function draw(box, totals, CODECS, groups, reference) {
     svg.append(g);
     const w = text.length * (SMALL_TEXT ? 5.6 : 6.6);
     placed.push({ x: L + 6, y: y - 18, w, h: 15 });
-    hover(svg, g);
   }
   const front = frontier(points);
   if (front.length > 1) {
@@ -95,11 +101,10 @@ function draw(box, totals, CODECS, groups, reference) {
     const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : ""), style: `--i:${i}` });
     g.setAttribute("tabindex", 0);
     g.setAttribute("aria-label", `${p.id}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`);
-    g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 6 }));
+    g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 5 }));
     g.append(el("circle", { class: "hit", cx: X(p.speed), cy: Y(p.ratio), r: 14 }));
-    hover(svg, g);
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
-    const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.9), cx = X(p.speed), cy = Y(p.ratio);
+    const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.3), cx = X(p.speed), cy = Y(p.ratio);
     const spots = [[cx + 10, cy + 4, "start"], [cx - 10, cy + 4, "end"], [cx + 8, cy - 10, "start"], [cx + 8, cy + 20, "start"], [cx - 8, cy - 10, "end"], [cx - 8, cy + 20, "end"]];
     const fits = s => {
       const b = { x: s[2] === "end" ? s[0] - w : s[0], y: s[1] - 12, w, h: 15 };
