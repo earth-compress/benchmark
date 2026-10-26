@@ -59,7 +59,7 @@ An element decoded to exactly its input value always passes, including infinitie
 
 ## 3. Error budgets
 
-Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of `scale`, and a level smaller than one step is not available for that corpus.
+Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus, and a level smaller than one step is not available for that corpus.
 
 The following rules apply:
 
@@ -105,7 +105,7 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 | `input_sha256` | SHA-256 of `data` |
 | `npz_path`, `png_path` | relative paths |
 
-Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date.
+Values that differ by plane, such as `bands`, `scale`, and `offset`, are separated by `|`. Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date.
 
 `build.py` has two steps:
 

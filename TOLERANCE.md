@@ -61,6 +61,7 @@ These corpora are measured in lossless mode only.
 | `tessera-v2-codes` | The effect of a code error on downstream tasks has not been measured with Section 9 of `PROTOCOL.md`. |
 | `tessera-v2-scales` | A scale error multiplies all 128 dimensions of a pixel. Its effect on downstream tasks has not been measured. |
 | `alphaearth-v1-64` | One int8 step is the quantisation of the product, and its effect on downstream tasks has not been measured. |
+| `clay-embeddings` | The effect of an embedding error on downstream tasks has not been measured. |
 | `goes-abi-16` | Each band has its own `scale` and mixes reflectance factor with brightness temperature, so one budget in native units does not apply to the whole array. |
 | `s1-grd-iw-2` | No per-element uncertainty for the backscatter in dB has been established. |
 
