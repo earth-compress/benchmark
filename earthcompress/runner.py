@@ -44,7 +44,6 @@ RESULT_COLUMNS = (
     "psnr_dB",
     "error_spread",
     "error_lag1",
-    "exact",
     "sentinel_ok",
     "zero_ok",
     "fidelity_ok",
@@ -100,7 +99,7 @@ def _measure(
     measured = (
         _EXACT
         if config.mode is Mode.LOSSLESS
-        else distortion(array, decoded, sample.scale, sample.offset)
+        else distortion(array, decoded, sample.scale, sample.offset, sample.sentinel)
     )
     input_bytes = array.nbytes
     compressed_bytes = len(compressed)
@@ -125,7 +124,6 @@ def _measure(
         psnr_dB=measured.psnr_db,
         error_spread=measured.error_spread,
         error_lag1=measured.error_lag1,
-        exact=same_bytes(array, decoded),
         sentinel_ok=_flag(report.of(Promise.SENTINEL)),
         zero_ok=_flag(report.of(Promise.ZERO)),
         fidelity_ok=True,

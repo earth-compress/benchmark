@@ -121,3 +121,11 @@ def test_mean_error_has_the_sign_of_the_bias():
     reference = np.full((4, 4), 10, dtype=np.int16)
     assert distortion(reference, reference - 1).mean_error == -1.0
     assert distortion(reference, reference + 1).mean_error == 1.0
+
+
+def test_nodata_is_left_out_of_the_error_and_the_peak():
+    reference = np.array([[0, 100, 104, 0]], dtype=np.uint16)
+    decoded = np.array([[0, 102, 104, 0]], dtype=np.uint16)
+    measured = distortion(reference, decoded, nodata=0)
+    assert measured.mae == 1.0
+    assert measured.psnr_db == pytest.approx(20 * math.log10(4 / math.sqrt(2)))

@@ -131,7 +131,7 @@ def save(
     if offset and any(v != 0 for v in offset):
         arrays["offset"] = np.array(offset if len(offset) > 1 else offset[0])
     if row.get("nodata"):
-        arrays["sentinel"] = np.array(row["nodata"], dtype=np.float64).astype(
+        arrays["nodata"] = np.array(row["nodata"], dtype=np.float64).astype(
             data.dtype
         )
 

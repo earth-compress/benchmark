@@ -70,7 +70,6 @@ def rows_for(corpus: str, samples: list[dict[str, str]]) -> list[dict]:
                     "psnr_dB": "inf",
                     "error_spread": "nan",
                     "error_lag1": "nan",
-                    "exact": True,
                     "sentinel_ok": "",
                     "zero_ok": "",
                     "fidelity_ok": True,

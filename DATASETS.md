@@ -1,12 +1,12 @@
 # Datasets
 
-The corpora measured by the benchmark. The sample files are stored in a Hugging Face dataset in the `earth-compress` organisation. This repository keeps, for each corpus, the script that builds it, its description, and its manifest.
+The corpora measured by the benchmark. The sample files are published in a Hugging Face dataset of the `earth-compress` organisation. This repository keeps, for each corpus, the script that builds it, its description, and its manifest.
 
-Each sample is a window cut from a published product, on its native grid, with bands or time steps on the first axis.
+Each sample is a window of a published product on its native grid, with bands or time steps on the first axis. ERA5 samples are whole global fields, and Clay samples are blocks of MajorTOM cells.
 
 ## Corpora
 
-| corpus | contents | shape | dtype | samples | MB | source |
+| corpus | contents | shape | dtype | samples | MB in memory | source |
 | --- | --- | --- | --- | ---: | ---: | --- |
 | `s2-l1c-10m-4` | Sentinel-2 L1C, bands B2, B3, B4, B8 at 10 m | 4×512×512 | uint16 | 50 | 104.9 | `COPERNICUS/S2` |
 | `s2-l1c-20m-6` | Sentinel-2 L1C, red-edge, narrow NIR and SWIR bands at 20 m | 6×512×512 | uint16 | 50 | 157.3 | `COPERNICUS/S2` |
@@ -38,7 +38,7 @@ Each sample is a window cut from a published product, on its native grid, with b
 
 Sources in capitals are Earth Engine collections.
 
-Each corpus folder holds a `spec.md` with its native unit and licence.
+Each corpus folder holds a `spec.md` with its source, sample definition, representation, and licence.
 
 ## Rebuilding
 

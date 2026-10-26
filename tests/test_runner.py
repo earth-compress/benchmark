@@ -94,7 +94,7 @@ def test_a_lossless_run_writes_results_and_environment(corpus: Path):
     for row in rows:
         assert list(row) == list(RESULT_COLUMNS)
         assert row["tau"] == "" and row["budget_level"] == ""
-        assert row["fidelity_ok"] == "True" and row["exact"] == "True"
+        assert row["fidelity_ok"] == "True"
         assert float(row["compression_ratio"]) == pytest.approx(1.0)
         assert float(row["bits_per_value"]) == pytest.approx(16.0)
         assert (
@@ -119,7 +119,7 @@ def test_a_near_lossless_run_records_its_declaration_and_error(corpus: Path):
 
     for row in _rows(corpus):
         assert row["tau"] == "1.0" and row["budget_level"] == "matched"
-        assert row["fidelity_ok"] == "True" and row["exact"] == "False"
+        assert row["fidelity_ok"] == "True"
         assert float(row["max_abs_error"]) == 1.0
         assert float(row["mean_error"]) == 1.0
 

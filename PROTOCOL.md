@@ -1,16 +1,14 @@
-# EarthCompress Measurement Protocol v1.0
-
-**Status:** Draft
+# Earth Compress Measurement Protocol v1.0
 
 This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy.
 
-Each measurement uses one array in memory. The protocol covers compressed size, decode time, distortion, and an indicative encode time. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question. Because the samples are windows, the measurements may miss effects that appear only across a full granule.
+Each measurement uses one array in memory. The protocol covers compressed size, decode time, distortion, and an indicative encode time. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question.
 
 ## 1. Starting representation
 
 Compression ratios depend on the input representation. For example, a float32 array republished from a 16-bit source may contain precision that was never present in the source. A codec should not get credit for removing those unused bits.
 
-For each dataset, use the smallest integer type that reproduces the published data exactly:
+For each dataset, store integers when they reproduce the published data exactly:
 
 1. Start with the array as published by the producer.
 2. Test whether an integer array plus a `(scale, offset)` pair reproduces it bit for bit.
@@ -22,7 +20,6 @@ The second step is an exactness test:
 
 ```python
 back = (codes.astype(np.float64) * scale + offset).astype(published.dtype)
-assert back.shape == published.shape and back.dtype == published.dtype
 assert back.tobytes(order="C") == published.tobytes(order="C")
 ```
 
@@ -39,13 +36,13 @@ Every configuration declares a mode. The mode determines which properties the ru
 | `lossy` | `structure`, `determinism`, `sentinel` |
 
 - **`structure`:** decoded shape and dtype match the input.
-- **`determinism`:** the same input produces the same bytes, and the same bytes decode to the same array. When a codec provides more than one decoder, such as CPU and GPU, every decoder must produce the same array.
+- **`determinism`:** the same input produces the same bytes, and the same bytes decode to the same array.
 - **`exactness`:** the decoded array is identical to the input, bit for bit.
 - **`bound`:** the error bound defined in Section 2.1 holds.
 - **`sentinel`:** every NoData value remains in its original position, and no valid input value becomes a sentinel.
-- **`zero`:** every exact zero remains an exact zero.
+- **`zero`:** every value equal to zero in native units decodes to zero.
 
-If a configuration breaks a promise for a sample, that row has `fidelity_ok = false`, empty measurements, and no place in the aggregate results.
+If a configuration breaks a promise for a sample, that row has `fidelity_ok = false` and empty measurements, and the configuration has no place in that corpus's aggregate.
 
 ### 2.1 Error bound
 
@@ -63,14 +60,12 @@ Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives
 
 The following rules apply:
 
-1. **Fixed budget.** Each corpus has one `tau` per level, listed in `TOLERANCE.md`, in native units. The codec receives that number and must keep every element within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset.
-2. **Every element.** The bound limits the largest error, not the average.
-3. **NoData is not counted.** `tau` applies to valid elements; NoData values must decode unchanged.
-4. **Mixed planes take the smallest budget.** If an array mixes quantities in one native unit, use the budget of the most sensitive plane.
+1. **Fixed budget.** Each corpus has one `tau` per level, in native units. The codec receives that number and must keep every element within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset.
+2. **NoData is not counted.** `tau` applies to valid elements; NoData values must decode unchanged.
 
 ### 3.1 Corpora without a near-lossless point
 
-Some corpora have no meaningful nonzero error budget. This applies to categorical values, where a change of one may mean a different class; values that are not physical quantities, such as the bytes of a float32 scale; and data for which the effect of a proposed budget on downstream analyses has not been established. These corpora are measured in lossless mode only.
+Some corpora have no meaningful nonzero error budget. This applies to categorical values, where a change of one may mean a different class; values that are not physical quantities, such as embedding codes; arrays whose planes have different units; data without a known per-element uncertainty; and data for which the effect of a proposed budget on downstream analyses has not been established. These corpora are measured in lossless mode only.
 
 ## 4. Corpus layout
 
@@ -85,7 +80,7 @@ corpora/<corpus-id>/
 └── environment.json      generated by a run
 ```
 
-Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It contains `data`, plus `scale` and `offset` when they are not 1 and 0, and `sentinel` where applicable. `scale` and `offset` may be arrays, with one value per band or field.
+Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It contains `data`, plus `scale` and `offset` when they are not 1 and 0, and `nodata` where applicable. `scale` and `offset` may be arrays, with one value per band or field.
 
 `manifest.csv` has one row per sample, with these columns:
 
@@ -93,7 +88,7 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 | --- | --- |
 | `id` | sample id |
 | `source` | collection or product, with its version |
-| `asset` | exact id of the source scene, granule, or tile |
+| `asset` | source scene, granule, tile, or file; several are separated by `|` |
 | `crs` | EPSG code or WKT |
 | `transform` | six values of the affine geotransform, in GDAL order |
 | `datetime_start`, `datetime_end` | ISO 8601 UTC; for products without an acquisition time, the period they cover |
@@ -105,7 +100,7 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 | `input_sha256` | SHA-256 of `data` |
 | `npz_path`, `png_path` | relative paths |
 
-Values that differ by plane, such as `bands`, `scale`, and `offset`, are separated by `|`. Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date.
+Values that differ by plane, such as `bands`, `scale`, and `offset`, are separated by `|`. Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date, except `clay-embeddings`, whose cells are listed in `cells/`.
 
 `build.py` has two steps:
 
@@ -118,25 +113,24 @@ A rebuild runs `build` only.
 
 The official run measures the configurations listed in `CODECS.md`.
 
-- Decompress the sample before timing. Each codec receives `data` as an in-memory array; corpus read time is excluded.
+- Each codec receives `data` as an in-memory array; corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
-- A codec may use internal planes or blocks. Its transforms, quantisation, model selection, entropy coding, and assembly are all timed.
+- A codec may use internal planes or blocks. Everything the codec does is timed.
 - Compressed bytes must contain everything needed for decoding except shape and dtype.
 - Use one thread.
-
 - **Size, error, and encode time.** Encode each sample and decode the result. The compressed size and the encode time come from the encode, and the distortion from the decode. The encode time is a single call without warm-up, so it is indicative.
-- **Decode time.** On every sample, call decode up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode in the first bullet serves as the warm-up.
+- **Decode time.** On every sample, call decode up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode of the previous step serves as the warm-up.
 - **Determinism.** The repeated decodes of each sample must return the same array. On three samples per corpus, the first, the middle, and the last in the manifest, encode once more and check that the bytes match the first encode.
 
-Throughput depends on the machine as well as the codec. `environment.json` records the test environment, which must accompany any quoted throughput result.
+`environment.json` records the machine; quote it with any throughput.
 
 ## 6. Verification
 
-Each promised property has a check. The examples below, observed by Reichelt et al. (2026) in released compressors, show why the checks are necessary.
+Each promised property has a check. The failures below were observed by Reichelt et al. (2026) in released compressors.
 
 | check | assertion | observed precedent |
 | --- | --- | --- |
-| `bound` | Every valid element meets the bound | SPERR exceeded its stated bound; JPEG2000 only targets PSNR, an average |
+| `bound` | Every valid element meets the bound | SPERR exceeded its stated bound |
 | `sentinel` | Sentinels remain in place and appear nowhere else | SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error |
 | `zero` | Exact zeros survive | ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values |
 
@@ -147,13 +141,13 @@ If a check cannot run, report it as *not run* rather than *passed*.
 ```text
 compression_ratio = input_bytes / compressed_bytes
 bits_per_value    = compressed_bytes * 8 / element count
-encode_MB_s       = input_bytes / encode_ns * 1,000
-decode_MB_s       = input_bytes / decode_ns * 1,000
+encode_MB_s       = input_bytes / encode_ns * 1000
+decode_MB_s       = input_bytes / decode_ns * 1000
 ```
 
 `input_bytes` is the size of `data` in its starting representation, excluding metadata and container overhead. `MB` uses decimal units.
 
-Distortion is computed over the whole sample in float64, using native units:
+Distortion is computed over the valid elements of the sample, in float64 and native units:
 
 ```text
 max_abs_error = max |x - x̂|        mae        = mean |x - x̂|
@@ -161,7 +155,7 @@ rmse          = sqrt(mean (x-x̂)²)  mean_error = mean (x̂ - x)
 psnr_dB       = 20·log10(peak / rmse)
 ```
 
-`mean_error` detects bias. `peak` is the dynamic range of the reference sample, not the range of its dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, the error metrics are zero by construction.
+`mean_error` detects bias. `peak` is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, the error metrics are zero by construction.
 
 Two additional metrics describe the distribution and spatial structure of error:
 
@@ -170,19 +164,17 @@ error_spread = p99(|x - x̂|) / max(|x - x̂|)
 error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 ```
 
-`error_spread` near 1 means the 99th percentile is close to the maximum error; a low value means the largest errors are less typical. `error_lag1` describes whether neighboring errors tend to have similar values. Both help interpret error beyond its maximum, but neither by itself predicts the effect on a derived quantity.
-
-`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `exact`, `sentinel_ok`, `zero_ok`, and `fidelity_ok`.
+`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `sentinel_ok`, `zero_ok`, and `fidelity_ok`.
 
 ## 8. Aggregation and comparability
 
-Compute aggregate rates from totals across samples, not from averages of per-sample rates:
+Compute aggregate rates from totals across samples, not from averages of per-sample rates. `count` is the number of elements:
 
 ```text
 compression_ratio = sum(input_bytes) / sum(compressed_bytes)
 bits_per_value    = sum(compressed_bytes) * 8 / sum(count)
-encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1,000      over all samples
-decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1,000      over all samples
+encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1000
+decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1000
 max_abs_error     = max over samples
 rmse              = sqrt(sum(rmse² · count) / sum(count))
 ```
@@ -197,7 +189,7 @@ Results should show operating points and curves rather than name an overall winn
 - Two `lossy` configurations can be compared over a sweep, rather than from a single row.
 - Ratios computed from different starting representations of the same data do not isolate codec performance.
 
-Any quoted ratio must include `tau` and `budget_level`.
+Any quoted near-lossless ratio must include `tau` and `budget_level`.
 
 ## 9. Task validation
 
@@ -209,7 +201,7 @@ Task validation is a separate protocol. It runs an analysis on the original and 
 | --- | --- | --- |
 | NDVI | `s2-l1c-10m-4` | Difference between two similar bands |
 | slope | `cop-dem-glo30` | Sensitivity of a spatial derivative |
-| rain mask | `imerg-pcp-12` | Threshold crossing; on IMERG, a 0.05 mm/hr bound held while 690,198 light-rain values decoded as zero |
+| rain mask | `imerg-pcp-12` | Threshold crossing |
 
 ## References
 
