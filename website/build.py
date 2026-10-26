@@ -164,17 +164,39 @@ def resized(source: Path | None, target: str, side: int, square: bool) -> str | 
 
 NAV = (
     ("Datasets", "datasets/"),
-    ("Protocol", f"{REPO}/blob/main/PROTOCOL.md"),
-    ("Codecs", f"{REPO}/blob/main/CODECS.md"),
-    ("Tolerance", f"{REPO}/blob/main/TOLERANCE.md"),
-    ("GitHub", REPO),
+    ("Protocol", "protocol/"),
+    ("Codecs", "codecs/"),
+    ("Tolerance", "tolerance/"),
+)
+DOCS = {"protocol": "PROTOCOL.md", "codecs": "CODECS.md", "tolerance": "TOLERANCE.md"}
+PAGES = {**{name: slug for slug, name in DOCS.items()}, "DATASETS.md": "datasets"}
+GITHUB_ICON = (
+    '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" '
+    'd="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49'
+    "-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82"
+    ".72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15"
+    "-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2"
+    "-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54"
+    ' 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>'
+)
+HF_ICON = (
+    '<svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">'
+    '<circle cx="16" cy="15" r="12" fill="#FFD21E"/>'
+    '<circle cx="11.5" cy="12.5" r="1.6" fill="#3A3B45"/><circle cx="20.5" cy="12.5" r="1.6" fill="#3A3B45"/>'
+    '<path d="M10.5 17.5c1.2 2.4 3.2 3.6 5.5 3.6s4.3-1.2 5.5-3.6" fill="none" stroke="#3A3B45" '
+    'stroke-width="1.8" stroke-linecap="round"/>'
+    '<path d="M4.5 22.5c1.5-1.8 3.5-2 4.6-.6l1.6 2.1c.7 1-.1 2.4-1.3 2.3l-3.4-.4c-1.4-.2-2.2-2.1-1.5-3.4z'
+    'M27.5 22.5c-1.5-1.8-3.5-2-4.6-.6l-1.6 2.1c-.7 1 .1 2.4 1.3 2.3l3.4-.4c1.4-.2 2.2-2.1 1.5-3.4z" '
+    'fill="#FF9D0B"/></svg>'
 )
 
 
 def layout(root: str, title: str, body: str, chart: dict | None = None) -> str:
-    links = "".join(
-        f'<a href="{href if href.startswith("http") else root + href}">{name}</a>'
-        for name, href in NAV
+    links = "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV)
+    links += (
+        f'<a class="icon" href="{REPO}" title="GitHub" aria-label="GitHub">{GITHUB_ICON}</a>'
+        f'<a class="icon" href="https://huggingface.co/datasets/{HF_DATASET}" title="Hugging Face" '
+        f'aria-label="Hugging Face">{HF_ICON}</a>'
     )
     data = (
         f'<script id="chart-data" type="application/json">{json.dumps(chart)}</script>'
@@ -297,7 +319,28 @@ def metadata(row: dict[str, str]) -> str:
     return f'<table class="meta-table">{"".join(items)}</table>'
 
 
+def document(name: str) -> str:
+    """A Markdown document of the repository as HTML, with links to its pages."""
+    out = markdown.markdown(
+        (ROOT / name).read_text(), extensions=["tables", "fenced_code"]
+    )
+    for other, slug in PAGES.items():
+        out = out.replace(f'href="{other}"', f'href="../{slug}/"')
+        out = out.replace(
+            f"<code>{other}</code>", f'<a href="../{slug}/"><code>{other}</code></a>'
+        )
+    return f'<article class="doc">{out}</article>'
+
+
 def build() -> None:
+    for slug, name in DOCS.items():
+        target = OUT / slug / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        title = (ROOT / name).read_text().splitlines()[0].lstrip("# ")
+        target.write_text(
+            layout("../", f"{title} · Earth Compress benchmark", document(name))
+        )
+
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
     codecs = [
         plain(r["id"])
