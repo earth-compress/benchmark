@@ -1,5 +1,3 @@
-"""Build s2-l1c-60m-3 from Sentinel-2 L1C in Earth Engine."""
-
 from pathlib import Path
 
 from earthcompress import build as b

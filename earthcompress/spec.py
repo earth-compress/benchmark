@@ -1,5 +1,3 @@
-"""Description of the array a codec is configured for."""
-
 from __future__ import annotations
 
 import math
@@ -23,10 +21,7 @@ class ArraySpec:
     """
 
     def steps(self, tau: float) -> int:
-        """A budget in native units, as whole steps of the largest scale.
-
-        Protocol section 3: budgets round down, which can only make them stricter.
-        """
+        """A budget in native units, as whole steps of the largest scale."""
         return math.floor(tau / max(self.scale))
 
     def plane_scale(self) -> np.ndarray:

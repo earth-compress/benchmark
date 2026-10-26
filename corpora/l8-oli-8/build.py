@@ -1,5 +1,3 @@
-"""Build l8-oli-8 from Landsat Collection 2 Level-1 in Earth Engine."""
-
 from pathlib import Path
 
 from earthcompress import build as b

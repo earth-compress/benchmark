@@ -7,23 +7,12 @@
 
 # benchmark
 
-Compression benchmark for Earth observation data. Lossless, near-lossless and
-lossy under one measurement protocol.
+Compression benchmark for Earth observation data.
 
-| mode | what it guarantees | how it is compared |
-| --- | --- | --- |
-| lossless | the input is reproduced exactly | ratio and throughput |
-| near-lossless | a `tolerance`: a maximum absolute error per element, in the native units of the sample, verified on every sample | ratio and throughput, at equal tolerance only |
-| lossy | nothing | rate-distortion curves over a sweep of operating points, since one measurement is only a point |
+[Protocol](PROTOCOL.md) · [Datasets](DATASETS.md) · [Codecs](CODECS.md) · [Tolerance](TOLERANCE.md)
 
-The tolerance each dataset can afford, and why, is in
-[TOLERANCE.md](TOLERANCE.md).
+```bash
+uv run earthcompress corpora/s2-l1c-10m-4
+```
 
-Part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html),
-a project funded by [ARIA](https://www.aria.org.uk/) and led by the
-[National Oceanography Centre](https://noc.ac.uk/) and
-[Asterisk Labs](https://asterisk.coop/).
-
-## License
-
-[Apache License 2.0](LICENSE).
+Part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), funded by [ARIA](https://www.aria.org.uk/) and led by the [National Oceanography Centre](https://noc.ac.uk/) and [Asterisk Labs](https://asterisk.coop/). [Apache 2.0](LICENSE).

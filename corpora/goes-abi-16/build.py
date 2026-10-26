@@ -1,5 +1,3 @@
-"""Build goes-abi-16 from GOES-16 ABI L2 MCMIPF in Earth Engine."""
-
 import math
 from pathlib import Path
 

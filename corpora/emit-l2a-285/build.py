@@ -1,5 +1,3 @@
-"""Build emit-l2a-285 from EMIT L2A surface reflectance in Earth Engine."""
-
 from pathlib import Path
 
 import numpy as np

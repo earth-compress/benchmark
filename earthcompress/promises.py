@@ -1,9 +1,3 @@
-"""Verification of the promises a configuration made. Protocol section 6.
-
-A check that cannot be run is reported as not run, never as passed.
-Determinism is checked by the runner, which holds the repeated calls.
-"""
-
 from __future__ import annotations
 
 import math
@@ -93,11 +87,7 @@ def _check_bound(
     scale: np.ndarray,
     sentinel: float | None,
 ) -> Verdict:
-    """``|x - x̂| <= tau`` on every valid element, in native units.
-
-    An element decoded to exactly its input value always passes, which keeps a
-    preserved infinity from failing. NoData values are checked by `sentinel`.
-    """
+    """``|x - x̂| <= tau`` on every valid element, in native units."""
     ref_rows, dec_rows = _rows(reference), _rows(decoded)
     scale = np.asarray(scale, dtype=np.float64).reshape(-1)
     per_row = (

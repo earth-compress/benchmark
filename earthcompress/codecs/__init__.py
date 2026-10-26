@@ -1,10 +1,3 @@
-"""Discovery of codec configurations.
-
-A module declares `CONFIGURATIONS` for operating points that stand on their own
-(lossless and lossy), and `FAMILIES` for near-lossless codecs, whose budget is a
-property of the corpus and so cannot be registered globally.
-"""
-
 from __future__ import annotations
 
 import importlib
@@ -43,6 +36,13 @@ def fixed() -> tuple[CodecConfiguration, ...]:
     return _unique(discovered)
 
 
+def reference() -> tuple[CodecConfiguration, ...]:
+    """Configurations measured once, as a reference line, not in every run."""
+    return _unique(
+        [config for module in _modules() for config in getattr(module, "REFERENCE", ())]
+    )
+
+
 def families() -> tuple[Family, ...]:
     """Near-lossless codecs awaiting a budget."""
     found: list[Family] = []
@@ -54,12 +54,7 @@ def families() -> tuple[Family, ...]:
 def configurations_for(
     corpus: str, registry: Path | None = None
 ) -> tuple[CodecConfiguration, ...]:
-    """Every configuration measurable on ``corpus``.
-
-    The fixed ones, plus one per near-lossless family and declared budget. A
-    corpus with no budgets yields only the fixed ones, which is the correct
-    answer for a corpus whose values are not quantities.
-    """
+    """Every configuration measurable on ``corpus``."""
     discovered = list(fixed())
     budgets = budgets_for(corpus, registry)
     for make in families():

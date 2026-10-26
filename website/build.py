@@ -1,13 +1,3 @@
-"""Build the benchmark website from the files of this repository.
-
-Every sentence and number on the site comes from README.md, DATASETS.md,
-CODECS.md, the corpus folders, and their ``results.csv``, so the site cannot
-say something the repository does not. Previews come from the corpus folders
-when they are built locally, and otherwise from the Hugging Face dataset.
-
-    uv run --extra site python website/build.py
-"""
-
 from __future__ import annotations
 
 import csv

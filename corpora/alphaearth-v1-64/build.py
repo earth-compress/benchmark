@@ -1,5 +1,3 @@
-"""Build alphaearth-v1-64 from the AlphaEarth Foundations int8 COGs on Google Cloud."""
-
 import csv
 import urllib.request
 from pathlib import Path

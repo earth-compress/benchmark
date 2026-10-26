@@ -1,5 +1,3 @@
-"""Build esa-wc-v200 from the ESA WorldCover 2021 v200 COGs on AWS."""
-
 from pathlib import Path
 
 import numpy as np

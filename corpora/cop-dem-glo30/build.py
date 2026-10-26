@@ -1,5 +1,3 @@
-"""Build cop-dem-glo30 from the Copernicus DEM GLO-30 COGs on AWS."""
-
 from pathlib import Path
 
 import numpy as np

@@ -1,11 +1,3 @@
-"""Write invented ``results.csv`` files so the website can be built before the official run.
-
-Every row has ``codec_version = example``; the website labels any page that shows
-such rows as example data. The official run overwrites these files.
-
-    uv run python website/example_results.py
-"""
-
 from __future__ import annotations
 
 import csv

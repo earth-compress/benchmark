@@ -1,5 +1,3 @@
-"""Build tessera-v2-scales from the TESSERA v2 embeddings on Source Cooperative."""
-
 from pathlib import Path
 
 from earthcompress import build as b

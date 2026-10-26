@@ -1,5 +1,3 @@
-"""Command line entry point."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +6,7 @@ from typing import Annotated
 import typer
 
 from . import __version__
-from .codecs import configurations_for
+from .codecs import configurations_for, reference
 from .codecs.base import CodecConfiguration
 from .contract import Mode
 from .runner import run_benchmark
@@ -26,9 +24,12 @@ def _select(
     corpus: Path,
     codec_ids: list[str] | None,
     modes: list[Mode] | None,
+    with_reference: bool = False,
 ) -> tuple[CodecConfiguration, ...]:
     """Resolve the configurations measurable on this corpus."""
-    available = configurations_for(corpus.name)
+    available = configurations_for(corpus.name) + (
+        reference() if with_reference else ()
+    )
 
     if codec_ids:
         by_id = {config.id: config for config in available}
@@ -91,6 +92,9 @@ def benchmark(
         list[Mode] | None,
         typer.Option("--mode", help="Keep only this fidelity mode; repeatable."),
     ] = None,
+    with_reference: Annotated[
+        bool, typer.Option("--reference", help="Also run the reference configurations.")
+    ] = False,
     limit: Annotated[
         int | None, typer.Option(min=1, help="Run only the first N samples.")
     ] = None,
@@ -126,7 +130,7 @@ def benchmark(
     if list_codecs:
         for current in corpora:
             typer.echo(f"{current.name}")
-            for config in _select(current, codec, mode):
+            for config in _select(current, codec, mode, with_reference):
                 budget = config.budget
                 detail = "" if budget is None else f"  tau={budget.tau:g}"
                 typer.echo(f"  {config.id}\t{config.mode}{detail}")
@@ -139,7 +143,7 @@ def benchmark(
         try:
             ok = run_benchmark(
                 current,
-                _select(current, codec, mode),
+                _select(current, codec, mode, with_reference),
                 limit=limit,
             )
         except (OSError, ValueError) as error:

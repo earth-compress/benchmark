@@ -20,7 +20,15 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
-dependencies = ["numpy>=1.24", "typer>=0.20,<1", "zstandard>=0.22"]
+dependencies = [
+    "geozl==0.19.0",
+    "imagecodecs>=2024.6.1",
+    "numcodecs>=0.16,<1",
+    "numpy>=1.24",
+    "openzl==0.3.0",
+    "typer>=0.20,<1",
+    "zstandard>=0.22",
+]
 
 [project.optional-dependencies]
 corpus = [

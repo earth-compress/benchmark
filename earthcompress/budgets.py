@@ -1,14 +1,3 @@
-"""The error budgets of `TOLERANCE.md`, in machine-readable form.
-
-Protocol section 3: a budget is declared before the run and is identical for
-every sample of the corpus. It is therefore a property of the corpus, not of a
-codec, which is why a near-lossless configuration is built per corpus rather
-than registered globally.
-
-A corpus absent from the registry has no near-lossless point. Protocol
-section 3.1.
-"""
-
 from __future__ import annotations
 
 import csv

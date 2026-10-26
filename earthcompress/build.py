@@ -1,10 +1,3 @@
-"""Building of benchmark corpora. Protocol section 4.
-
-Each corpus folder has a ``build.py`` with two steps. ``select`` chooses the
-samples and writes ``manifest.csv``; it runs once. ``build`` reads only
-``manifest.csv``, fetches every sample, writes it, and checks ``input_sha256``.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -55,10 +48,7 @@ def transform_text(x0: float, dx: float, y0: float, dy: float) -> str:
 
 
 def parse_transform(value: str) -> tuple[float, ...]:
-    values = tuple(float(v) for v in value.split())
-    if len(values) != 6:
-        raise ValueError(f"a transform needs six values: {value!r}")
-    return values
+    return tuple(float(v) for v in value.split())
 
 
 def parse_shape(value: str) -> tuple[int, ...]:
@@ -66,11 +56,7 @@ def parse_shape(value: str) -> tuple[int, ...]:
 
 
 def legacy(corpus: Path, name: str | None = None) -> list[dict[str, str]]:
-    """Rows of the prototype manifest, so that ``select`` keeps the same samples.
-
-    The prototype corpora live in ``EC_LEGACY``, by default ``../ec-benchmark/corpora``
-    next to this repository.
-    """
+    """Rows of the prototype manifest, so that ``select`` keeps the same samples."""
     import os
 
     root = Path(
@@ -132,10 +118,6 @@ def save(
     """Write one sample and its preview, and check it against ``row``."""
     data = np.ascontiguousarray(data)
     shape = "x".join(str(n) for n in data.shape)
-    if row.get("shape") and row["shape"] != shape:
-        raise ValueError(f"{row['id']}: shape {shape}, manifest {row['shape']}")
-    if row.get("dtype") and row["dtype"] != str(data.dtype):
-        raise ValueError(f"{row['id']}: dtype {data.dtype}, manifest {row['dtype']}")
     digest = sha256(data)
     if row.get("input_sha256") and row["input_sha256"] != digest:
         raise ValueError(f"{row['id']}: input_sha256 does not match the manifest")

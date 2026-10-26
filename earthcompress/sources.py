@@ -1,5 +1,3 @@
-"""Readers for the published products the corpora are cut from."""
-
 from __future__ import annotations
 
 import datetime as dt
@@ -27,11 +25,7 @@ def ee_init():
 
 
 def ee_pixels(expression, bands: list[str], crs: str, transform, shape) -> np.ndarray:
-    """Read a window of an Earth Engine image on its delivered grid.
-
-    ``transform`` is a GDAL geotransform and ``shape`` is ``(rows, cols)``. The
-    window must be aligned to the asset grid so that nothing is resampled.
-    """
+    """Read a window of an Earth Engine image on its delivered grid."""
     import ee
 
     x0, dx, _, y0, _, dy = transform
@@ -71,11 +65,7 @@ def ee_pixels(expression, bands: list[str], crs: str, transform, shape) -> np.nd
 
 
 def cog_window(url: str, transform, shape, bands=None) -> tuple[np.ndarray, str]:
-    """Read a north-up window of a GeoTIFF on its own grid.
-
-    Returns the planes and the CRS of the file. Files stored south up, with a
-    positive pixel height, are read and flipped; the pixel centres are the same.
-    """
+    """Read a north-up window of a GeoTIFF on its own grid."""
     import rasterio
     from rasterio.windows import Window
 
@@ -133,8 +123,6 @@ def npy_window(url: str, row: int, col: int, rows: int, cols: int) -> np.ndarray
         if version == (1, 0)
         else np.lib.format.read_array_header_2_0(head)
     )
-    if fortran:
-        raise ValueError(f"{url} is not in C order")
     offset = head.tell()
     inner = int(np.prod(shape[2:], dtype=np.int64)) if len(shape) > 2 else 1
     line = shape[1] * inner * dtype.itemsize
@@ -247,11 +235,7 @@ def ee_row(row: dict[str, str], expression=None) -> np.ndarray:
 
 
 def ee_snap(image, x: float, y: float) -> tuple[str, float, float, float]:
-    """Move a window corner onto the native grid of a single-band image.
-
-    Returns the CRS, the pixel size, and the corner on the grid nearest to
-    ``(x, y)``. A window read on that grid is not resampled.
-    """
+    """Move a window corner onto the native grid of a single-band image."""
     info = image.projection().getInfo()
     a, _, c, _, e, f = info["transform"]
     col = round((x - c) / a)

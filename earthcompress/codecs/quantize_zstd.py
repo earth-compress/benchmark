@@ -1,23 +1,14 @@
-"""Bounded-error scalar quantisation then Zstandard: the near-lossless baseline.
-
-Values are quantised onto a uniform grid of ``2 * steps + 1`` **anchored at
-zero**, which keeps every reconstruction within ``steps`` of its reference by
-integer arithmetic rather than by hope, and keeps exact zeros exact. Anchoring
-the grid at the sample minimum instead would break the `zero` promise, which is
-the failure ClimateBenchPress recorded in ZFP and SPERR. The budget arrives in
-native units and is converted to whole steps of the largest scale.
-"""
-
 from __future__ import annotations
 
 import struct
 
 import numpy as np
+import zstandard
 
 from ..contract import Budget, Mode
 from ..spec import ArraySpec
-from . import _zstd
 from .base import CodecConfiguration
+from .zstd import VERSION, compressor
 
 _LEVEL = 3
 _MAGIC = b"ECQ1"
@@ -56,8 +47,8 @@ class QuantizeZstd:
         self._steps = spec.steps(budget.tau)
         self._width = 2 * self._steps + 1
         self._limits = np.iinfo(spec.dtype)
-        self._compressor = _zstd.compressor(_LEVEL)
-        self._decompressor = _zstd.decompressor()
+        self._compressor = compressor(_LEVEL)
+        self._decompressor = zstandard.ZstdDecompressor()
 
     def encode(self, array: np.ndarray) -> bytes:
         if array.shape != self._spec.shape or array.dtype != self._spec.dtype:
@@ -97,7 +88,7 @@ def family(budget: Budget) -> CodecConfiguration:
     return CodecConfiguration(
         id=f"quant-zstd-c3-{suffix}",
         codec="quantize+zstd",
-        version=_zstd.VERSION,
+        version=VERSION,
         mode=Mode.NEAR_LOSSLESS,
         parameters={"level": _LEVEL, "nthreads": 1},
         factory=lambda spec, budget=budget: QuantizeZstd(spec, budget),

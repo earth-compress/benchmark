@@ -1,5 +1,3 @@
-"""Build imerg-pcp-12 from GPM IMERG V07 Final in Earth Engine."""
-
 import datetime as dt
 from pathlib import Path
 

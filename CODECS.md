@@ -15,9 +15,9 @@ The configurations measured in the official run, and one reference measured once
 | `openzl-delta-fieldlz` | OpenZL | `delta>field_lz` | openzl 0.3.0 |
 | `openzl-delta-pivco` | OpenZL | `delta>zigzag>transpose>huffman_pivco` | openzl 0.3.0 |
 | `geozl-planar-pfor` | GeoZL | `planar>zigzag>pfor` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-planar-pivco` | GeoZL | `planar>zigzag>transpose>pivco` | geozl 0.19.0 on openzl 0.3.0 |
+| `geozl-planar-pivco` | GeoZL | `planar>zigzag>transpose>pivco`, or `planar>zigzag>pivco` for one-byte elements | geozl 0.19.0 on openzl 0.3.0 |
 
-`hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, and bands are pixel-interleaved before differencing.
+`hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, bands are pixel-interleaved before differencing, and floating-point values are differenced as integers of the same width.
 
 The OpenZL configurations use no GeoZL codec.
 
@@ -32,5 +32,5 @@ It is measured once and reported as a reference line, not in every run.
 ## Settings
 
 - One thread for every codec.
-- Checksums are disabled for every codec that has them, which covers the Zstandard frame checksum and the OpenZL and GeoZL content and compressed checksums.
+- Checksums are disabled for Zstandard and OpenZL. GeoZL writes a frame checksum that its Python API cannot turn off; decoding skips its verification.
 - Library versions not listed above are pinned in `uv.lock`.

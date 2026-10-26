@@ -1,5 +1,3 @@
-"""Build s1-grd-iw-2 from Sentinel-1 GRD in Earth Engine, linear backscatter."""
-
 from pathlib import Path
 
 import numpy as np

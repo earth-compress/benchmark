@@ -1,11 +1,3 @@
-"""Distortion metrics, including the shape of the error.
-
-Protocol section 7. Everything is computed in float64 over the whole sample, in
-the native unit of the data, in row blocks so that a global hourly field does
-not materialise a second copy of itself. Stored integers convert to native
-units with the scale and offset of their plane.
-"""
-
 from __future__ import annotations
 
 import math

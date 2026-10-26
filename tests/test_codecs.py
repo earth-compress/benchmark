@@ -4,15 +4,20 @@ import numpy as np
 import pytest
 
 from earthcompress.budgets import budgets_for
-from earthcompress.codecs import configurations_for, families, fixed
+from earthcompress.codecs import configurations_for, families, fixed, reference
 from earthcompress.contract import Mode, Promise
+from earthcompress.metrics import same_bytes
 from earthcompress.promises import verify
 from earthcompress.spec import ArraySpec
 
 DTYPES = (np.uint8, np.int8, np.uint16, np.int16, np.uint32, np.int32)
+ALL = (*DTYPES, np.float32, np.float64)
 
 
 def _sample(dtype: np.dtype, shape: tuple[int, ...] = (3, 64, 64)) -> np.ndarray:
+    if np.dtype(dtype).kind == "f":
+        generator = np.random.default_rng(0)
+        return np.cumsum(generator.normal(0, 1, shape), axis=-1).astype(dtype)
     limits = np.iinfo(dtype)
     generator = np.random.default_rng(0)
     size = int(np.prod(shape))
@@ -39,6 +44,34 @@ def test_a_corpus_with_budgets_gets_one_configuration_per_family_and_level():
 def test_the_mode_decides_whether_a_budget_is_present():
     for config in configurations_for("s2-l1c-10m-4"):
         assert (config.budget is not None) == (config.mode is Mode.NEAR_LOSSLESS)
+
+
+@pytest.mark.parametrize("dtype", ALL)
+@pytest.mark.parametrize("shape", [(64, 48), (3, 64, 48)])
+def test_every_lossless_codec_is_exact_and_deterministic(dtype, shape):
+    array = _sample(np.dtype(dtype), shape)
+    spec = ArraySpec(array.shape, array.dtype)
+    for config in fixed() + reference():
+        if not config.supports(spec):
+            continue
+        codec = config.factory(spec)
+        compressed = codec.encode(array)
+        assert same_bytes(codec.decode(compressed), array), config.id
+        assert codec.encode(array) == compressed, config.id
+
+
+def test_the_official_run_has_the_configurations_of_codecs_md():
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
+    official = text.split("## Official run", 1)[1].split("## Reference", 1)[0]
+    listed = {
+        line.split("|")[1].strip().strip("`")
+        for line in official.splitlines()
+        if line.startswith("| `")
+    }
+    assert listed == {config.id for config in fixed()}
+    assert [config.id for config in reference()] == ["jpeg2000"]
 
 
 @pytest.mark.parametrize("dtype", DTYPES)

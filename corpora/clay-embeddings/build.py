@@ -1,11 +1,3 @@
-"""Build clay-embeddings from the LGND Clay v1.5 Sentinel-2 embeddings on Source Cooperative.
-
-Each embedding belongs to one 2560 m MajorTOM cell. A sample is a block of 32 rows
-by 32 cells, north to south and west to east. MajorTOM rows are not aligned with
-each other, so ``cells/<id>.csv`` lists the exact bounds of every cell; the
-manifest transform is the mean cell size from the north-west corner.
-"""
-
 import csv
 import math
 import re

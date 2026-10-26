@@ -1,5 +1,3 @@
-"""Measurement of codec configurations over a corpus. Protocol sections 5 to 8."""
-
 from __future__ import annotations
 
 import csv
@@ -198,10 +196,7 @@ def _count(row: dict[str, Any]) -> int:
 
 
 def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, dict]:
-    """Corpus totals per configuration. Protocol section 8: from sums, not averages.
-
-    A configuration enters only if it completed every sample.
-    """
+    """Corpus totals per configuration. Protocol section 8: from sums, not averages."""
     totals: dict[str, dict] = {}
     for configuration in sorted({str(row["configuration"]) for row in rows}):
         selected = [

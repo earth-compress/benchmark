@@ -1,5 +1,3 @@
-"""Timing primitives. Protocol section 5."""
-
 from __future__ import annotations
 
 import time
@@ -29,10 +27,7 @@ def timed_series(
     min_calls: int = DECODE_MIN_CALLS,
     seconds: float = DECODE_SECONDS,
 ) -> tuple[list[int], list[T]]:
-    """Call ``operation`` up to ``max_calls`` times, stopping after ``seconds``.
-
-    At least ``min_calls`` calls run whatever their duration.
-    """
+    """Call ``operation`` up to ``max_calls`` times, stopping after ``seconds``."""
     limit = int(seconds * NANOSECONDS_PER_SECOND)
     times: list[int] = []
     values: list[T] = []

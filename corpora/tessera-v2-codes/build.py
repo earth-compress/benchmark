@@ -1,5 +1,3 @@
-"""Build tessera-v2-codes from the TESSERA v2 embeddings on Source Cooperative."""
-
 from pathlib import Path
 
 import numpy as np
