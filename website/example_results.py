@@ -78,6 +78,14 @@ def rows_for(corpus: str, samples: list[dict[str, str]]) -> list[dict]:
     return out
 
 
+def measured(path: Path) -> bool:
+    """Whether ``path`` holds results of a real run, which this script never overwrites."""
+    if not path.exists():
+        return False
+    with path.open(newline="") as stream:
+        return any(row["codec_version"] != MARK for row in csv.DictReader(stream))
+
+
 def main() -> None:
     for folder in sorted((ROOT / "corpora").iterdir()):
         if not (folder / "manifest.csv").exists():
@@ -85,7 +93,7 @@ def main() -> None:
         samples = [
             s for s in read_manifest(folder) if s.get("shape") and s.get("dtype")
         ]
-        if not samples:
+        if not samples or measured(folder / "results.csv"):
             continue
         with (folder / "results.csv").open("w", newline="") as stream:
             writer = csv.DictWriter(
