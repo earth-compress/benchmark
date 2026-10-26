@@ -74,7 +74,7 @@ function draw(corpus) {{
   const box = document.getElementById("chart");
   const W = Math.max(320, box.clientWidth || 960);
   const H = Math.round(Math.max(300, Math.min(520, W * 0.56)));
-  const L = 48, R = W < 600 ? 96 : 150, T = 24, B = 44;
+  const L = 48, R = W < 600 ? 96 : 150, T = 40, B = 54;
   const svg = el("svg", {{ viewBox: `0 0 ${{W}} ${{H}}`, role: "img", "aria-label": "Compression ratio against decode speed" }});
   const speeds = points.map(p => p.speed), ratios = points.map(p => p.ratio);
   const x0 = Math.log10(Math.min(...speeds, 100) / 1.5), x1 = Math.log10(Math.max(...speeds, 1000) * 1.5);
@@ -94,7 +94,7 @@ function draw(corpus) {{
     axes.append(el("text", {{ x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }}, v.toFixed(2)));
   }}
   axes.append(el("text", {{ x: W - R, y: H - 8, class: "axis", "text-anchor": "end" }}, "decode MB/s →"));
-  axes.append(el("text", {{ x: L, y: T - 8, class: "axis" }}, "↑ compression ratio"));
+  axes.append(el("text", {{ x: L, y: T - 14, class: "axis" }}, "↑ compression ratio"));
   svg.append(axes);
   const front = frontier(points);
   if (front.length > 1) {{
