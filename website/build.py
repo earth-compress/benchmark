@@ -472,7 +472,10 @@ def build() -> None:
         layout(
             "../",
             "Datasets · Earth Compress benchmark",
-            f'{crumbs("../", ("Datasets", None))}<h1>Datasets</h1><div class="grid">{grid}</div>',
+            f'{crumbs("../", ("Datasets", None))}<h1>Datasets</h1><div class="grid">{grid}</div>'
+            + document("DATASETS.md")
+            .replace("<h1>Datasets</h1>", "", 1)
+            .replace('class="doc"', 'class="doc wide"', 1),
         )
     )
 

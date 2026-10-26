@@ -32,6 +32,8 @@ nav .icon + .icon { margin-left: -8px; }
 nav .icon:hover { opacity: 0.75; }
 
 .doc { max-width: 780px; padding: 8px 0 48px; font-size: 16px; line-height: 1.65; }
+.doc.wide { max-width: none; }
+.doc.wide p, .doc.wide pre { max-width: 780px; }
 .doc h1 { font: 600 30px var(--sans); margin: 32px 0 20px; }
 .doc h2 { font-size: 21px; margin: 36px 0 10px; }
 .doc h3 { font-size: 17px; margin: 24px 0 8px; }
