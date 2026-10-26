@@ -55,7 +55,6 @@ h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .soon { font: 500 11px var(--mono); color: var(--muted); background: var(--tint); padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: 3px; }
 .pick { display: flex; align-items: center; gap: 12px; }
-.example { font: 500 12px var(--mono); color: #8a5a00; background: #fbefd5; padding: 3px 8px; border-radius: 4px; }
 select { font: 14px var(--mono); color: var(--ink); background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .soonpanel p { font-size: 18px; color: var(--muted); padding: 120px 0; text-align: center; margin: 0; }
 .chart svg { display: block; width: 100%; height: auto; }

@@ -219,12 +219,13 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Reference PDFs are fetched, not redistributed. See docs/papers/README.md
-docs/papers/*.pdf
-
 # Corpus samples and previews are published on Hugging Face, not in git
 corpora/*/npz/
 corpora/*/png/
 website/dist/
 website/dist.next/
 website/dist.old/
+
+# Local files
+.DS_Store
+docs/papers/

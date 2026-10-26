@@ -257,8 +257,8 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-def chart_block(select: str = "", badge: str = "", key: str = "all") -> str:
-    pick = f'<label class="pick">{badge}{select}</label>' if select or badge else ""
+def chart_block(select: str = "", key: str = "all") -> str:
+    pick = f'<label class="pick">{select}</label>' if select else ""
     return f"""<section class="results">
 <div class="controls">
 <div class="tabs" role="tablist" aria-label="Fidelity mode">
@@ -350,8 +350,6 @@ def build() -> None:
         "groups": {plain(r["id"]): r["group"] for r in official},
         "reference": plain(reference[0]["id"]) if reference else None,
     }
-    label = '<span class="example">Example data</span>'
-    any_example = False
 
     corpus_totals: dict[str, dict] = {}
     corpus_cards = []
@@ -362,9 +360,6 @@ def build() -> None:
         rows = lossless_rows(folder)
         found = totals(rows)
         by_sample = per_sample(rows)
-        example = any(r["codec_version"] == "example" for r in rows)
-        any_example = any_example or example
-        badge = label if example else ""
         corpus_totals[cid] = found
         meta = f"{inline(row['shape'])} · {inline(row['dtype'])}"
 
@@ -398,7 +393,7 @@ def build() -> None:
             download = f"{HF}/{cid}/{s['npz_path']}" if s.get("npz_path") else ""
             body = f"""{crumbs("../../../", ("Datasets", "datasets/"), (cid, f"datasets/{cid}/"), (s["id"], None))}
 <h1>{html.escape(s["id"])}</h1>
-{f'<p class="pick">{badge}</p>' if badge else ""}<div class="chart" data-chart="{s["id"]}"></div>
+<div class="chart" data-chart="{s["id"]}"></div>
 <div class="sample">
 <div class="figure">{f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">' if large else '<div class="noimg"></div>'}
 {f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
@@ -431,7 +426,7 @@ def build() -> None:
 <p class="lead">{inline(row["contents"])}.</p>
 <section class="spec">{spec_html}</section>
 <p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
-{chart_block(badge=badge, key=cid)}
+{chart_block(key=cid)}
 <section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>"""
         target = OUT / "datasets" / cid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -448,7 +443,6 @@ def build() -> None:
     measured = [cid for cid, found in corpus_totals.items() if found]
     options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{options}</select>'
-    badge = label if any_example else ""
     chart = {
         "data": {
             "all": summary(corpus_totals),
@@ -464,7 +458,7 @@ def build() -> None:
         layout(
             "",
             "Earth Compress benchmark",
-            f'{chart_block(select, badge)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            f'{chart_block(select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
             chart,
         )
     )
