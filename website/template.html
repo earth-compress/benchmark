@@ -15,37 +15,28 @@
 <header>
 <div class="wrap bar">
 <a class="brand" href="#top"><picture><source media="(prefers-color-scheme: dark)" srcset="earth-compress-dark.svg"><img src="earth-compress.svg" alt="Earth Compress" height="30"></picture><span class="version">benchmark v1.0</span></a>
-<nav><a href="#results">Results</a><a href="#datasets">Datasets</a><a href="{repo}">GitHub</a></nav>
+<nav><a href="#top">Results</a><a href="#datasets">Datasets</a><a href="{repo}">GitHub</a></nav>
 </div>
 </header>
 <main id="top" class="wrap">
-<section class="intro">
-<h1>{tagline}</h1>
-<p class="facts"><span>{corpora} corpora</span><span>{configurations} lossless configurations</span></p>
-</section>
-
-<section id="results" class="results">
-<div class="tabs" role="tablist" aria-label="Fidelity mode">
-<button type="button" role="tab" id="tab-lossless" aria-controls="panel-lossless" aria-selected="true"><span class="name">Lossless</span><span class="say">{lossless}</span></button>
-<button type="button" role="tab" id="tab-near" aria-controls="panel-near" aria-selected="false"><span class="name">Near-lossless <span class="soon">Coming soon</span></span><span class="say">{near}</span></button>
-<button type="button" role="tab" id="tab-lossy" aria-controls="panel-lossy" aria-selected="false"><span class="name">Lossy <span class="soon">Coming soon</span></span><span class="say">{lossy}</span></button>
-</div>
-
-<div class="panel" role="tabpanel" id="panel-lossless" aria-labelledby="tab-lossless">
+<section class="results">
 <div class="controls">
-<label>Corpus <select id="corpus"><option value="all">All measured corpora</option>{options}</select></label>
-<span class="note" id="caption"></span>
+<div class="tabs" role="tablist" aria-label="Fidelity mode">
+<button type="button" role="tab" aria-controls="panel-lossless" aria-selected="true">Lossless</button>
+<button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless <span class="soon">soon</span></button>
+<button type="button" role="tab" aria-controls="panel-lossy" aria-selected="false">Lossy <span class="soon">soon</span></button>
 </div>
+<label class="pick">{badge}<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{options}</select></label>
+</div>
+<div class="panel" role="tabpanel" id="panel-lossless">
 <div class="chart" id="chart"></div>
-<p class="note">Each point is one configuration. Totals over every sample, one thread. Up is smaller files, right is faster decoding. {measured} of {corpora} corpora measured so far.</p>
 </div>
-<div class="panel soonpanel" role="tabpanel" id="panel-near" aria-labelledby="tab-near" hidden><p>Near-lossless results are coming soon. Each corpus has three error budgets in <a href="{repo}/blob/main/TOLERANCE.md">TOLERANCE.md</a>.</p></div>
-<div class="panel soonpanel" role="tabpanel" id="panel-lossy" aria-labelledby="tab-lossy" hidden><p>Lossy results are coming soon, as rate-distortion curves.</p></div>
+<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>Coming soon.</p></div>
+<div class="panel soonpanel" role="tabpanel" id="panel-lossy" hidden><p>Coming soon.</p></div>
 </section>
 
 <section id="datasets">
 <h2>Datasets</h2>
-<p class="note">Each sample is a window of a published product on its native grid. Open a corpus for its source, representation, licence, and samples.</p>
 <div class="grid">
 {cards}
 </div>
@@ -59,11 +50,19 @@
 const DATA = {data};
 const CODECS = {codecs};
 const NS = "http://www.w3.org/2000/svg";
+const STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function el(name, attrs, text) {{
   const node = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   if (text !== undefined) node.textContent = text;
   return node;
+}}
+function frontier(points) {{
+  const sorted = [...points].sort((a, b) => b.speed - a.speed);
+  const front = [];
+  let best = -Infinity;
+  for (const p of sorted) if (p.ratio > best) {{ front.push(p); best = p.ratio; }}
+  return front;
 }}
 function draw(corpus) {{
   const totals = DATA[corpus] || {{}};
@@ -72,39 +71,78 @@ function draw(corpus) {{
     ratio: totals[c].input / totals[c].compressed,
     speed: totals[c].input / 1e6 / (totals[c].decode_ns / 1e9),
   }}));
-  const W = 860, H = 380, L = 64, R = 24, T = 20, B = 52;
+  const box = document.getElementById("chart");
+  const W = Math.max(320, box.clientWidth || 960);
+  const H = Math.round(Math.max(300, Math.min(520, W * 0.56)));
+  const L = 48, R = W < 600 ? 96 : 150, T = 24, B = 44;
   const svg = el("svg", {{ viewBox: `0 0 ${{W}} ${{H}}`, role: "img", "aria-label": "Compression ratio against decode speed" }});
   const speeds = points.map(p => p.speed), ratios = points.map(p => p.ratio);
-  const x0 = Math.log10(Math.max(1, Math.min(...speeds, 100) / 2)), x1 = Math.log10(Math.max(...speeds, 1000) * 2);
-  const y0 = 1, y1 = Math.max(2, Math.ceil(Math.max(...ratios, 1) * 1.15 * 2) / 2);
+  const x0 = Math.log10(Math.min(...speeds, 100) / 1.5), x1 = Math.log10(Math.max(...speeds, 1000) * 1.5);
+  const y0 = 1, y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, 1) * 1.1 * 4) / 4);
   const X = v => L + (Math.log10(v) - x0) / (x1 - x0) * (W - L - R);
   const Y = v => H - B - (v - y0) / (y1 - y0) * (H - T - B);
-  for (let e = Math.ceil(x0); e <= Math.floor(x1); e++) {{
-    const v = 10 ** e;
-    svg.append(el("line", {{ x1: X(v), x2: X(v), y1: T, y2: H - B, class: "grid" }}));
-    svg.append(el("text", {{ x: X(v), y: H - B + 20, class: "tick", "text-anchor": "middle" }}, v.toLocaleString("en")));
+  const axes = el("g", {{ class: "axes" }});
+  const narrow = W < 600;
+  for (const v of narrow ? [10, 100, 1000, 10000] : [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000]) {{
+    if (Math.log10(v) < x0 || Math.log10(v) > x1) continue;
+    axes.append(el("line", {{ x1: X(v), x2: X(v), y1: T, y2: H - B, class: "grid" }}));
+    axes.append(el("text", {{ x: X(v), y: H - B + 20, class: "tick", "text-anchor": "middle" }}, v.toLocaleString("en")));
   }}
-  const step = y1 - y0 > 4 ? 1 : 0.5;
+  const step = y1 - y0 > 2 ? 0.5 : 0.25;
   for (let v = y0; v <= y1 + 1e-9; v += step) {{
-    svg.append(el("line", {{ x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: "grid" }}));
-    svg.append(el("text", {{ x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }}, v.toFixed(1)));
+    axes.append(el("line", {{ x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: "grid" }}));
+    axes.append(el("text", {{ x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }}, v.toFixed(2)));
   }}
-  svg.append(el("text", {{ x: (L + W - R) / 2, y: H - 10, class: "axis", "text-anchor": "middle" }}, "Decode speed, MB/s"));
-  svg.append(el("text", {{ x: 16, y: (T + H - B) / 2, class: "axis", "text-anchor": "middle", transform: `rotate(-90 16 ${{(T + H - B) / 2}})` }}, "Compression ratio"));
-  for (const p of points) {{
-    const g = el("g", {{ class: "point" }});
+  axes.append(el("text", {{ x: W - R, y: H - 8, class: "axis", "text-anchor": "end" }}, "decode MB/s →"));
+  axes.append(el("text", {{ x: L, y: T - 8, class: "axis" }}, "↑ compression ratio"));
+  svg.append(axes);
+  const front = frontier(points);
+  if (front.length > 1) {{
+    const path = el("path", {{ class: "pareto", d: front.map((p, i) => `${{i ? "L" : "M"}}${{X(p.speed)}},${{Y(p.ratio)}}`).join(" ") }});
+    svg.append(path);
+  }}
+  const onFront = new Set(front.map(p => p.id));
+  const order = [...points].sort((a, b) => a.speed - b.speed);
+  const placed = [];
+  const free = box => !placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h);
+  points.forEach(p => placed.push({{ x: X(p.speed) - 7, y: Y(p.ratio) - 7, w: 14, h: 14 }}));
+  order.forEach((p, i) => {{
+    const g = el("g", {{ class: "point" + (onFront.has(p.id) ? " front" : ""), style: `--i:${{i}}` }});
     g.append(el("title", {{}}, `${{p.id}}: ratio ${{p.ratio.toFixed(2)}}, decode ${{Math.round(p.speed).toLocaleString("en")}} MB/s`));
     g.append(el("circle", {{ cx: X(p.speed), cy: Y(p.ratio), r: 6 }}));
-    g.append(el("text", {{ x: X(p.speed) + 10, y: Y(p.ratio) + 4, class: "label" }}, p.id));
+    if (narrow && !onFront.has(p.id)) {{ svg.append(g); return; }}
+    const w = p.id.length * (narrow ? 6.7 : 7.9), cx = X(p.speed), cy = Y(p.ratio);
+    const spots = [[cx + 10, cy + 4, "start"], [cx - 10, cy + 4, "end"], [cx + 8, cy - 10, "start"], [cx + 8, cy + 20, "start"], [cx - 8, cy - 10, "end"], [cx - 8, cy + 20, "end"]];
+    const fits = s => {{
+      const b = {{ x: s[2] === "end" ? s[0] - w : s[0], y: s[1] - 12, w, h: 15 }};
+      return b.x > L && b.x + w < W ? b : null;
+    }};
+    const spot = spots.find(s => fits(s) && free(fits(s))) || spots.find(fits) || spots[0];
+    if (fits(spot)) placed.push(fits(spot));
+    g.append(el("text", {{ x: spot[0], y: spot[1], "text-anchor": spot[2], class: "label" }}, p.id));
     svg.append(g);
-  }}
-  if (!points.length) svg.append(el("text", {{ x: W / 2, y: H / 2, class: "axis", "text-anchor": "middle" }}, "No results yet for this corpus"));
-  const box = document.getElementById("chart");
+  }});
+  if (!points.length) svg.append(el("text", {{ x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }}, "No results yet"));
   box.replaceChildren(svg);
-  document.getElementById("caption").textContent = corpus === "all" ? "Totals over all measured corpora" : "";
+  const path = svg.querySelector(".pareto");
+  if (path && !STILL) {{
+    const length = path.getTotalLength();
+    path.style.strokeDasharray = length;
+    path.animate(
+      [{{ strokeDashoffset: length }}, {{ strokeDashoffset: 0 }}],
+      {{ duration: 1100, delay: order.length * 90 + 350, easing: "ease-in-out", fill: "backwards" }},
+    );
+  }}
+  svg.getBoundingClientRect();
+  svg.classList.add("in");
 }}
-document.getElementById("corpus").addEventListener("change", e => draw(e.target.value));
-draw("all");
+const corpusSelect = document.getElementById("corpus");
+corpusSelect.addEventListener("change", () => draw(corpusSelect.value));
+let lastWidth = 0;
+new ResizeObserver(entries => {{
+  const width = Math.round(entries[0].contentRect.width);
+  if (Math.abs(width - lastWidth) > 40) {{ lastWidth = width; draw(corpusSelect.value); }}
+}}).observe(document.getElementById("chart"));
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 tabs.forEach(tab => tab.addEventListener("click", () => {{
   tabs.forEach(t => {{
@@ -112,6 +150,7 @@ tabs.forEach(tab => tab.addEventListener("click", () => {{
     t.setAttribute("aria-selected", String(on));
     document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
   }});
+  document.querySelector(".pick").style.visibility = tab === tabs[0] ? "visible" : "hidden";
 }}));
 </script>
 </body>

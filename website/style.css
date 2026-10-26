@@ -10,6 +10,7 @@
   --mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark) {
+  .example { color: #f3c77a; background: #3a2a08; }
   :root {
     --ink: #e6eeed;
     --muted: #a3b8b7;
@@ -39,32 +40,35 @@ nav a:hover { color: var(--ink); text-decoration: none; }
 
 section { padding: 40px 0; border-bottom: 1px solid var(--line); }
 section:last-child { border-bottom: 0; }
-h1 { font-size: 30px; font-weight: 500; line-height: 1.25; margin: 0 0 14px; max-width: 760px; }
 h2 { font-size: 21px; font-weight: 600; margin: 0 0 6px; }
 h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
-.intro { padding-top: 56px; }
-.facts { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; font: 14px var(--mono); color: var(--muted); }
 .note { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 
-.results { padding-top: 8px; }
-.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-bottom: 1px solid var(--line); }
-.tabs button { display: flex; flex-direction: column; justify-content: flex-start; text-align: left; background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; padding: 14px 18px 16px 0; cursor: pointer; color: var(--ink); font: inherit; }
-.tabs button[aria-selected="true"] { border-bottom-color: var(--accent); }
-.tabs button:not([aria-selected="true"]) .name { color: var(--muted); }
-.tabs .name { display: block; font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-.tabs .say { display: block; font-size: 14px; color: var(--muted); max-width: 300px; }
-.soon { font: 500 11px var(--mono); color: var(--muted); background: var(--tint); padding: 2px 7px; border-radius: 4px; margin-left: 6px; vertical-align: 4px; }
-.panel { padding-top: 22px; }
-.soonpanel p { font-size: 16px; padding: 48px 0; color: var(--muted); }
-.controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
-.controls label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.results { padding: 28px 0 40px; }
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.tabs { display: flex; gap: 28px; }
+.tabs button { white-space: nowrap; background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 0 6px; cursor: pointer; font: 600 20px var(--sans); color: var(--faint); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.soon { font: 500 11px var(--mono); color: var(--muted); background: var(--tint); padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: 3px; }
+.pick { display: flex; align-items: center; gap: 12px; }
+.example { font: 500 12px var(--mono); color: #8a5a00; background: #fbefd5; padding: 3px 8px; border-radius: 4px; }
 select { font: 14px var(--mono); color: var(--ink); background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+.soonpanel p { font-size: 18px; color: var(--muted); padding: 120px 0; text-align: center; margin: 0; }
 .chart svg { display: block; width: 100%; height: auto; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .tick { font: 12px var(--mono); fill: var(--muted); }
+.chart .tick { font: 12px var(--mono); fill: var(--faint); }
 .chart .axis { font: 13px var(--sans); fill: var(--muted); }
-.chart .point circle { fill: var(--accent); }
-.chart .label { font: 13px var(--mono); fill: var(--ink); }
+.chart .point circle { fill: var(--faint); }
+.chart .point.front circle { fill: var(--accent); }
+.chart .label { font: 13px var(--mono); fill: var(--muted); }
+.chart .point.front .label { fill: var(--ink); }
+.chart .pareto { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.chart .axes { opacity: 0; transition: opacity 0.5s ease; }
+.chart .point { opacity: 0; transform: scale(0.3); transform-box: fill-box; transform-origin: center; transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 1.4, 0.4, 1); transition-delay: calc(var(--i) * 90ms + 250ms); }
+.chart svg.in .axes, .chart svg.in .point { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .chart .axes, .chart .point { transition: none; }
+}
 
 .scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -93,10 +97,9 @@ footer p { margin: 0 0 8px; }
 @media (max-width: 760px) {
   nav { gap: 14px; font-size: 14px; }
   .version { display: none; }
-  h1 { font-size: 24px; }
-  .tabs { grid-template-columns: 1fr; }
-  .tabs button { border-bottom-width: 0; border-left: 3px solid transparent; padding: 10px 0 10px 12px; margin: 0; }
-  .tabs button[aria-selected="true"] { border-left-color: var(--accent); }
-  .tabs .name { font-size: 18px; }
+  .tabs { gap: 16px; }
+  .tabs button { font-size: 16px; }
+  .soon { display: none; }
+  .chart .label { font-size: 11px; }
   .corpus[open] { grid-template-columns: 1fr; }
 }

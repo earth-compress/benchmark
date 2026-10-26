@@ -10,6 +10,7 @@ cannot say something the documents do not.
 from __future__ import annotations
 
 import csv
+import hashlib
 import html
 import json
 import re
@@ -78,6 +79,45 @@ def results(corpus: Path) -> dict[str, dict]:
     return totals
 
 
+# Invented values for designing the page before the official run. Never published.
+EXAMPLE = {
+    "zstd-c3": (1.55, 1200),
+    "blosc-zstd3-bitshuffle": (1.75, 2400),
+    "deflate-c6": (1.45, 350),
+    "lzw": (1.25, 180),
+    "hdiff-zstd9": (1.85, 900),
+    "openzl-generic": (2.05, 650),
+    "openzl-delta-fieldlz": (1.95, 1100),
+    "openzl-delta-pivco": (2.1, 800),
+    "geozl-planar-pfor": (2.2, 1700),
+    "geozl-planar-pivco": (2.3, 1000),
+}
+
+
+def example(corpora: list[str]) -> dict[str, dict]:
+    """Per-corpus totals invented from ``EXAMPLE``, varied by corpus."""
+    import random
+
+    data = {}
+    for corpus in corpora:
+        rng = random.Random(corpus)
+        gain, speed = rng.uniform(0.7, 1.6), rng.uniform(0.6, 1.4)
+        size = 100_000_000
+        data[corpus] = {
+            codec: {
+                "input": size,
+                "compressed": round(
+                    size / max(1.02, 1 + (ratio - 1) * gain * rng.uniform(0.9, 1.1))
+                ),
+                "decode_ns": round(
+                    size / (mb_s * speed * rng.uniform(0.85, 1.15)) * 1000
+                ),
+            }
+            for codec, (ratio, mb_s) in EXAMPLE.items()
+        }
+    return data
+
+
 def summary(data: dict[str, dict]) -> dict[str, dict]:
     """Totals over every corpus that has results, for configurations present in all of them."""
     measured = [corpus for corpus in data.values() if corpus]
@@ -119,17 +159,11 @@ def samples(corpus: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(stream))
 
 
-def page() -> str:
+def page(use_example: bool = False) -> str:
     readme = (ROOT / "README.md").read_text()
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
     codecs = table((ROOT / "CODECS.md").read_text(), "## Official run")
     tagline = " ".join(readme.split("# benchmark", 1)[1].split("\n\n")[1].split())
-    modes = {
-        plain(r["mode"]): r["what it guarantees"][:1].upper()
-        + r["what it guarantees"][1:]
-        + "."
-        for r in table(readme, "# benchmark")
-    }
     codec_ids = [plain(row["id"]) for row in codecs]
 
     data: dict[str, dict] = {}
@@ -168,16 +202,16 @@ def page() -> str:
 </details>"""
         )
 
+    if use_example:
+        data = example(list(data))
     measured = [cid for cid, found in data.items() if found]
     options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     return TEMPLATE.format(
         tagline=html.escape(tagline),
-        lossless=inline(modes["lossless"]),
-        near=inline(modes["near-lossless"]),
-        lossy=inline(modes["lossy"]),
         corpora=len(datasets),
         configurations=len(codec_ids),
         measured=len(measured),
+        badge='<span class="example">Example data</span>' if use_example else "",
         options=options,
         cards="\n".join(cards),
         repo=REPO,
@@ -190,13 +224,24 @@ TEMPLATE = (Path(__file__).resolve().parent / "template.html").read_text()
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--example", action="store_true", help="invented results, for design only"
+    )
+    args = parser.parse_args()
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
     for name in ("earth-compress.svg", "earth-compress-dark.svg"):
         shutil.copy(ROOT / "docs" / "assets" / name, OUT / name)
-    shutil.copy(Path(__file__).resolve().parent / "style.css", OUT / "style.css")
-    (OUT / "index.html").write_text(page())
+    css = (Path(__file__).resolve().parent / "style.css").read_bytes()
+    (OUT / "style.css").write_bytes(css)
+    version = hashlib.sha256(css).hexdigest()[:10]
+    (OUT / "index.html").write_text(
+        page(args.example).replace('href="style.css"', f'href="style.css?v={version}"')
+    )
     print(f"wrote {OUT / 'index.html'}")
 
 
