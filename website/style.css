@@ -57,7 +57,7 @@ select { font: 14px var(--mono); color: var(--ink); background: var(--page); bor
 .chart svg { display: block; width: 100%; height: auto; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .tick { font: 12px var(--mono); fill: var(--faint); }
-.chart .axis { font: 17px var(--sans); fill: var(--muted); }
+.chart .axis { font: 500 17px var(--sans); fill: var(--ink); }
 .chart .point circle { fill: var(--faint); }
 .chart .point.front circle { fill: var(--accent); }
 .chart .label { font: 13px var(--mono); fill: var(--muted); }
