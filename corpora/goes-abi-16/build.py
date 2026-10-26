@@ -1,4 +1,5 @@
 import math
+import re
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +34,7 @@ def select() -> list[dict[str, str]]:
                 "id": old["id"],
                 "source": f"{COLLECTION} (GOES-16 ABI L2 Cloud and Moisture Imagery, full disk)",
                 "asset": asset,
-                "crs": info["wkt"],
+                "crs": re.sub(r",\s+", ",", info["wkt"]),
                 "transform": b.transform_text(west, step, north, -step),
                 "datetime_start": src.utc(props["system:time_start"]),
                 "datetime_end": src.utc(props["system:time_start"]),
