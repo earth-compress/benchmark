@@ -342,10 +342,13 @@ def build() -> None:
         )
 
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
-    codecs = [
-        plain(r["id"])
-        for r in table((ROOT / "CODECS.md").read_text(), "## Official run")
-    ]
+    official = table((ROOT / "CODECS.md").read_text(), "## Official run")
+    codecs = [plain(r["id"]) for r in official]
+    reference = table((ROOT / "CODECS.md").read_text(), "## Reference")
+    style = {
+        "groups": {plain(r["id"]): r["group"] for r in official},
+        "reference": plain(reference[0]["id"]) if reference else None,
+    }
     label = '<span class="example">Example data</span>'
     any_example = False
 
@@ -404,7 +407,11 @@ def build() -> None:
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "datasets" / cid / s["id"] / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
-            chart = {"data": {s["id"]: by_sample.get(s["id"], {})}, "codecs": codecs}
+            chart = {
+                "data": {s["id"]: by_sample.get(s["id"], {})},
+                "codecs": codecs,
+                **style,
+            }
             target.write_text(
                 layout(
                     "../../../", f"{s['id']} · Earth Compress benchmark", body, chart
@@ -432,7 +439,7 @@ def build() -> None:
                 "../../",
                 f"{cid} · Earth Compress benchmark",
                 body,
-                {"data": {cid: found}, "codecs": codecs},
+                {"data": {cid: found}, "codecs": codecs, **style},
             )
         )
         corpus_cards.append((cid, f"datasets/{cid}/", first, meta))
@@ -447,6 +454,7 @@ def build() -> None:
             **{c: corpus_totals[c] for c in measured},
         },
         "codecs": codecs,
+        **style,
     }
     grid = "".join(
         card("", href, image, cid, meta) for cid, href, image, meta in corpus_cards

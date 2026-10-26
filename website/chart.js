@@ -16,19 +16,33 @@ function frontier(points) {
   for (const p of sorted) if (p.ratio > best) { front.push(p); best = p.ratio; }
   return front;
 }
-function draw(box, totals, CODECS) {
-  const points = CODECS.filter(c => totals[c]).map(c => ({
-    id: c,
-    ratio: totals[c].input / totals[c].compressed,
-    speed: totals[c].input / 1e6 / (totals[c].decode_ns / 1e9),
-  }));
+const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const rate = entry => ({
+  ratio: entry.input / entry.compressed,
+  speed: entry.input / 1e6 / (entry.decode_ns / 1e9),
+});
+function legend(groups, present) {
+  const div = document.createElement("div");
+  div.className = "legend";
+  for (const name of [...new Set(Object.values(groups))]) {
+    if (!present.has(name)) continue;
+    const item = document.createElement("span");
+    item.className = `g-${slug(name)}`;
+    item.innerHTML = `<i></i>${name}`;
+    div.append(item);
+  }
+  return div;
+}
+function draw(box, totals, CODECS, groups, reference) {
+  const points = CODECS.filter(c => totals[c]).map(c => ({ id: c, group: groups[c], ...rate(totals[c]) }));
+  const ref = reference && totals[reference] ? rate(totals[reference]) : null;
   const W = Math.max(320, box.clientWidth || 960);
   const H = Math.round(Math.max(300, Math.min(520, W * 0.56)));
   const L = 48, R = W < 600 ? 96 : 150, T = 40, B = 54;
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Compression ratio against decode speed" });
   const speeds = points.map(p => p.speed), ratios = points.map(p => p.ratio);
   const x0 = Math.log10(Math.min(...speeds, 100) / 1.5), x1 = Math.log10(Math.max(...speeds, 1000) * 1.5);
-  const y0 = 1, y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, 1) * 1.1 * 4) / 4);
+  const y0 = 1, y1 = Math.max(1.5, Math.ceil(Math.max(...ratios, ref ? ref.ratio : 1, 1) * 1.1 * 4) / 4);
   const X = v => L + (Math.log10(v) - x0) / (x1 - x0) * (W - L - R);
   const Y = v => H - B - (v - y0) / (y1 - y0) * (H - T - B);
   const axes = el("g", { class: "axes" });
@@ -46,6 +60,17 @@ function draw(box, totals, CODECS) {
   axes.append(el("text", { x: W - R, y: H - 8, class: "axis", "text-anchor": "end" }, "decode MB/s →"));
   axes.append(el("text", { x: L, y: T - 14, class: "axis" }, "↑ compression ratio"));
   svg.append(axes);
+  const placed = [];
+  if (ref) {
+    const y = Y(ref.ratio);
+    const text = `JPEG 2000 reference · decode ${Math.round(ref.speed).toLocaleString("en")} MB/s`;
+    const g = el("g", { class: "reference" });
+    g.append(el("line", { x1: L, x2: W - R, y1: y, y2: y }));
+    g.append(el("text", { x: W - R, y: y - 6, "text-anchor": "end" }, text));
+    svg.append(g);
+    const w = text.length * (SMALL_TEXT ? 5.6 : 6.6);
+    placed.push({ x: W - R - w, y: y - 18, w, h: 15 });
+  }
   const front = frontier(points);
   if (front.length > 1) {
     const path = el("path", { class: "pareto", d: front.map((p, i) => `${i ? "L" : "M"}${X(p.speed)},${Y(p.ratio)}`).join(" ") });
@@ -53,11 +78,10 @@ function draw(box, totals, CODECS) {
   }
   const onFront = new Set(front.map(p => p.id));
   const order = [...points].sort((a, b) => a.speed - b.speed);
-  const placed = [];
   const free = box => !placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h);
   points.forEach(p => placed.push({ x: X(p.speed) - 7, y: Y(p.ratio) - 7, w: 14, h: 14 }));
   order.forEach((p, i) => {
-    const g = el("g", { class: "point" + (onFront.has(p.id) ? " front" : ""), style: `--i:${i}` });
+    const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : ""), style: `--i:${i}` });
     g.append(el("title", {}, `${p.id}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`));
     g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 6 }));
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
@@ -73,7 +97,7 @@ function draw(box, totals, CODECS) {
     svg.append(g);
   });
   if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, "No results yet"));
-  box.replaceChildren(svg);
+  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg);
   const path = svg.querySelector(".pareto");
   if (path && !STILL) {
     const length = path.getTotalLength();
@@ -88,8 +112,8 @@ function draw(box, totals, CODECS) {
 }
 
 function mountChart(box, read) {
-  const { data, codecs } = JSON.parse(document.getElementById("chart-data").textContent);
-  const render = () => draw(box, data[read()] || {}, codecs);
+  const { data, codecs, groups, reference } = JSON.parse(document.getElementById("chart-data").textContent);
+  const render = () => draw(box, data[read()] || {}, codecs, groups, reference);
   let lastWidth = 0;
   new ResizeObserver(entries => {
     const width = Math.round(entries[0].contentRect.width);
