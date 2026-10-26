@@ -6,7 +6,9 @@ Each measurement uses one array in memory. The protocol covers compressed size, 
 
 ## 1. Starting representation
 
-ERA5 2 m temperature is archived as 16-bit codes, each decoded as `offset + code × 2^-9` K, so one field holds at most 65,536 distinct values. Copies distributed as float32 store each of those values in 32 bits. A codec can halve such a copy by removing bits the source never had, without finding any structure in the temperature field. Compression ratios therefore depend on the representation the measurement starts from.
+> **Example.** ERA5 2 m temperature is archived as 16-bit codes, each decoded as `offset + code × 2^-9` K, so one field holds at most 65,536 distinct values. Copies distributed as float32 store each of those values in 32 bits. A codec can halve such a copy by removing bits the source never had, without finding any structure in the temperature field.
+
+Compression ratios therefore depend on the representation the measurement starts from.
 
 For each dataset, store integers when they reproduce the published data exactly:
 
