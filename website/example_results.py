@@ -25,6 +25,11 @@ TYPICAL = {
     "openzl-delta-pivco": ("openzl", 2.1, 800),
     "geozl-planar-pfor": ("geozl", 2.2, 1700),
     "geozl-planar-pivco": ("geozl", 2.3, 1000),
+    "geozl-med-pivco": ("geozl", 2.32, 950),
+    "geozl-planar-entropy": ("geozl", 2.28, 1250),
+    "geozl-med-entropy": ("geozl", 2.35, 460),
+    "geozl-average-entropy": ("geozl", 2.25, 680),
+    "geozl-id-pfor": ("geozl", 1.05, 12000),
 }
 
 
