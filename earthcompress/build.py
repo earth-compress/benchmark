@@ -143,23 +143,67 @@ def save(
     row["npz_path"] = path.relative_to(corpus).as_posix()
 
     if preview is not None:
-        from PIL import Image
-
-        png = corpus / "png" / f"{row['id']}.png"
-        png.parent.mkdir(parents=True, exist_ok=True)
-        Image.fromarray(preview).save(png, optimize=True)
-        row["png_path"] = png.relative_to(corpus).as_posix()
+        write_preview(corpus, row, preview)
 
 
-def stretch(plane: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
-    """Percentile stretch of one plane to 8 bits."""
+def write_preview(corpus: Path, row: dict[str, str], preview: np.ndarray) -> None:
+    from PIL import Image
+
+    png = corpus / "png" / f"{row['id']}.png"
+    png.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(preview).save(png, optimize=True)
+    row["png_path"] = png.relative_to(corpus).as_posix()
+
+
+def load(corpus: Path, row: dict[str, str]) -> np.ndarray:
+    raw = zstd.ZstdDecompressor().decompress((corpus / row["npz_path"]).read_bytes())
+    with np.load(io.BytesIO(raw)) as archive:
+        return archive["data"]
+
+
+def stretch(
+    plane: np.ndarray, mask: np.ndarray | None = None, cmap: str | None = None
+) -> np.ndarray:
+    """Percentile stretch of one plane to 8 bits, through ``cmap`` when given."""
     values = plane.astype(np.float64)
     valid = values[np.isfinite(values) if mask is None else mask & np.isfinite(values)]
     if valid.size == 0:
         return np.zeros(plane.shape, np.uint8)
     low, high = np.percentile(valid, (2, 98))
-    scaled = np.clip((values - low) / max(high - low, 1e-12), 0, 1)
-    return (np.nan_to_num(scaled) * 255).astype(np.uint8)
+    scaled = np.nan_to_num(np.clip((values - low) / max(high - low, 1e-12), 0, 1))
+    if cmap is not None:
+        return colour(scaled, cmap)
+    return (scaled * 255).astype(np.uint8)
+
+
+def colour(scaled: np.ndarray, cmap: str) -> np.ndarray:
+    """Values in [0, 1] through a Matplotlib colour map, as 8-bit RGB."""
+    from matplotlib import colormaps
+
+    return (colormaps[cmap](scaled)[..., :3] * 255).astype(np.uint8)
+
+
+def diverging(plane: np.ndarray, cmap: str) -> np.ndarray:
+    """A signed plane through ``cmap``, with zero at its centre."""
+    values = plane.astype(np.float64)
+    limit = max(np.percentile(np.abs(values[np.isfinite(values)]), 98), 1e-12)
+    return colour(np.nan_to_num(np.clip((values / limit + 1) / 2, 0, 1)), cmap)
+
+
+def relief(elevation: np.ndarray, step: float) -> np.ndarray:
+    """Elevation in terrain colours, shaded by light from the north-west."""
+    from matplotlib import colormaps
+
+    z = elevation.astype(np.float64)
+    dy, dx = np.gradient(z, step)
+    slope, aspect = np.arctan(np.hypot(dx, dy)), np.arctan2(-dx, dy)
+    sun, height = np.radians(315), np.radians(45)
+    shade = np.sin(height) * np.cos(slope) + np.cos(height) * np.sin(slope) * np.cos(
+        sun - aspect
+    )
+    tones = colormaps["terrain"](0.25 + 0.75 * stretch(z) / 255)[..., :3]
+    lit = tones * (0.6 + 0.4 * np.nan_to_num(shade, nan=1.0)[..., None])
+    return (np.clip(lit, 0, 1) * 255).astype(np.uint8)
 
 
 def rgb(planes: Iterable[np.ndarray]) -> np.ndarray:
@@ -170,6 +214,7 @@ def main(
     corpus: Path,
     select: Callable[[], list[dict[str, str]]],
     build: Callable[[dict[str, str]], tuple[np.ndarray, np.ndarray | None]],
+    preview: Callable[[np.ndarray, dict[str, str]], np.ndarray] | None = None,
 ) -> None:
     """Command line of a corpus ``build.py``."""
     parser = argparse.ArgumentParser(prog=f"{corpus.name}/build.py")
@@ -177,6 +222,8 @@ def main(
     sub.add_parser("select", help="choose the samples and write manifest.csv")
     run = sub.add_parser("build", help="fetch every sample listed in manifest.csv")
     run.add_argument("--only", nargs="*", help="sample ids to build")
+    if preview is not None:
+        sub.add_parser("preview", help="redraw the previews from the built samples")
     args = parser.parse_args()
 
     if args.step == "select":
@@ -186,6 +233,12 @@ def main(
         return
 
     rows = read_manifest(corpus)
+    if args.step == "preview":
+        for row in rows:
+            write_preview(corpus, row, preview(load(corpus, row), row))
+        print(f"{corpus.name}: {len(rows)} previews drawn")
+        return
+
     failed = []
     for row in rows:
         if args.only and row["id"] not in args.only:

@@ -60,6 +60,11 @@ def select() -> list[dict[str, str]]:
     return rows
 
 
+def preview(codes: np.ndarray, row: dict[str, str]) -> np.ndarray:
+    """The highest rate of each pixel over the half hours."""
+    return b.stretch(np.log1p(codes.max(0) * SCALE), cmap="YlGnBu")
+
+
 def build(row: dict[str, str]):
     ee = src.ee_init()
     transform = b.parse_transform(row["transform"])
@@ -82,9 +87,8 @@ def build(row: dict[str, str]):
         raise ValueError(
             f"{row['id']}: the scale does not reproduce the published rates"
         )
-    preview = b.stretch(np.log1p(rates.max(0)))
-    return codes, preview
+    return codes, preview(codes, row)
 
 
 if __name__ == "__main__":
-    b.main(CORPUS, select, build)
+    b.main(CORPUS, select, build, preview)

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from earthcompress import build as b
 from earthcompress import sources as src
 
@@ -55,12 +57,15 @@ def select() -> list[dict[str, str]]:
     return rows
 
 
+def preview(data: np.ndarray, row: dict[str, str]) -> np.ndarray:
+    return b.stretch(data if data.ndim == 2 else data[0], cmap="inferno")
+
+
 def build(row: dict[str, str]):
     src.ee_init()
     data = b.cast(src.ee_row(row), row["dtype"])
-    preview = b.stretch(data if data.ndim == 2 else data[0])
-    return data, preview
+    return data, preview(data, row)
 
 
 if __name__ == "__main__":
-    b.main(CORPUS, select, build)
+    b.main(CORPUS, select, build, preview)

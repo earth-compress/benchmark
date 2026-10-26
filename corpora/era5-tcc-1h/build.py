@@ -61,6 +61,14 @@ def select() -> list[dict[str, str]]:
     return rows
 
 
+def preview(codes: np.ndarray, row: dict[str, str]) -> np.ndarray:
+    """The first hour."""
+    first = codes[0] * float(b.split(row["scale"])[0]) + float(
+        b.split(row["offset"])[0]
+    )
+    return b.stretch(first, cmap="Blues_r")
+
+
 def build(row: dict[str, str]):
     day = row["datetime_start"][:10]
     found = fields(day)
@@ -77,9 +85,8 @@ def build(row: dict[str, str]):
         raise ValueError(
             f"{row['id']}: the codes do not reproduce the published values"
         )
-    first = np.log1p(values[0] * 1e4) if SHORT == "tp" else values[0]
-    return codes, b.stretch(first)
+    return codes, preview(codes, row)
 
 
 if __name__ == "__main__":
-    b.main(CORPUS, select, build)
+    b.main(CORPUS, select, build, preview)

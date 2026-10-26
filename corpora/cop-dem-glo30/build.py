@@ -46,6 +46,10 @@ def select() -> list[dict[str, str]]:
     return rows
 
 
+def preview(data: np.ndarray, row: dict[str, str]) -> np.ndarray:
+    return b.relief(data, 30.0)
+
+
 def build(row: dict[str, str]):
     data, _ = src.cog_window(
         "/vsicurl/" + row["asset"],
@@ -55,10 +59,8 @@ def build(row: dict[str, str]):
     data = b.cast(data[0], row["dtype"])
     if not np.isfinite(data).all():
         raise ValueError(f"{row['id']}: the window holds fill values")
-    dy, dx = np.gradient(data.astype(np.float64), 30.0)
-    shade = np.clip((1 - dx + dy) / np.sqrt(1 + dx**2 + dy**2) * 0.7, 0, 1)
-    return data, (shade * 255).astype(np.uint8)
+    return data, preview(data, row)
 
 
 if __name__ == "__main__":
-    b.main(CORPUS, select, build)
+    b.main(CORPUS, select, build, preview)

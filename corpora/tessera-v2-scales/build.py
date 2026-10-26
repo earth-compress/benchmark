@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from earthcompress import build as b
 from earthcompress import sources as src
 
@@ -51,13 +53,17 @@ def select() -> list[dict[str, str]]:
     return rows
 
 
+def preview(data: np.ndarray, row: dict[str, str]) -> np.ndarray:
+    return b.stretch(data, cmap="viridis")
+
+
 def build(row: dict[str, str]):
     block = src.npy_window(
         row["asset"], int(row["crop_row"]), int(row["crop_col"]), SIZE, SIZE
     )
     data = b.cast(block, row["dtype"])
-    return data, b.stretch(data)
+    return data, preview(data, row)
 
 
 if __name__ == "__main__":
-    b.main(CORPUS, select, build)
+    b.main(CORPUS, select, build, preview)
