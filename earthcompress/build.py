@@ -118,6 +118,8 @@ def save(
     """Write one sample and its preview, and check it against ``row``."""
     data = np.ascontiguousarray(data)
     shape = "x".join(str(n) for n in data.shape)
+    if row.get("shape") and row["shape"] != shape:
+        raise ValueError(f"{row['id']}: shape {shape}, manifest {row['shape']}")
     digest = sha256(data)
     if row.get("input_sha256") and row["input_sha256"] != digest:
         raise ValueError(f"{row['id']}: input_sha256 does not match the manifest")
@@ -131,9 +133,7 @@ def save(
     if offset and any(v != 0 for v in offset):
         arrays["offset"] = np.array(offset if len(offset) > 1 else offset[0])
     if row.get("nodata"):
-        arrays["nodata"] = np.array(row["nodata"], dtype=np.float64).astype(
-            data.dtype
-        )
+        arrays["nodata"] = np.array(row["nodata"], dtype=np.float64).astype(data.dtype)
 
     buffer = io.BytesIO()
     np.savez(buffer, **arrays)

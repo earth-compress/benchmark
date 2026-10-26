@@ -22,15 +22,15 @@ Where the uncertainty is a distribution, the figure used is the one that applies
 
 ## 2. Budgets
 
-`tau` in native units. For integer corpora, the number of `scale` steps is in brackets. `n/a` means the level falls below one step.
+`tau` in native units. For integer corpora, the number of steps of the largest `scale` is in brackets. `n/a` means the level falls below one step.
 
 | corpus | unit | dtype | `scale` | `sigma` | `conservative` | `matched` | `aggressive` |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| `era5-tcc-1h` | fraction | uint16 | per hour | 0.05 | 0.01 | 0.025 | 0.05 |
-| `era5-u10-1h` | m/s | uint16 | per hour | 0.5 | 0.1 | 0.25 | 0.5 |
-| `era5-t2m-1h` | K | uint16 | per hour | 0.5 | 0.1 | 0.25 | 0.5 |
-| `era5-msl-1h` | Pa | uint16 | per hour | 50 | 10 | 25 | 50 |
-| `era5-tp-1h` | m | uint16 | per hour | 1e-4 | 2e-5 | 5e-5 | 1e-4 |
+| `era5-tcc-1h` | fraction | uint16 | 2^-15 | 0.05 | 0.009979248046875 (327) | 0.024993896484375 (819) | 0.04998779296875 (1638) |
+| `era5-u10-1h` | m/s | uint16 | 2^-10 | 0.5 | 0.099609375 (102) | 0.25 (256) | 0.5 (512) |
+| `era5-t2m-1h` | K | uint16 | 2^-9 | 0.5 | 0.099609375 (51) | 0.25 (128) | 0.5 (256) |
+| `era5-msl-1h` | Pa | uint16 | 2^-2 | 50 | 10 (40) | 25 (100) | 50 (200) |
+| `era5-tp-1h` | m | uint16 | 2^-21 to 2^-19 | 1e-4 | 1.9073486328125e-05 (10) | 4.9591064453125e-05 (26) | 9.918212890625e-05 (52) |
 | `cop-dem-glo30` | m | float32 | | 4 | 0.8 | 2 | 4 |
 | `emit-l2a-285` | reflectance | float32 | | 1.5e-3 | 3e-4 | 7.5e-4 | 1.5e-3 |
 | `l8-oli-8` | DN | uint16 | 1 | 50 | 10 (10) | 25 (25) | 50 (50) |
@@ -68,7 +68,6 @@ These corpora are measured in lossless mode only.
 | corpus | status |
 | --- | --- |
 | all | The sources of `sigma` above need references. |
-| `era5-*` | The corpora are stored as GRIB codes with one `scale` per hour; the budgets above are to be rounded to steps of the largest `scale` once the corpora are built. |
 
 ## 5. What this does not settle
 

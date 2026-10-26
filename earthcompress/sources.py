@@ -182,6 +182,7 @@ def grib_fields(path: Path, short_name: str) -> list[dict]:
                 e = ec.codes_get(handle, "binaryScaleFactor")
                 d = ec.codes_get(handle, "decimalScaleFactor")
                 values = ec.codes_get_double_array(handle, "values")
+                grid = (ec.codes_get(handle, "Nj"), ec.codes_get(handle, "Ni"))
                 scale = 2.0**e * 10.0 ** (-d)
                 offset = ref * 10.0 ** (-d)
                 codes = np.round((values - offset) / scale)
@@ -191,7 +192,7 @@ def grib_fields(path: Path, short_name: str) -> list[dict]:
                     dict(
                         date=ec.codes_get(handle, "validityDate"),
                         time=ec.codes_get(handle, "validityTime"),
-                        shape=(ec.codes_get(handle, "Nj"), ec.codes_get(handle, "Ni")),
+                        shape=grid,
                         lon0=ec.codes_get_double(
                             handle, "longitudeOfFirstGridPointInDegrees"
                         ),
@@ -207,8 +208,8 @@ def grib_fields(path: Path, short_name: str) -> list[dict]:
                         bits=ec.codes_get(handle, "bitsPerValue"),
                         scale=scale,
                         offset=offset,
-                        codes=codes,
-                        values=values.astype(np.float32),
+                        codes=codes.reshape(grid),
+                        values=values.astype(np.float32).reshape(grid),
                     )
                 )
             finally:
