@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-10-26T05:45:03+00:00",
+  "earthcompress_version": "0.1.0",
+  "cpu": "AMD EPYC 9654 96-Core Processor",
+  "cpu_count": 192,
+  "memory_bytes": 540474769408,
+  "platform": "Linux-6.8.0-101-generic-x86_64-with-glibc2.39",
+  "system": "Linux",
+  "machine": "x86_64",
+  "python_version": "3.12.3",
+  "threads": 1,
+  "encode_calls": 1,
+  "decode_calls": "3 to 10, stopping after 0.5 s"
+}
