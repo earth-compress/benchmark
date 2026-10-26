@@ -81,15 +81,15 @@ h1 { font: 600 28px var(--mono); margin: 0 0 6px; letter-spacing: -0.01em; }
 .spec p { margin: 0 0 8px; }
 .folder { font-size: 14px; margin: 0 0 4px; }
 
-.sample { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 36px; padding: 12px 0 32px; }
+.sample { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 36px; align-items: start; padding: 24px 0; border-top: 1px solid var(--line); margin-top: 16px; }
+.sample h2 { margin-top: 0; }
+h1 + .pick { margin: 0; justify-content: flex-end; }
 .figure img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--tint); }
-.sample h1 { margin-bottom: 18px; }
 .sample h2 { font-size: 16px; margin: 22px 0 6px; display: flex; align-items: center; gap: 10px; }
 .button { display: inline-block; margin-top: 12px; font: 500 14px var(--sans); padding: 7px 14px; border: 1px solid var(--line); border-radius: 6px; }
 .button:hover { text-decoration: none; background: var(--tint); }
 table.numbers td:not(:first-child), table.numbers th:not(:first-child) { text-align: right; font-family: var(--mono); }
 table.numbers td:first-child { white-space: nowrap; }
-table.numbers tr.reference td { color: var(--muted); }
 .meta-table th { width: 34%; font: 13px var(--mono); color: var(--muted); }
 .meta-table td { font-size: 13px; word-break: break-word; }
 .meta-table code.long { display: block; white-space: pre-wrap; font-size: 11px; margin-top: 6px; }

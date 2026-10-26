@@ -226,3 +226,5 @@ docs/papers/*.pdf
 corpora/*/npz/
 corpora/*/png/
 website/dist/
+website/dist.next/
+website/dist.old/

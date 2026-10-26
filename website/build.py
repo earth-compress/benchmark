@@ -11,7 +11,6 @@ import urllib.request
 from pathlib import Path
 
 import markdown
-import numpy as np
 
 from earthcompress.runner import aggregate
 
@@ -260,28 +259,6 @@ def speed(entry: dict) -> float:
     return entry["input"] / 1e6 / (entry["decode_ns"] / 1e9)
 
 
-def results_table(
-    entries: dict[str, dict], codecs: list[str], reference: list[str], itemsize: int
-) -> str:
-    rows = ""
-    for c in codecs + reference:
-        if c not in entries:
-            continue
-        mark = ' class="reference"' if c in reference else ""
-        note = ' <span class="note">reference</span>' if c in reference else ""
-        bits = entries[c]["compressed"] * 8 * itemsize / entries[c]["input"]
-        rows += (
-            f"<tr{mark}><td><code>{c}</code>{note}</td><td>{ratio(entries[c]):.3f}</td>"
-            f"<td>{bits:.2f}</td><td>{speed(entries[c]):,.0f}</td></tr>"
-        )
-    if not rows:
-        return '<p class="note">No results yet.</p>'
-    return (
-        '<div class="scroll"><table class="numbers"><tr><th>configuration</th><th>ratio</th>'
-        f"<th>bits per value</th><th>decode MB/s</th></tr>{rows}</table></div>"
-    )
-
-
 VERSION: dict[str, str] = {}
 
 HIDDEN = {"npz_path", "png_path"}
@@ -325,9 +302,6 @@ def build() -> None:
     codecs = [
         plain(r["id"])
         for r in table((ROOT / "CODECS.md").read_text(), "## Official run")
-    ]
-    reference = [
-        plain(r["id"]) for r in table((ROOT / "CODECS.md").read_text(), "## Reference")
     ]
     label = '<span class="example">Example data</span>'
     any_example = False
@@ -376,20 +350,22 @@ def build() -> None:
             )
             download = f"{HF}/{cid}/{s['npz_path']}" if s.get("npz_path") else ""
             body = f"""{crumbs("../../../", ("Datasets", "datasets/"), (cid, f"datasets/{cid}/"), (s["id"], None))}
+<h1>{html.escape(s["id"])}</h1>
+{f'<p class="pick">{badge}</p>' if badge else ""}<div class="chart" data-chart="{s["id"]}"></div>
 <div class="sample">
 <div class="figure">{f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">' if large else '<div class="noimg"></div>'}
 {f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
-<div><h1>{html.escape(s["id"])}</h1>
-<h2>Results {badge}</h2>
-{results_table(by_sample.get(s["id"], {}), codecs, reference, np.dtype(s["dtype"]).itemsize)}
-<h2>Metadata</h2>
+<div><h2>Metadata</h2>
 {metadata(s)}</div>
 </div>
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "datasets" / cid / s["id"] / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
+            chart = {"data": {s["id"]: by_sample.get(s["id"], {})}, "codecs": codecs}
             target.write_text(
-                layout("../../../", f"{s['id']} · Earth Compress benchmark", body)
+                layout(
+                    "../../../", f"{s['id']} · Earth Compress benchmark", body, chart
+                )
             )
 
         spec = folder / "spec.md"
@@ -454,6 +430,10 @@ def build() -> None:
 
 
 def main() -> None:
+    # Build next to the live site and swap it in at the end, so a page being
+    # served is never missing while the site is rebuilt.
+    global OUT
+    final, OUT = OUT, OUT.with_name("dist.next")
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
@@ -465,7 +445,12 @@ def main() -> None:
         (OUT / name).write_bytes(content)
         VERSION[name] = hashlib.sha256(content).hexdigest()[:10]
     build()
-    print(f"wrote {OUT}")
+    old = final.with_name("dist.old")
+    if final.exists():
+        final.rename(old)
+    OUT.rename(final)
+    shutil.rmtree(old, ignore_errors=True)
+    print(f"wrote {final}")
 
 
 if __name__ == "__main__":

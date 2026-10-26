@@ -1,6 +1,8 @@
 // The compression ratio against decode speed chart, drawn from a JSON block on the page.
 const NS = "http://www.w3.org/2000/svg";
 const STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Labels are 11 px below this width and 13 px above it, as in style.css.
+const SMALL_TEXT = window.matchMedia("(max-width: 760px)").matches;
 function el(name, attrs, text) {
   const node = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -59,7 +61,7 @@ function draw(box, totals, CODECS) {
     g.append(el("title", {}, `${p.id}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`));
     g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 6 }));
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
-    const w = p.id.length * (narrow ? 6.7 : 7.9), cx = X(p.speed), cy = Y(p.ratio);
+    const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.9), cx = X(p.speed), cy = Y(p.ratio);
     const spots = [[cx + 10, cy + 4, "start"], [cx - 10, cy + 4, "end"], [cx + 8, cy - 10, "start"], [cx + 8, cy + 20, "start"], [cx - 8, cy - 10, "end"], [cx - 8, cy + 20, "end"]];
     const fits = s => {
       const b = { x: s[2] === "end" ? s[0] - w : s[0], y: s[1] - 12, w, h: 15 };
