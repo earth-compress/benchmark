@@ -104,3 +104,20 @@ def test_same_bytes_distinguishes_dtype_and_shape():
     assert same_bytes(values, values.copy())
     assert not same_bytes(values, values.astype(np.uint16))
     assert not same_bytes(values, values.reshape(2, 2))
+
+
+def test_errors_convert_to_native_units_per_plane():
+    reference = np.zeros((2, 1, 4), dtype=np.uint16)
+    decoded = np.ones((2, 1, 4), dtype=np.uint16)
+    measured = distortion(reference, decoded, scale=(0.5, 2.0), offset=(100.0, -3.0))
+
+    assert measured.max_abs_error == 2.0
+    assert measured.mae == pytest.approx(1.25)
+    # The offset does not enter the error, but it does enter the peak.
+    assert measured.mean_error == pytest.approx(1.25)
+
+
+def test_mean_error_has_the_sign_of_the_bias():
+    reference = np.full((4, 4), 10, dtype=np.int16)
+    assert distortion(reference, reference - 1).mean_error == -1.0
+    assert distortion(reference, reference + 1).mean_error == 1.0

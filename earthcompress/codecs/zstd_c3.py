@@ -38,7 +38,7 @@ class ZstdRaw:
 
 CONFIGURATIONS = (
     CodecConfiguration(
-        id="zstd-raw-c3",
+        id="zstd-c3",
         codec="zstd",
         version=_zstd.VERSION,
         mode=Mode.LOSSLESS,

@@ -91,10 +91,6 @@ def benchmark(
         list[Mode] | None,
         typer.Option("--mode", help="Keep only this fidelity mode; repeatable."),
     ] = None,
-    rounds: Annotated[int, typer.Option(min=1, help="Number of timed rounds.")] = 5,
-    min_seconds: Annotated[
-        float, typer.Option(min=0.0, help="Minimum duration of each timed round.")
-    ] = 1.0,
     limit: Annotated[
         int | None, typer.Option(min=1, help="Run only the first N samples.")
     ] = None,
@@ -132,7 +128,7 @@ def benchmark(
             typer.echo(f"{current.name}")
             for config in _select(current, codec, mode):
                 budget = config.budget
-                detail = "" if budget is None else f"  {budget.kind} tau={budget.tau:g}"
+                detail = "" if budget is None else f"  tau={budget.tau:g}"
                 typer.echo(f"  {config.id}\t{config.mode}{detail}")
         return
 
@@ -144,8 +140,6 @@ def benchmark(
             ok = run_benchmark(
                 current,
                 _select(current, codec, mode),
-                rounds=rounds,
-                min_seconds=min_seconds,
                 limit=limit,
             )
         except (OSError, ValueError) as error:

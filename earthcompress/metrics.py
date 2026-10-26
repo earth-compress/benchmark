@@ -2,7 +2,8 @@
 
 Protocol section 7. Everything is computed in float64 over the whole sample, in
 the native unit of the data, in row blocks so that a global hourly field does
-not materialise a second copy of itself.
+not materialise a second copy of itself. Stored integers convert to native
+units with the scale and offset of their plane.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ class Distortion:
     max_abs_error: float
     mae: float
     rmse: float
+    mean_error: float
     psnr_db: float
     error_spread: float
     error_lag1: float
@@ -61,32 +63,52 @@ def _rows(array: np.ndarray) -> np.ndarray:
     return flat.reshape(-1, flat.shape[-1]) if flat.ndim > 1 else flat.reshape(1, -1)
 
 
-def distortion(reference: np.ndarray, decoded: np.ndarray) -> Distortion:
-    """Measure the error of ``decoded`` against ``reference``."""
+def _per_row(values, shape: tuple[int, ...], nrows: int) -> np.ndarray:
+    """One value per row of ``_rows``, from one value or one per plane."""
+    values = np.asarray(values, dtype=np.float64).reshape(-1)
+    if values.size == 1:
+        return np.full(nrows, values[0])
+    if len(shape) < 2 or values.size != shape[0]:
+        raise ValueError(f"{values.size} plane values for shape {shape}")
+    return np.repeat(values, nrows // shape[0])
+
+
+def distortion(
+    reference: np.ndarray,
+    decoded: np.ndarray,
+    scale=1.0,
+    offset=0.0,
+) -> Distortion:
+    """Measure the error of ``decoded`` against ``reference``, in native units."""
     check_structure(reference, decoded)
     ref_rows, dec_rows = _rows(reference), _rows(decoded)
     nrows, width = ref_rows.shape
     size = nrows * width
     if size == 0:
         raise ValueError("cannot measure distortion on an empty array")
+    row_scale = _per_row(scale, reference.shape, nrows)
+    row_offset = _per_row(offset, reference.shape, nrows)
 
     worst = 0.0
-    abs_sum = sq_sum = 0.0
+    abs_sum = sq_sum = signed_sum = 0.0
     low, high = math.inf, -math.inf
     # Lag-1 accumulators over adjacent pairs within a row.
     n = sx = sy = sxx = syy = sxy = 0.0
 
     for start in range(0, nrows, _ROWS):
         block = slice(start, start + _ROWS)
+        k = row_scale[block, None]
         ref = ref_rows[block].astype(np.float64)
-        err = ref - dec_rows[block].astype(np.float64)
+        err = (ref - dec_rows[block].astype(np.float64)) * k
         absolute = np.abs(err)
+        native = ref * k + row_offset[block, None]
 
         worst = max(worst, float(absolute.max()))
         abs_sum += float(absolute.sum())
         sq_sum += float(np.square(err).sum())
-        low = min(low, float(ref.min()))
-        high = max(high, float(ref.max()))
+        signed_sum -= float(err.sum())
+        low = min(low, float(native.min()))
+        high = max(high, float(native.max()))
 
         if width > 1:
             x, y = err[:, :-1], err[:, 1:]
@@ -112,29 +134,28 @@ def distortion(reference: np.ndarray, decoded: np.ndarray) -> Distortion:
         max_abs_error=worst,
         mae=mae,
         rmse=rmse,
+        mean_error=signed_sum / size,
         psnr_db=psnr_db,
-        error_spread=_spread(ref_rows, dec_rows, nrows, worst),
+        error_spread=_spread(ref_rows, dec_rows, row_scale, worst),
         error_lag1=_pearson(n, sx, sy, sxx, syy, sxy),
     )
 
 
 def _spread(
-    ref_rows: np.ndarray, dec_rows: np.ndarray, nrows: int, worst: float
+    ref_rows: np.ndarray, dec_rows: np.ndarray, row_scale: np.ndarray, worst: float
 ) -> float:
-    """``p99(|error|) / max(|error|)``: does the codec fill its budget?
-
-    Near 1 means the error is spread through the budget, which buys ratio. Well
-    below 1 means it sits near zero and ratio is left unclaimed. Exact decodes
-    have no spread to report.
-    """
+    """``p99(|error|) / max(|error|)``. Exact decodes have no spread to report."""
     if worst == 0.0:
         return math.nan
 
     counts = np.zeros(_BINS, dtype=np.int64)
-    for start in range(0, nrows, _ROWS):
+    for start in range(0, ref_rows.shape[0], _ROWS):
         block = slice(start, start + _ROWS)
-        absolute = np.abs(
-            ref_rows[block].astype(np.float64) - dec_rows[block].astype(np.float64)
+        absolute = (
+            np.abs(
+                ref_rows[block].astype(np.float64) - dec_rows[block].astype(np.float64)
+            )
+            * row_scale[block, None]
         )
         index = np.minimum((absolute / worst * (_BINS - 1)).astype(np.int64), _BINS - 1)
         counts += np.bincount(index.reshape(-1), minlength=_BINS)

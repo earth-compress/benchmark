@@ -23,7 +23,13 @@ classifiers = [
 dependencies = ["numpy>=1.24", "typer>=0.20,<1", "zstandard>=0.22"]
 
 [project.optional-dependencies]
-corpus = ["Pillow>=10", "rasterio>=1.4"]
+corpus = [
+    "Pillow>=10",
+    "rasterio>=1.4",
+    "earthengine-api>=1.5",
+    "cdsapi>=0.7",
+    "eccodes>=2.42", "eccodeslib>=2.42",
+]
 
 [project.scripts]
 earthcompress = "earthcompress.__main__:main"

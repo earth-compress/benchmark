@@ -5,9 +5,8 @@ every sample of the corpus. It is therefore a property of the corpus, not of a
 codec, which is why a near-lossless configuration is built per corpus rather
 than registered globally.
 
-A corpus absent from the registry has no near-lossless point, either because
-its values are not quantities or because its headroom is one grid step. That is
-a result, not an omission.
+A corpus absent from the registry has no near-lossless point. Protocol
+section 3.1.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from .contract import BoundKind, Budget, Level
+from .contract import Budget, Level
 
 BUDGETS_FILENAME = "budgets.csv"
 _DEFAULT = Path(__file__).resolve().parent.parent / "docs" / BUDGETS_FILENAME
@@ -31,11 +30,7 @@ def load_budgets(path: Path | None = None) -> dict[str, dict[Level, Budget]]:
     with source.open(newline="") as stream:
         for row in csv.DictReader(stream):
             level = Level(row["level"])
-            budget = Budget(
-                tau=float(row["tau"]),
-                kind=BoundKind(row["kind"]),
-                level=level,
-            )
+            budget = Budget(tau=float(row["tau"]), level=level)
             levels = registry.setdefault(row["corpus"], {})
             if level in levels:
                 raise ValueError(f"{row['corpus']}: duplicate level {level}")

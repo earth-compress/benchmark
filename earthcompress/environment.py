@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .timing import DECODE_MAX_CALLS, DECODE_MIN_CALLS, DECODE_SECONDS
 
 ENVIRONMENT_FILENAME = "environment.json"
 
@@ -71,12 +72,7 @@ def _memory_bytes() -> int | None:
         return None
 
 
-def describe_environment(
-    *,
-    rounds: int,
-    min_seconds: float,
-    threads: int = 1,
-) -> dict[str, Any]:
+def describe_environment(threads: int = 1) -> dict[str, Any]:
     """Describe the machine and the timing settings of the current run."""
     return {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -89,8 +85,8 @@ def describe_environment(
         "machine": platform.machine(),
         "python_version": platform.python_version(),
         "threads": threads,
-        "rounds": rounds,
-        "min_seconds": min_seconds,
+        "encode_calls": 1,
+        "decode_calls": f"{DECODE_MIN_CALLS} to {DECODE_MAX_CALLS}, stopping after {DECODE_SECONDS} s",
     }
 
 

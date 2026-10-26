@@ -15,9 +15,9 @@ from .codecs.base import CodecConfiguration
 from .contract import Mode, Promise
 from .corpus import Sample, load_samples
 from .environment import describe_environment, write_environment
-from .metrics import Distortion, distortion
+from .metrics import Distortion, distortion, same_bytes
 from .promises import Report, verify
-from .timing import ci95_median, throughput_mb_s, timed_round
+from .timing import throughput_mb_s, timed, timed_series
 
 RESULTS_FILENAME = "results.csv"
 
@@ -27,7 +27,6 @@ RESULT_COLUMNS = (
     "codec_version",
     "configuration",
     "mode",
-    "bound_kind",
     "tau",
     "budget_level",
     "input_bytes",
@@ -36,27 +35,24 @@ RESULT_COLUMNS = (
     "bits_per_value",
     "encode_ns",
     "decode_ns",
+    "decode_ns_min",
+    "decode_ns_max",
     "encode_MB_s",
     "decode_MB_s",
-    "encode_MB_s_ci95_low",
-    "encode_MB_s_ci95_high",
-    "decode_MB_s_ci95_low",
-    "decode_MB_s_ci95_high",
     "max_abs_error",
     "mae",
     "rmse",
+    "mean_error",
     "psnr_dB",
     "error_spread",
     "error_lag1",
     "exact",
     "sentinel_ok",
     "zero_ok",
-    "subnormals_ok",
     "fidelity_ok",
-    "converted",
 )
 
-_EXACT = Distortion(0.0, 0.0, 0.0, math.inf, math.nan, math.nan)
+_EXACT = Distortion(0.0, 0.0, 0.0, 0.0, math.inf, math.nan, math.nan)
 
 
 def _declaration(config: CodecConfiguration) -> dict[str, Any]:
@@ -67,7 +63,6 @@ def _declaration(config: CodecConfiguration) -> dict[str, Any]:
         "codec_version": config.version,
         "configuration": config.id,
         "mode": str(config.mode),
-        "bound_kind": "" if budget is None else str(budget.kind),
         "tau": "" if budget is None else repr(budget.tau),
         "budget_level": ""
         if budget is None or budget.level is None
@@ -80,48 +75,38 @@ def _flag(value: bool | None) -> str:
     return "" if value is None else str(value)
 
 
+def determinism_samples(count: int) -> set[int]:
+    """The first, middle, and last sample of the manifest."""
+    return {0, count // 2, count - 1}
+
+
 def _measure(
-    sample: Sample,
-    config: CodecConfiguration,
-    rounds: int,
-    min_seconds: float,
+    sample: Sample, config: CodecConfiguration, reencode: bool
 ) -> dict[str, Any]:
     array = sample.data
     codec = config.factory(sample.spec)
 
-    # Untimed warm-up, and the first verification.
-    compressed = codec.encode(array)
-    report = _verified(config, array, codec.decode(compressed), sample)
-
-    encode_times: list[float] = []
-    for _ in range(rounds):
-        elapsed, repeat = timed_round(lambda: codec.encode(array), min_seconds)
-        encode_times.append(elapsed)
-        if repeat != compressed:
-            raise RuntimeError("encoding is not deterministic: bytes changed")
-
-    decode_times: list[float] = []
+    # Size, error, and an indicative encode time, from one call without warm-up.
+    encode_ns, compressed = timed(lambda: codec.encode(array))
     decoded = codec.decode(compressed)
-    for _ in range(rounds):
-        elapsed, repeat = timed_round(lambda: codec.decode(compressed), min_seconds)
-        decode_times.append(elapsed)
-        if not np.array_equal(repeat, decoded, equal_nan=True):
-            raise RuntimeError("decoding is not deterministic: output changed")
-
-    # Verify again on the last timed decode, as the protocol requires.
     report = _verified(config, array, decoded, sample)
-    measured = _EXACT if config.mode is Mode.LOSSLESS else distortion(array, decoded)
 
+    # Decode time on every sample; the decode above was the warm-up.
+    decode_times, outputs = timed_series(lambda: codec.decode(compressed))
+    for output in outputs:
+        if not same_bytes(output, decoded):
+            raise RuntimeError("determinism: repeated decodes differ")
+    if reencode and codec.encode(array) != compressed:
+        raise RuntimeError("determinism: a second encode gave different bytes")
+
+    measured = (
+        _EXACT
+        if config.mode is Mode.LOSSLESS
+        else distortion(array, decoded, sample.scale, sample.offset)
+    )
     input_bytes = array.nbytes
     compressed_bytes = len(compressed)
-    encode_ns = statistics.median(encode_times)
     decode_ns = statistics.median(decode_times)
-    encode_low, encode_high = ci95_median(
-        [throughput_mb_s(input_bytes, value) for value in encode_times]
-    )
-    decode_low, decode_high = ci95_median(
-        [throughput_mb_s(input_bytes, value) for value in decode_times]
-    )
 
     row = {"sample_id": sample.id, **_declaration(config)}
     row.update(
@@ -129,26 +114,23 @@ def _measure(
         compressed_bytes=compressed_bytes,
         compression_ratio=input_bytes / compressed_bytes,
         bits_per_value=compressed_bytes * 8 / array.size,
-        encode_ns=round(encode_ns),
+        encode_ns=encode_ns,
         decode_ns=round(decode_ns),
+        decode_ns_min=min(decode_times),
+        decode_ns_max=max(decode_times),
         encode_MB_s=throughput_mb_s(input_bytes, encode_ns),
         decode_MB_s=throughput_mb_s(input_bytes, decode_ns),
-        encode_MB_s_ci95_low=encode_low,
-        encode_MB_s_ci95_high=encode_high,
-        decode_MB_s_ci95_low=decode_low,
-        decode_MB_s_ci95_high=decode_high,
         max_abs_error=measured.max_abs_error,
         mae=measured.mae,
         rmse=measured.rmse,
+        mean_error=measured.mean_error,
         psnr_dB=measured.psnr_db,
         error_spread=measured.error_spread,
         error_lag1=measured.error_lag1,
-        exact=measured.exact,
+        exact=same_bytes(array, decoded),
         sentinel_ok=_flag(report.of(Promise.SENTINEL)),
         zero_ok=_flag(report.of(Promise.ZERO)),
-        subnormals_ok=_flag(report.subnormals_ok),
         fidelity_ok=True,
-        converted=False,
     )
     return row
 
@@ -160,7 +142,13 @@ def _verified(
     sample: Sample,
 ) -> Report:
     report = verify(
-        config.mode, config.budget, array, decoded, sample.sentinel, sample.grid
+        config.mode,
+        config.budget,
+        array,
+        decoded,
+        sample.sentinel,
+        sample.scale,
+        sample.offset,
     )
     if not report.ok:
         raise RuntimeError(
@@ -204,9 +192,17 @@ def _describe(row: dict[str, Any]) -> str:
     return text
 
 
-def _print_totals(rows: Sequence[dict[str, Any]], sample_count: int) -> None:
-    """Corpus totals. Protocol section 8.1: from sums, never from averages."""
-    print("\nCorpus totals")
+def _count(row: dict[str, Any]) -> int:
+    """Element count of a result row."""
+    return round(int(row["compressed_bytes"]) * 8 / float(row["bits_per_value"]))
+
+
+def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, dict]:
+    """Corpus totals per configuration. Protocol section 8: from sums, not averages.
+
+    A configuration enters only if it completed every sample.
+    """
+    totals: dict[str, dict] = {}
     for configuration in sorted({str(row["configuration"]) for row in rows}):
         selected = [
             row
@@ -214,21 +210,53 @@ def _print_totals(rows: Sequence[dict[str, Any]], sample_count: int) -> None:
             if row["configuration"] == configuration and row["fidelity_ok"] is True
         ]
         if len(selected) != sample_count:
-            print(f"  {configuration}: incomplete")
+            totals[configuration] = {"complete": False}
             continue
         input_bytes = sum(int(row["input_bytes"]) for row in selected)
         compressed = sum(int(row["compressed_bytes"]) for row in selected)
-        encode_ns = sum(int(row["encode_ns"]) for row in selected)
-        decode_ns = sum(int(row["decode_ns"]) for row in selected)
+        counts = [_count(row) for row in selected]
+        count = sum(counts)
+        totals[configuration] = {
+            "complete": True,
+            "mode": selected[0]["mode"],
+            "tau": selected[0]["tau"],
+            "budget_level": selected[0]["budget_level"],
+            "compression_ratio": input_bytes / compressed,
+            "bits_per_value": compressed * 8 / count,
+            "encode_MB_s": throughput_mb_s(
+                input_bytes, sum(int(r["encode_ns"]) for r in selected)
+            ),
+            "decode_MB_s": throughput_mb_s(
+                input_bytes, sum(int(r["decode_ns"]) for r in selected)
+            ),
+            "max_abs_error": max(float(r["max_abs_error"]) for r in selected),
+            "rmse": math.sqrt(
+                sum(
+                    float(r["rmse"]) ** 2 * n
+                    for r, n in zip(selected, counts, strict=True)
+                )
+                / count
+            ),
+        }
+    return totals
+
+
+def _print_totals(rows: Sequence[dict[str, Any]], sample_count: int) -> None:
+    print("\nCorpus totals")
+    for configuration, total in aggregate(rows, sample_count).items():
+        if not total["complete"]:
+            print(f"  {configuration}: incomplete")
+            continue
         line = (
-            f"  {configuration} [{selected[0]['mode']}"
-            f"{'' if not selected[0]['tau'] else ' tau=' + selected[0]['tau']}]: "
-            f"ratio={input_bytes / compressed:.3f} "
-            f"enc={throughput_mb_s(input_bytes, encode_ns):.0f} "
-            f"dec={throughput_mb_s(input_bytes, decode_ns):.0f} MB/s"
+            f"  {configuration} [{total['mode']}"
+            f"{'' if not total['tau'] else ' tau=' + total['tau']}]: "
+            f"ratio={total['compression_ratio']:.3f} "
+            f"bpv={total['bits_per_value']:.3f} "
+            f"enc={total['encode_MB_s']:.0f} "
+            f"dec={total['decode_MB_s']:.0f} MB/s"
         )
-        if selected[0]["mode"] != str(Mode.LOSSLESS):
-            line += f" worst_err={max(float(r['max_abs_error']) for r in selected):g}"
+        if total["mode"] != str(Mode.LOSSLESS):
+            line += f" max_err={total['max_abs_error']:g} rmse={total['rmse']:g}"
         print(line)
 
 
@@ -236,15 +264,9 @@ def run_benchmark(
     corpus: Path,
     configs: Sequence[CodecConfiguration],
     *,
-    rounds: int,
-    min_seconds: float,
     limit: int | None = None,
 ) -> bool:
     """Measure ``configs`` over ``corpus`` and write results beside its samples."""
-    if rounds < 1:
-        raise ValueError("rounds must be at least 1")
-    if min_seconds < 0:
-        raise ValueError("min_seconds must be non-negative")
     if limit is not None and limit < 1:
         raise ValueError("limit must be at least 1")
 
@@ -257,13 +279,14 @@ def run_benchmark(
         else:
             print(f"Skipping {config.id}: incompatible with this corpus")
 
+    reencode = determinism_samples(len(samples))
     rows: list[dict[str, Any]] = []
     all_ok = True
-    for sample in samples:
+    for index, sample in enumerate(samples):
         print(f"{sample.id}")
         for config in active:
             try:
-                row = _measure(sample, config, rounds, min_seconds)
+                row = _measure(sample, config, index in reencode)
             except Exception as error:  # noqa: BLE001 - codec failures are data
                 all_ok = False
                 row = _failure(sample, config)
@@ -275,9 +298,7 @@ def run_benchmark(
     root = corpus.resolve()
     result_path = root / RESULTS_FILENAME
     _write_results(result_path, rows)
-    environment_path = write_environment(
-        root, describe_environment(rounds=rounds, min_seconds=min_seconds)
-    )
+    environment_path = write_environment(root, describe_environment())
     _print_totals(rows, len(samples))
     print(f"\nWrote {result_path}")
     print(f"Wrote {environment_path}")

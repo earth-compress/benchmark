@@ -5,7 +5,7 @@ zero**, which keeps every reconstruction within ``steps`` of its reference by
 integer arithmetic rather than by hope, and keeps exact zeros exact. Anchoring
 the grid at the sample minimum instead would break the `zero` promise, which is
 the failure ClimateBenchPress recorded in ZFP and SPERR. The budget arrives in
-native units and is converted with the sample's grid.
+native units and is converted to whole steps of the largest scale.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import struct
 
 import numpy as np
 
-from ..contract import BoundKind, Budget, Mode
+from ..contract import Budget, Mode
 from ..spec import ArraySpec
 from . import _zstd
 from .base import CodecConfiguration
@@ -32,12 +32,10 @@ _INDEX_DTYPES = {
 
 
 def _supports(spec: ArraySpec, budget: Budget) -> bool:
-    """Integers of four bytes or fewer, and a budget of at least one grid step."""
+    """Integers of four bytes or fewer, and a budget of at least one step."""
     if not spec.is_integer or spec.dtype.itemsize > 4:
         return False
-    if budget.kind is not BoundKind.ABSOLUTE:
-        return False
-    return spec.steps(budget.tau) >= 1.0
+    return spec.steps(budget.tau) >= 1
 
 
 def _index_dtype(largest: int) -> np.dtype:
@@ -54,8 +52,8 @@ class QuantizeZstd:
         if not _supports(spec, budget):
             raise ValueError("unsupported array or budget for quantisation")
         self._spec = spec
-        # The budget is in native units; the array is in grid steps.
-        self._steps = int(spec.steps(budget.tau))
+        # The budget is in native units; the array is in steps of its scale.
+        self._steps = spec.steps(budget.tau)
         self._width = 2 * self._steps + 1
         self._limits = np.iinfo(spec.dtype)
         self._compressor = _zstd.compressor(_LEVEL)

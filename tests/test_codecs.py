@@ -5,7 +5,7 @@ import pytest
 
 from earthcompress.budgets import budgets_for
 from earthcompress.codecs import configurations_for, families, fixed
-from earthcompress.contract import Mode
+from earthcompress.contract import Mode, Promise
 from earthcompress.promises import verify
 from earthcompress.spec import ArraySpec
 
@@ -51,7 +51,7 @@ def test_every_configuration_keeps_the_promises_of_its_mode(dtype):
             continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))
-        report = verify(config.mode, config.budget, array, decoded, grid=spec.grid)
+        report = verify(config.mode, config.budget, array, decoded, scale=spec.scale)
         assert report.ok, f"{config.id} on {dtype}: {report.failures}"
 
 
@@ -69,41 +69,36 @@ def test_the_bound_holds_on_adversarial_input(dtype):
             continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))
-        report = verify(config.mode, config.budget, array, decoded, grid=spec.grid)
+        report = verify(config.mode, config.budget, array, decoded, scale=spec.scale)
 
         assert decoded.dtype == array.dtype
-        assert (
-            report.of(
-                __import__("earthcompress.contract", fromlist=["Promise"]).Promise.BOUND
-            )
-            is True
-        )
+        assert report.of(Promise.BOUND) is True
 
 
-def test_a_budget_in_native_units_is_honoured_on_a_fine_grid():
-    """A 0.04 mm/hr budget on a 0.01 grid is four steps, and must stay inside it."""
+def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
+    """A 0.04 mm/hr budget on a scale of 0.01 is four steps, and must stay inside it."""
     generator = np.random.default_rng(0)
     array = generator.integers(0, 500, size=(4, 64, 64), dtype=np.uint16)
-    spec = ArraySpec(array.shape, array.dtype, None, 0.01)
+    spec = ArraySpec(array.shape, array.dtype, None, (0.01,))
 
     for config in configurations_for("imerg-pcp-12"):
         if config.mode is not Mode.NEAR_LOSSLESS or not config.supports(spec):
             continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))
-        steps = int(spec.steps(config.budget.tau))
+        steps = spec.steps(config.budget.tau)
         assert (
             int(np.abs(array.astype(np.int64) - decoded.astype(np.int64)).max())
             <= steps
         )
 
 
-def test_quantisation_rejects_a_budget_below_one_grid_step():
-    """A budget finer than the grid is not measurable, so it is not supported."""
-    spec = ArraySpec((8,), np.dtype(np.uint16), None, 1.0)
+def test_quantisation_rejects_a_budget_below_one_step():
+    """A budget finer than one step is not measurable, so it is not supported."""
+    spec = ArraySpec((8,), np.dtype(np.uint16), None, (1.0,))
     for config in configurations_for("imerg-pcp-12"):
         if config.mode is Mode.NEAR_LOSSLESS:
-            # tau of 0.04 on a grid of 1 is a twenty-fifth of a step.
+            # tau of 0.04 on a scale of 1 is a twenty-fifth of a step.
             assert not config.supports(spec)
 
 
@@ -116,3 +111,8 @@ def test_quantisation_rejects_float_arrays():
     ]
     assert near
     assert not any(config.supports(spec) for config in near)
+
+
+def test_steps_round_down_with_the_largest_scale():
+    spec = ArraySpec((2, 4), np.dtype(np.uint16), None, (2.0**-21, 2.0**-20))
+    assert spec.steps(2e-5) == 20

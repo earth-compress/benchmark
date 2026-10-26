@@ -11,7 +11,12 @@ from conftest import write_corpus
 from earthcompress.codecs.base import CodecConfiguration
 from earthcompress.contract import Budget, Level, Mode
 from earthcompress.corpus import load_samples
-from earthcompress.runner import RESULT_COLUMNS, run_benchmark
+from earthcompress.runner import (
+    RESULT_COLUMNS,
+    aggregate,
+    determinism_samples,
+    run_benchmark,
+)
 from earthcompress.spec import ArraySpec
 
 
@@ -31,7 +36,7 @@ class Identity:
 
 
 class OffByOne(Identity):
-    """Shifts every element by one grid step."""
+    """Shifts every element by one step."""
 
     def decode(self, compressed: bytes) -> np.ndarray:
         return super().decode(compressed) + 1
@@ -47,6 +52,17 @@ class Restless(Identity):
     def encode(self, array: np.ndarray) -> bytes:
         self._calls += 1
         return super().encode(array) + b"\x00" * self._calls
+
+    def decode(self, compressed: bytes) -> np.ndarray:
+        return super().decode(compressed[: self._spec.nbytes])
+
+
+class Counting(Identity):
+    calls = 0
+
+    def decode(self, compressed: bytes) -> np.ndarray:
+        Counting.calls += 1
+        return super().decode(compressed)
 
 
 def _config(factory, mode, budget=None, config_id="demo") -> CodecConfiguration:
@@ -67,29 +83,34 @@ def _rows(corpus: Path) -> list[dict[str, str]]:
 
 
 def _run(corpus: Path, config: CodecConfiguration, **kwargs) -> bool:
-    return run_benchmark(corpus, (config,), rounds=1, min_seconds=0.0, **kwargs)
+    return run_benchmark(corpus, (config,), **kwargs)
 
 
 def test_a_lossless_run_writes_results_and_environment(corpus: Path):
     assert _run(corpus, _config(Identity, Mode.LOSSLESS))
 
     rows = _rows(corpus)
-    assert [row["sample_id"] for row in rows] == ["demo-00", "demo-01"]
+    assert [row["sample_id"] for row in rows] == [f"demo-{i:02d}" for i in range(4)]
     for row in rows:
         assert list(row) == list(RESULT_COLUMNS)
-        assert row["mode"] == str(Mode.LOSSLESS)
-        assert (
-            row["tau"] == "" and row["bound_kind"] == "" and row["budget_level"] == ""
-        )
-        assert row["fidelity_ok"] == "True"
-        assert row["exact"] == "True"
+        assert row["tau"] == "" and row["budget_level"] == ""
+        assert row["fidelity_ok"] == "True" and row["exact"] == "True"
         assert float(row["compression_ratio"]) == pytest.approx(1.0)
         assert float(row["bits_per_value"]) == pytest.approx(16.0)
-        # Lossless distortion is zero by construction, not recomputed.
-        assert float(row["max_abs_error"]) == 0.0
+        assert (
+            int(row["decode_ns_min"])
+            <= int(row["decode_ns"])
+            <= int(row["decode_ns_max"])
+        )
 
     environment = json.loads((corpus / "environment.json").read_text())
-    assert environment["threads"] == 1 and environment["rounds"] == 1
+    assert environment["threads"] == 1 and environment["encode_calls"] == 1
+
+
+def test_decode_runs_between_three_and_ten_times_plus_the_warm_up(corpus: Path):
+    Counting.calls = 0
+    assert _run(corpus, _config(Counting, Mode.LOSSLESS), limit=1)
+    assert 1 + 3 <= Counting.calls <= 1 + 10
 
 
 def test_a_near_lossless_run_records_its_declaration_and_error(corpus: Path):
@@ -97,21 +118,21 @@ def test_a_near_lossless_run_records_its_declaration_and_error(corpus: Path):
     assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, budget))
 
     for row in _rows(corpus):
-        assert row["mode"] == str(Mode.NEAR_LOSSLESS)
-        assert row["bound_kind"] == "absolute"
-        assert row["tau"] == "1.0"
-        assert row["budget_level"] == "matched"
-        assert row["fidelity_ok"] == "True"
+        assert row["tau"] == "1.0" and row["budget_level"] == "matched"
+        assert row["fidelity_ok"] == "True" and row["exact"] == "False"
         assert float(row["max_abs_error"]) == 1.0
-        assert float(row["mae"]) == 1.0
-        # A constant error has no spread and perfect lag-1 correlation.
-        assert (
-            float(row["error_lag1"]) == pytest.approx(1.0) or row["error_lag1"] == "nan"
-        )
+        assert float(row["mean_error"]) == 1.0
+
+
+def test_the_bound_uses_the_scale_of_the_corpus(tmp_path: Path):
+    data = np.arange(1, 65, dtype=np.uint16).reshape(8, 8)
+    corpus = write_corpus(tmp_path / "fine", {"f-00": data}, scale="0.01", unit="mm/hr")
+    assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(0.01)))
+    assert float(_rows(corpus)[0]["max_abs_error"]) == pytest.approx(0.01)
+    assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(0.005)))
 
 
 def test_moving_an_exact_zero_fails_the_run(tmp_path: Path):
-    """A respected bound does not imply surviving zeros: the IMERG case."""
     corpus = write_corpus(
         tmp_path / "zeros", {"z-00": np.array([[0, 0, 5, 9]], dtype=np.int16)}
     )
@@ -120,62 +141,46 @@ def test_moving_an_exact_zero_fails_the_run(tmp_path: Path):
 
 
 def test_the_quantiser_keeps_exact_zeros(tmp_path: Path):
-    """The shipped near-lossless baseline anchors its grid at zero."""
     from earthcompress.codecs import configurations_for
 
     generator = np.random.default_rng(0)
     data = generator.integers(0, 500, size=(2, 64, 64), dtype=np.uint16)
     data[0, 0, :16] = 0
     corpus = write_corpus(tmp_path / "quant", {"q-00": data})
-
     near = [
-        config
-        for config in configurations_for("s2-l1c-10m-4")
-        if config.mode is Mode.NEAR_LOSSLESS
+        c for c in configurations_for("s2-l1c-10m-4") if c.mode is Mode.NEAR_LOSSLESS
     ]
-    assert run_benchmark(corpus, tuple(near), rounds=1, min_seconds=0.0)
+    assert run_benchmark(corpus, tuple(near))
     for row in _rows(corpus):
         assert row["zero_ok"] == "True", row["configuration"]
 
 
-def test_a_broken_bound_fails_the_run(corpus: Path):
+def test_a_failed_row_keeps_the_declaration_and_no_measurement(corpus: Path):
     budget = Budget(tau=0.5, level=Level.CONSERVATIVE)
     assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, budget))
-
     for row in _rows(corpus):
-        assert row["fidelity_ok"] == "False"
-        assert row["compressed_bytes"] == ""
-        # The declaration survives a failure, so the row says what was claimed.
+        assert row["fidelity_ok"] == "False" and row["compressed_bytes"] == ""
         assert row["tau"] == "0.5" and row["budget_level"] == "conservative"
 
 
-def test_lossy_mode_verifies_nothing_beyond_structure(corpus: Path):
+def test_lossy_mode_checks_sentinels(tmp_path: Path):
+    corpus = write_corpus(
+        tmp_path / "lossy",
+        {"l-00": np.array([[0, 5, 7, 9]], dtype=np.int16)},
+        nodata="0",
+    )
+    assert not _run(corpus, _config(OffByOne, Mode.LOSSY))
+    corpus = write_corpus(
+        tmp_path / "plain", {"p-00": np.array([[3, 5, 7, 9]], dtype=np.int16)}
+    )
     assert _run(corpus, _config(OffByOne, Mode.LOSSY))
 
-    for row in _rows(corpus):
-        assert row["mode"] == str(Mode.LOSSY)
-        assert row["fidelity_ok"] == "True"
-        assert float(row["max_abs_error"]) == 1.0
-        assert row["zero_ok"] == "" and row["sentinel_ok"] == ""
 
-
-def test_non_deterministic_encoding_fails_the_run(corpus: Path):
+def test_a_second_encode_runs_on_the_first_middle_and_last_sample(corpus: Path):
+    assert determinism_samples(4) == {0, 2, 3}
     assert not _run(corpus, _config(Restless, Mode.LOSSLESS))
-    assert all(row["fidelity_ok"] == "False" for row in _rows(corpus))
-
-
-def test_a_sentinel_is_checked_when_the_corpus_declares_one(tmp_path: Path):
-    data = np.array([[0, 5, 7, 9]], dtype=np.int16)
-    corpus = write_corpus(
-        tmp_path / "sentinel",
-        {"s-00": data},
-        extra={"sentinel": np.array(0, dtype=np.int16)},
-    )
-    assert load_samples(corpus)[0].sentinel == 0.0
-
-    # OffByOne moves the sentinel, so the sentinel promise breaks.
-    assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(tau=2.0)))
-    assert _rows(corpus)[0]["fidelity_ok"] == "False"
+    flags = [row["fidelity_ok"] for row in _rows(corpus)]
+    assert flags == ["False", "True", "False", "False"]
 
 
 def test_unsupported_configurations_are_skipped(corpus: Path):
@@ -188,47 +193,49 @@ def test_unsupported_configurations_are_skipped(corpus: Path):
         factory=Identity,
         supports=lambda spec: False,
     )
-    assert run_benchmark(corpus, (config,), rounds=1, min_seconds=0.0)
+    assert run_benchmark(corpus, (config,))
     assert _rows(corpus) == []
 
 
 def test_limit_selects_the_first_samples(corpus: Path):
     assert _run(corpus, _config(Identity, Mode.LOSSLESS), limit=1)
     assert [row["sample_id"] for row in _rows(corpus)] == ["demo-00"]
-
-
-def test_invalid_timing_settings_are_rejected(corpus: Path):
-    config = _config(Identity, Mode.LOSSLESS)
-    with pytest.raises(ValueError, match="rounds"):
-        run_benchmark(corpus, (config,), rounds=0, min_seconds=0.0)
-    with pytest.raises(ValueError, match="min_seconds"):
-        run_benchmark(corpus, (config,), rounds=1, min_seconds=-1.0)
     with pytest.raises(ValueError, match="limit"):
-        run_benchmark(corpus, (config,), rounds=1, min_seconds=0.0, limit=0)
+        _run(corpus, _config(Identity, Mode.LOSSLESS), limit=0)
+
+
+def test_totals_come_from_sums_and_need_every_sample(corpus: Path):
+    assert _run(corpus, _config(Identity, Mode.LOSSLESS))
+    rows = [
+        {**row, "fidelity_ok": row["fidelity_ok"] == "True"} for row in _rows(corpus)
+    ]
+    total = aggregate(rows, len(rows))["demo"]
+    assert total["complete"] and total["compression_ratio"] == pytest.approx(1.0)
+    assert aggregate(rows[:-1], len(rows))["demo"] == {"complete": False}
 
 
 def test_the_corpus_checks_the_manifest_digest(corpus: Path):
     path = corpus / "manifest.csv"
-    lines = path.read_text().splitlines()
-    columns = lines[0].split(",")
-    fields = lines[1].split(",")
-    fields[columns.index("input_sha256")] = "0" * 64
-    lines[1] = ",".join(fields)
-    path.write_text("\n".join(lines) + "\n")
-
+    with path.open(newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    rows[0]["input_sha256"] = "0" * 64
+    with path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
     with pytest.raises(ValueError, match="input_sha256"):
         load_samples(corpus)
 
 
-def test_the_corpus_carries_the_grid_to_the_spec(tmp_path: Path):
+def test_the_corpus_carries_scale_offset_and_sentinel_to_the_sample(tmp_path: Path):
     corpus = write_corpus(
-        tmp_path / "fine",
-        {"f-00": np.arange(8, dtype=np.uint16)},
-        grid=0.01,
-        grid_unit="mm/hr",
+        tmp_path / "planes",
+        {"p-00": np.arange(16, dtype=np.uint16).reshape(2, 2, 4)},
+        scale="0.25|0.5",
+        offset="10|-3",
+        nodata="0",
     )
     sample = load_samples(corpus)[0]
-    assert sample.grid == 0.01
-    assert sample.grid_unit == "mm/hr"
-    assert sample.spec.grid == 0.01
-    assert sample.spec.steps(0.04) == pytest.approx(4.0)
+    assert sample.scale == (0.25, 0.5) and sample.offset == (10.0, -3.0)
+    assert sample.sentinel == 0.0
+    assert sample.spec.steps(1.0) == 2

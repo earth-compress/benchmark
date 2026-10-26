@@ -3,41 +3,46 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import TypeVar
-
-import numpy as np
 
 T = TypeVar("T")
 
 NANOSECONDS_PER_SECOND = 1_000_000_000
 BYTES_PER_MEGABYTE = 1_000_000
-BOOTSTRAP_SAMPLES = 10_000
-BOOTSTRAP_SEED = 0
+
+DECODE_MAX_CALLS = 10
+DECODE_MIN_CALLS = 3
+DECODE_SECONDS = 0.5
 
 
-def timed_round(operation: Callable[[], T], min_seconds: float) -> tuple[float, T]:
-    """Repeat ``operation`` for ``min_seconds``; return mean time and last value."""
-    minimum_ns = int(min_seconds * NANOSECONDS_PER_SECOND)
-    count = 0
+def timed(operation: Callable[[], T]) -> tuple[int, T]:
+    """One call of ``operation``, its time in nanoseconds and its value."""
     started = time.perf_counter_ns()
-    while True:
-        value = operation()
-        count += 1
-        elapsed = time.perf_counter_ns() - started
-        if elapsed > 0 and elapsed >= minimum_ns:
-            return elapsed / count, value
+    value = operation()
+    return time.perf_counter_ns() - started, value
 
 
-def ci95_median(values: Sequence[float]) -> tuple[float, float]:
-    """Percentile-bootstrap 95% confidence interval for the median."""
-    samples = np.asarray(values, dtype=np.float64)
-    generator = np.random.default_rng(BOOTSTRAP_SEED)
-    indices = generator.integers(
-        0, len(samples), size=(BOOTSTRAP_SAMPLES, len(samples))
-    )
-    low, high = np.quantile(np.median(samples[indices], axis=1), (0.025, 0.975))
-    return float(low), float(high)
+def timed_series(
+    operation: Callable[[], T],
+    max_calls: int = DECODE_MAX_CALLS,
+    min_calls: int = DECODE_MIN_CALLS,
+    seconds: float = DECODE_SECONDS,
+) -> tuple[list[int], list[T]]:
+    """Call ``operation`` up to ``max_calls`` times, stopping after ``seconds``.
+
+    At least ``min_calls`` calls run whatever their duration.
+    """
+    limit = int(seconds * NANOSECONDS_PER_SECOND)
+    times: list[int] = []
+    values: list[T] = []
+    while len(times) < max_calls:
+        elapsed, value = timed(operation)
+        times.append(elapsed)
+        values.append(value)
+        if len(times) >= min_calls and sum(times) >= limit:
+            break
+    return times, values
 
 
 def throughput_mb_s(input_bytes: int, elapsed_ns: float) -> float:
