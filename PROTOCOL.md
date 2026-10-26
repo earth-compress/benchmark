@@ -16,6 +16,8 @@ For each dataset, store integers when they reproduce the published data exactly:
 2. Test whether an integer array plus a `(scale, offset)` pair reproduces it bit for bit.
 3. If it does, store the integers, scale, and offset. Otherwise, retain the published floating-point array.
 
+`DATASETS.md` gives the `scale` and `offset` of each corpus, and the `manifest.csv` of each corpus holds the exact values of every sample.
+
 Data published as integers, including categorical codes, pass step 2 with `scale = 1` and `offset = 0` and are stored as published.
 
 The second step is an exactness test:
