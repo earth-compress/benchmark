@@ -77,7 +77,8 @@ def build(row: dict[str, str]):
         raise ValueError(
             f"{row['id']}: the codes do not reproduce the published values"
         )
-    return codes, b.rgb((values[0], values[HOURS // 2], values[-1]))
+    first = np.log1p(values[0] * 1e4) if SHORT == "tp" else values[0]
+    return codes, b.stretch(first)
 
 
 if __name__ == "__main__":
