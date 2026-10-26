@@ -29,9 +29,7 @@ def integers(spec: ArraySpec) -> bool:
     return spec.is_integer and spec.dtype.itemsize <= 2
 
 
-VERSION = (
-    f"imagecodecs {imagecodecs.__version__} ({imagecodecs.jpeg2k_version()})"
-)
+VERSION = f"imagecodecs {imagecodecs.__version__} ({imagecodecs.jpeg2k_version()})"
 REFERENCE = (
     lossless(
         "jpeg2000", "jpeg2000", VERSION, Jpeg2000, wavelet="5/3", supports=integers
