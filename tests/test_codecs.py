@@ -109,7 +109,7 @@ def test_the_bound_holds_on_adversarial_input(dtype):
 
 
 def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
-    """A 0.04 mm/hr budget on a scale of 0.01 is four steps, and must stay inside it."""
+    """A 0.06 mm/hr budget on a scale of 0.01 is six steps, and must stay inside it."""
     generator = np.random.default_rng(0)
     array = generator.integers(0, 500, size=(4, 64, 64), dtype=np.uint16)
     spec = ArraySpec(array.shape, array.dtype, None, (0.01,))
@@ -128,10 +128,10 @@ def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
 
 def test_quantisation_rejects_a_budget_below_one_step():
     """A budget finer than one step is not measurable, so it is not supported."""
-    spec = ArraySpec((8,), np.dtype(np.uint16), None, (1.0,))
+    spec = ArraySpec((8,), np.dtype(np.uint16), None, (10.0,))
     for config in configurations_for("imerg-pcp-12"):
         if config.mode is Mode.NEAR_LOSSLESS:
-            # tau of 0.04 on a scale of 1 is a twenty-fifth of a step.
+            # The largest tau, 1 mm/hr, is a tenth of a step of 10.
             assert not config.supports(spec)
 
 

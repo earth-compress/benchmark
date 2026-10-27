@@ -32,8 +32,16 @@ def test_budgets_come_back_in_level_order_and_rise_with_it():
     assert taus == sorted(taus)
 
 
-def test_eight_bit_landsat_has_only_the_aggressive_level():
-    assert list(budgets_for("l5-tm-6")) == [Level.AGGRESSIVE]
+@pytest.mark.parametrize(
+    ("corpus", "levels"),
+    [
+        ("s2-l1c-60m-3", [Level.MATCHED, Level.AGGRESSIVE]),
+        ("l5-tm-6", [Level.MATCHED, Level.AGGRESSIVE]),
+        ("l5-tm-tir", [Level.AGGRESSIVE]),
+    ],
+)
+def test_levels_below_one_step_are_left_out(corpus, levels):
+    assert list(budgets_for(corpus)) == levels
 
 
 @pytest.mark.parametrize("corpus", LOSSLESS_ONLY)

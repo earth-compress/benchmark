@@ -58,7 +58,7 @@ An element decoded to exactly its input value always passes, including infinitie
 
 ## 3. Error budgets
 
-Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus, and a level smaller than one step is not available for that corpus.
+Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
 
 The following rules apply:
 
