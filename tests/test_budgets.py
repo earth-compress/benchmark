@@ -59,3 +59,18 @@ def test_a_duplicate_level_is_rejected(tmp_path: Path):
 def test_a_missing_registry_is_an_error(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         load_budgets(tmp_path / "absent.csv")
+
+
+def test_only_era5_has_the_recommended_level():
+    registry = load_budgets()
+    recommended = {
+        corpus for corpus, levels in registry.items() if Level.RECOMMENDED in levels
+    }
+    assert recommended == {
+        "era5-t2m-1h",
+        "era5-msl-1h",
+        "era5-u10-1h",
+        "era5-tcc-1h",
+        "era5-tp-1h",
+    }
+    assert budgets_for("era5-msl-1h")[Level.RECOMMENDED].tau == 1.0

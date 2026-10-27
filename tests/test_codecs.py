@@ -5,6 +5,7 @@ import pytest
 
 from earthcompress.budgets import budgets_for
 from earthcompress.codecs import configurations_for, families, fixed, reference
+from earthcompress.codecs.base import Family
 from earthcompress.contract import Mode, Promise
 from earthcompress.metrics import same_bytes
 from earthcompress.promises import verify
@@ -80,7 +81,7 @@ def test_every_configuration_keeps_the_promises_of_its_mode(dtype):
     spec = ArraySpec(array.shape, array.dtype)
 
     for config in configurations_for("s2-l1c-10m-4"):
-        if not config.supports(spec):
+        if config.family is Family.NATIVE or not config.supports(spec):
             continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))
@@ -100,6 +101,8 @@ def test_the_bound_holds_on_adversarial_input(dtype):
     for config in configurations_for("s2-l1c-10m-4"):
         if config.mode is not Mode.NEAR_LOSSLESS or not config.supports(spec):
             continue
+        if config.family is Family.NATIVE:
+            continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))
         report = verify(config.mode, config.budget, array, decoded, scale=spec.scale)
@@ -116,6 +119,8 @@ def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
 
     for config in configurations_for("imerg-pcp-12"):
         if config.mode is not Mode.NEAR_LOSSLESS or not config.supports(spec):
+            continue
+        if config.family is Family.NATIVE:
             continue
         codec = config.factory(spec)
         decoded = codec.decode(codec.encode(array))

@@ -81,6 +81,34 @@ def near_lossless(
     )
 
 
+def code_bound(spec: ArraySpec, budget: Budget) -> float:
+    """The budget in the units of the stored values.
+
+    Integers count whole steps of the largest scale; floats use tau as stated.
+    """
+    return float(spec.steps(budget.tau)) if spec.is_integer else budget.tau
+
+
+def working_float(dtype: np.dtype) -> np.dtype:
+    """The float type that holds every value of ``dtype`` exactly."""
+    if dtype.kind == "f":
+        return dtype
+    return np.dtype(np.float32 if dtype.itemsize <= 2 else np.float64)
+
+
+def to_stored(values: np.ndarray, spec: ArraySpec) -> np.ndarray:
+    """Float output of a codec back in the stored type of the sample.
+
+    Integers round to the nearest code and clip to the type, which can only
+    move a value towards an integer input, so a bound in whole codes holds.
+    """
+    if not spec.is_integer:
+        return np.ascontiguousarray(values, dtype=spec.dtype).reshape(spec.shape)
+    limits = np.iinfo(spec.dtype)
+    codes = np.clip(np.rint(values), limits.min, limits.max)
+    return codes.astype(spec.dtype).reshape(spec.shape)
+
+
 def unpack(raw, spec: ArraySpec) -> np.ndarray:
     return np.frombuffer(raw, dtype=spec.dtype).reshape(spec.shape)
 

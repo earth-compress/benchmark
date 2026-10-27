@@ -14,11 +14,13 @@ class Mode(StrEnum):
 
 
 class Level(StrEnum):
-    """Which of the three budget levels of `TOLERANCE.md` this is."""
+    """Which budget level of `TOLERANCE.md` this is."""
 
     CONSERVATIVE = "conservative"
     MATCHED = "matched"
     AGGRESSIVE = "aggressive"
+    RECOMMENDED = "recommended"
+    """A bound recommended by domain experts, where one exists."""
 
 
 class Promise(StrEnum):

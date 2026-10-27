@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..budgets import budgets_for
 from ..contract import Budget
-from . import quantize
+from . import quantize, safeguards
 from .base import Codec, CodecConfiguration
 
 Family = Callable[[Budget], CodecConfiguration]
@@ -55,11 +55,18 @@ def natives() -> tuple[Family, ...]:
 def families() -> tuple[Family, ...]:
     """Every near-lossless configuration awaiting a budget.
 
-    The native ones, then the shared quantiser in front of a few lossless
-    configurations.
+    The native ones, the shared quantiser in front of a few lossless
+    configurations, and the native ones again inside Compression Safeguards,
+    with the safeguards alone as a last row.
     """
     by_id = {config.id: config for config in fixed()}
-    return natives() + tuple(quantize.family(by_id[name]) for name in quantize.BACKENDS)
+    native = natives()
+    return (
+        native
+        + tuple(quantize.family(by_id[name]) for name in quantize.BACKENDS)
+        + tuple(safeguards.family(make) for make in native)
+        + (safeguards.zero,)
+    )
 
 
 def configurations_for(

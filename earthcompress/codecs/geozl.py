@@ -6,8 +6,9 @@ from importlib.metadata import version
 import geozl
 import numpy as np
 
+from ..contract import Budget
 from ..spec import ArraySpec
-from .base import lossless
+from .base import Family, code_bound, lossless, near_lossless
 
 
 class GeoZL:
@@ -40,6 +41,34 @@ RECIPES = {
 }
 
 
+class GeoZLLinear:
+    """GeoZL with its LINEAR quantiser, the bound as its error and the sentinel as NoData.
+
+    The lossy domain comes from the raster a graph is built from, so the graph
+    is built from each sample when it is encoded. Frames decode on their own.
+    """
+
+    def __init__(self, spec: ArraySpec, budget: Budget, recipe: str):
+        self.spec = spec
+        self.error = code_bound(spec, budget)
+        self.recipe = (
+            recipe.replace(">transpose", "") if spec.dtype.itemsize == 1 else recipe
+        )
+
+    def encode(self, array):
+        graph = geozl.graph(
+            array, self.recipe, error=self.error, nodata=self.spec.sentinel
+        )
+        return geozl.compress(array, graph=graph)
+
+    def decode(self, data):
+        return (
+            geozl.decompress(data, verify=False)
+            .view(self.spec.dtype)
+            .reshape(self.spec.shape)
+        )
+
+
 def rasters(spec: ArraySpec) -> bool:
     """GeoZL predicts along rows, so it needs at least two axes."""
     return len(spec.shape) >= 2
@@ -57,3 +86,26 @@ CONFIGURATIONS = tuple(
     )
     for name, recipe in RECIPES.items()
 )
+
+
+NEAR_RECIPE = "geozl-med-entropy"
+"""The recipe of the best lossless ratio on the corpora with a budget."""
+
+
+def linear(budget: Budget):
+    recipe = RECIPES[NEAR_RECIPE]
+    return near_lossless(
+        f"{NEAR_RECIPE}-linear",
+        "geozl",
+        VERSION,
+        partial(GeoZLLinear, budget=budget, recipe=recipe),
+        budget,
+        Family.NATIVE,
+        supports=rasters,
+        graph=recipe,
+        quantizer="LINEAR",
+        nodata="sentinel",
+    )
+
+
+FAMILIES = (linear,)

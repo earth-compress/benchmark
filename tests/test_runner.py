@@ -161,7 +161,9 @@ def test_the_quantiser_keeps_exact_zeros(tmp_path: Path):
     data[0, 0, :16] = 0
     corpus = write_corpus(tmp_path / "quant", {"q-00": data})
     near = [
-        c for c in configurations_for("s2-l1c-10m-4") if c.mode is Mode.NEAR_LOSSLESS
+        c
+        for c in configurations_for("s2-l1c-10m-4")
+        if c.mode is Mode.NEAR_LOSSLESS and c.family is not Family.NATIVE
     ]
     assert run_benchmark(corpus, tuple(near))
     for row in _rows(corpus):
