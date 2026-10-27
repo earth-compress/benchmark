@@ -49,6 +49,14 @@ def same_bytes(left: np.ndarray, right: np.ndarray) -> bool:
     )
 
 
+def identical(reference: np.ndarray, decoded: np.ndarray) -> np.ndarray:
+    """Where an element decoded to its input value, NaN to NaN included."""
+    same = reference == decoded
+    if reference.dtype.kind == "f":
+        same |= np.isnan(reference) & np.isnan(decoded)
+    return same
+
+
 def _rows(array: np.ndarray) -> np.ndarray:
     """View the array as rows of its last axis."""
     flat = np.ascontiguousarray(array)
@@ -63,6 +71,19 @@ def _per_row(values, shape: tuple[int, ...], nrows: int) -> np.ndarray:
     if len(shape) < 2 or values.size != shape[0]:
         raise ValueError(f"{values.size} plane values for shape {shape}")
     return np.repeat(values, nrows // shape[0])
+
+
+def _error(reference: np.ndarray, decoded: np.ndarray, scale) -> np.ndarray:
+    """``x - x̂`` in native units, by rows.
+
+    An element decoded to itself has no error, infinities and NaN included;
+    any other element that is not finite has an infinite error.
+    """
+    with np.errstate(invalid="ignore"):
+        error = (reference.astype(np.float64) - decoded.astype(np.float64)) * scale
+    error[identical(reference, decoded)] = 0.0
+    error[~np.isfinite(error)] = np.inf
+    return error
 
 
 def _valid(rows: np.ndarray, nodata: float | None) -> np.ndarray:
@@ -99,8 +120,9 @@ def distortion(
         valid = _valid(ref_rows[block], nodata)
         k = row_scale[block, None]
         ref = ref_rows[block].astype(np.float64)
-        err = (ref - dec_rows[block].astype(np.float64)) * k
+        err = _error(ref_rows[block], dec_rows[block], k)
         native = (ref * k + row_offset[block, None])[valid]
+        native = native[np.isfinite(native)]
         absolute = np.abs(err[valid])
         if not absolute.size:
             continue
@@ -110,8 +132,9 @@ def distortion(
         abs_sum += float(absolute.sum())
         sq_sum += float(np.square(absolute).sum())
         signed_sum -= float(err[valid].sum())
-        low = min(low, float(native.min()))
-        high = max(high, float(native.max()))
+        if native.size:
+            low = min(low, float(native.min()))
+            high = max(high, float(native.max()))
 
         if width > 1:
             pair = valid[:, :-1] & valid[:, 1:]
@@ -154,19 +177,17 @@ def _spread(
     worst: float,
     nodata: float | None,
 ) -> float:
-    """``p99(|error|) / max(|error|)``. Exact decodes have no spread to report."""
-    if worst == 0.0:
+    """``p99(|error|) / max(|error|)``. Exact decodes have no spread to report,
+    and neither do decodes with an infinite error."""
+    if worst == 0.0 or not math.isfinite(worst):
         return math.nan
 
     counts = np.zeros(_BINS, dtype=np.int64)
     for start in range(0, ref_rows.shape[0], _ROWS):
         block = slice(start, start + _ROWS)
         valid = _valid(ref_rows[block], nodata)
-        absolute = (
-            np.abs(
-                ref_rows[block].astype(np.float64) - dec_rows[block].astype(np.float64)
-            )
-            * row_scale[block, None]
+        absolute = np.abs(
+            _error(ref_rows[block], dec_rows[block], row_scale[block, None])
         )[valid]
         index = np.minimum((absolute / worst * (_BINS - 1)).astype(np.int64), _BINS - 1)
         counts += np.bincount(index, minlength=_BINS)

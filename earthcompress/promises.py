@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .contract import PROMISES, Budget, Mode, Promise
-from .metrics import same_bytes
+from .metrics import identical, same_bytes
 
 _ROWS = 1 << 12
 
@@ -18,6 +18,8 @@ class Verdict:
     promise: Promise
     ok: bool | None
     detail: str = ""
+    count: int = 0
+    """Elements that broke the promise."""
 
     @property
     def failed(self) -> bool:
@@ -39,6 +41,13 @@ class Report:
         for verdict in self.verdicts:
             if verdict.promise is promise:
                 return verdict.ok
+        return None
+
+    def count(self, promise: Promise) -> int | None:
+        """Elements that broke ``promise``, or None when it was not checked."""
+        for verdict in self.verdicts:
+            if verdict.promise is promise:
+                return None if verdict.ok is None else verdict.count
         return None
 
     @property
@@ -104,11 +113,12 @@ def _check_bound(
         with np.errstate(invalid="ignore"):
             error = np.abs(ref.astype(np.float64) - dec.astype(np.float64))
             error *= per_row[block, None]
-        bad = (ref != dec) & ~(error <= budget.tau)
+        same = identical(ref, dec)
+        bad = ~same & ~(error <= budget.tau)
         if sentinel is not None:
             bad &= ~_is(ref, sentinel)
         offenders += int(bad.sum())
-        finite = error[np.isfinite(error) & (ref != dec)]
+        finite = error[np.isfinite(error) & ~same]
         if finite.size:
             worst = max(worst, float(finite.max()))
     if offenders:
@@ -116,6 +126,7 @@ def _check_bound(
             Promise.BOUND,
             False,
             f"{offenders} element(s) outside tau={budget.tau:g}, worst error {worst:g}",
+            offenders,
         )
     return Verdict(Promise.BOUND, True, f"worst error {worst:g}")
 
@@ -135,6 +146,7 @@ def _check_sentinel(
             Promise.SENTINEL,
             False,
             f"{lost} sentinel(s) lost, {invented} invented in valid data",
+            lost + invented,
         )
     return Verdict(Promise.SENTINEL, True, f"{int(was.sum())} preserved")
 
@@ -156,7 +168,9 @@ def _check_zero(reference: np.ndarray, decoded: np.ndarray, scale, offset) -> Ve
         return Verdict(Promise.ZERO, None, "no exact zeros in the input")
     lost = int((was & (_native(decoded, scale, offset) != 0)).sum())
     if lost:
-        return Verdict(Promise.ZERO, False, f"{lost} of {count} exact zeros changed")
+        return Verdict(
+            Promise.ZERO, False, f"{lost} of {count} exact zeros changed", lost
+        )
     return Verdict(Promise.ZERO, True, f"{count} preserved")
 
 

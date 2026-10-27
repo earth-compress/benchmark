@@ -126,26 +126,6 @@ def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
         )
 
 
-def test_quantisation_rejects_a_budget_below_one_step():
-    """A budget finer than one step is not measurable, so it is not supported."""
-    spec = ArraySpec((8,), np.dtype(np.uint16), None, (10.0,))
-    for config in configurations_for("imerg-pcp-12"):
-        if config.mode is Mode.NEAR_LOSSLESS:
-            # The largest tau, 0.96 mm/hr, is under a tenth of a step of 10.
-            assert not config.supports(spec)
-
-
-def test_quantisation_rejects_float_arrays():
-    spec = ArraySpec((8,), np.dtype(np.float32))
-    near = [
-        config
-        for config in configurations_for("s2-l1c-10m-4")
-        if config.mode is Mode.NEAR_LOSSLESS
-    ]
-    assert near
-    assert not any(config.supports(spec) for config in near)
-
-
 def test_steps_round_down_with_the_largest_scale():
     spec = ArraySpec((2, 4), np.dtype(np.uint16), None, (2.0**-21, 2.0**-20))
     assert spec.steps(2e-5) == 20

@@ -19,10 +19,33 @@ class ArraySpec:
     One value applies to the whole array; several apply to the planes of the
     first axis. Floating-point data have a scale of 1.
     """
+    offset: tuple[float, ...] = field(default=(0.0,))
+    """Native value of the stored zero, per plane like ``scale``."""
 
     def steps(self, tau: float) -> int:
         """A budget in native units, as whole steps of the largest scale."""
         return math.floor(tau / max(self.scale))
+
+    def plane_steps(self, tau: float) -> tuple[int, ...]:
+        """A budget in native units, as whole steps of the scale of each plane."""
+        return tuple(math.floor(tau / scale) for scale in self.scale)
+
+    def zero_codes(self) -> tuple[int | None, ...]:
+        """The stored value of a native zero per plane, None where none is whole."""
+        codes = []
+        for scale, offset in zip(self.scale, self._offsets(), strict=True):
+            code = -offset / scale
+            codes.append(int(code) if code == int(code) else None)
+        return tuple(codes)
+
+    def _offsets(self) -> tuple[float, ...]:
+        if len(self.offset) == len(self.scale):
+            return self.offset
+        if len(self.offset) == 1:
+            return self.offset * len(self.scale)
+        if len(self.scale) == 1:
+            raise ValueError("per-plane offsets need per-plane scales")
+        raise ValueError(f"{len(self.offset)} offsets for {len(self.scale)} scales")
 
     def plane_scale(self) -> np.ndarray:
         """The scale broadcastable against the array."""

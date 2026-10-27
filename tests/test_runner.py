@@ -9,7 +9,7 @@ import pytest
 from conftest import write_corpus
 
 from earthcompress import corpus as corpus_module
-from earthcompress.codecs.base import CodecConfiguration
+from earthcompress.codecs.base import CodecConfiguration, Family
 from earthcompress.contract import Budget, Level, Mode
 from earthcompress.corpus import load_samples
 from earthcompress.runner import (
@@ -58,6 +58,13 @@ class Restless(Identity):
         return super().decode(compressed[: self._spec.nbytes])
 
 
+class Raising(Identity):
+    """Fails to encode at all."""
+
+    def encode(self, array: np.ndarray) -> bytes:
+        raise ValueError("unsupported input")
+
+
 class Counting(Identity):
     calls = 0
 
@@ -75,6 +82,7 @@ def _config(factory, mode, budget=None, config_id="demo") -> CodecConfiguration:
         parameters={},
         factory=factory,
         budget=budget,
+        family=Family.NATIVE if mode is Mode.NEAR_LOSSLESS else None,
     )
 
 
@@ -130,15 +138,19 @@ def test_the_bound_uses_the_scale_of_the_corpus(tmp_path: Path):
     corpus = write_corpus(tmp_path / "fine", {"f-00": data}, scale="0.01", unit="mm/hr")
     assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(0.01)))
     assert float(_rows(corpus)[0]["max_abs_error"]) == pytest.approx(0.01)
-    assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(0.005)))
+    assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(0.005)))
+    row = _rows(corpus)[0]
+    assert row["status"] == "violation" and row["bound_violations"] == "64"
 
 
-def test_moving_an_exact_zero_fails_the_run(tmp_path: Path):
+def test_moving_an_exact_zero_is_reported(tmp_path: Path):
     corpus = write_corpus(
         tmp_path / "zeros", {"z-00": np.array([[0, 0, 5, 9]], dtype=np.int16)}
     )
-    assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(tau=2.0)))
-    assert _rows(corpus)[0]["fidelity_ok"] == "False"
+    assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, Budget(tau=2.0)))
+    row = _rows(corpus)[0]
+    assert row["fidelity_ok"] == "False" and row["zero_ok"] == "False"
+    assert row["zero_violations"] == "2" and row["bound_violations"] == "0"
 
 
 def test_the_quantiser_keeps_exact_zeros(tmp_path: Path):
@@ -156,12 +168,31 @@ def test_the_quantiser_keeps_exact_zeros(tmp_path: Path):
         assert row["zero_ok"] == "True", row["configuration"]
 
 
-def test_a_failed_row_keeps_the_declaration_and_no_measurement(corpus: Path):
+def test_a_broken_promise_keeps_its_measurements(corpus: Path):
     budget = Budget(tau=0.5, level=Level.CONSERVATIVE)
-    assert not _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, budget))
+    assert _run(corpus, _config(OffByOne, Mode.NEAR_LOSSLESS, budget))
     for row in _rows(corpus):
-        assert row["fidelity_ok"] == "False" and row["compressed_bytes"] == ""
+        assert row["fidelity_ok"] == "False" and row["status"] == "violation"
+        assert float(row["compression_ratio"]) == pytest.approx(1.0)
+        assert float(row["max_abs_error"]) == 1.0
+        assert row["bound_violations"] == str(2 * 32 * 32)
         assert row["tau"] == "0.5" and row["budget_level"] == "conservative"
+
+
+def test_a_crash_keeps_the_declaration_and_no_measurement(corpus: Path):
+    budget = Budget(tau=0.5, level=Level.CONSERVATIVE)
+    assert not _run(corpus, _config(Raising, Mode.NEAR_LOSSLESS, budget))
+    for row in _rows(corpus):
+        assert row["status"] == "crash" and row["fidelity_ok"] == "False"
+        assert row["compressed_bytes"] == "" and row["tau"] == "0.5"
+
+
+def test_a_run_replaces_only_the_rows_of_its_configurations(corpus: Path):
+    assert _run(corpus, _config(Identity, Mode.LOSSLESS, config_id="kept"))
+    assert _run(corpus, _config(Identity, Mode.LOSSLESS, config_id="new"), limit=1)
+    assert _run(corpus, _config(Identity, Mode.LOSSLESS, config_id="new"), limit=2)
+    rows = _rows(corpus)
+    assert [row["configuration"] for row in rows] == ["kept"] * 4 + ["new"] * 2
 
 
 def test_lossy_mode_checks_sentinels(tmp_path: Path):
@@ -170,7 +201,9 @@ def test_lossy_mode_checks_sentinels(tmp_path: Path):
         {"l-00": np.array([[0, 5, 7, 9]], dtype=np.int16)},
         nodata="0",
     )
-    assert not _run(corpus, _config(OffByOne, Mode.LOSSY))
+    assert _run(corpus, _config(OffByOne, Mode.LOSSY))
+    row = _rows(corpus)[0]
+    assert row["sentinel_ok"] == "False" and row["sentinel_violations"] == "1"
     corpus = write_corpus(
         tmp_path / "plain", {"p-00": np.array([[3, 5, 7, 9]], dtype=np.int16)}
     )

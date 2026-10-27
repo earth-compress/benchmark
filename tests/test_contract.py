@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from earthcompress.codecs.base import CodecConfiguration
+from earthcompress.codecs.base import CodecConfiguration, Family
 from earthcompress.contract import PROMISES, Budget, Level, Mode, Promise
 
 
@@ -46,4 +46,16 @@ def test_only_near_lossless_carries_a_budget():
         CodecConfiguration(mode=Mode.NEAR_LOSSLESS, **common)
     with pytest.raises(ValueError):
         CodecConfiguration(mode=Mode.LOSSLESS, budget=Budget(1.0), **common)
-    CodecConfiguration(mode=Mode.NEAR_LOSSLESS, budget=Budget(1.0), **common)
+    CodecConfiguration(
+        mode=Mode.NEAR_LOSSLESS, budget=Budget(1.0), family=Family.NATIVE, **common
+    )
+
+
+def test_only_near_lossless_belongs_to_a_family():
+    common = dict(
+        id="x", codec="x", version="0", parameters={}, factory=lambda spec: None
+    )
+    with pytest.raises(ValueError):
+        CodecConfiguration(mode=Mode.NEAR_LOSSLESS, budget=Budget(1.0), **common)
+    with pytest.raises(ValueError):
+        CodecConfiguration(mode=Mode.LOSSLESS, family=Family.QUANTIZED, **common)

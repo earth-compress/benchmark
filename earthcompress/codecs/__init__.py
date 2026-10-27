@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ..budgets import budgets_for
 from ..contract import Budget
+from . import quantize
 from .base import Codec, CodecConfiguration
 
 Family = Callable[[Budget], CodecConfiguration]
@@ -43,12 +44,22 @@ def reference() -> tuple[CodecConfiguration, ...]:
     )
 
 
-def families() -> tuple[Family, ...]:
-    """Near-lossless codecs awaiting a budget."""
+def natives() -> tuple[Family, ...]:
+    """Near-lossless configurations of codecs with a bounded mode of their own."""
     found: list[Family] = []
     for module in _modules():
         found.extend(getattr(module, "FAMILIES", ()))
     return tuple(found)
+
+
+def families() -> tuple[Family, ...]:
+    """Every near-lossless configuration awaiting a budget.
+
+    The native ones, then the shared quantiser in front of a few lossless
+    configurations.
+    """
+    by_id = {config.id: config for config in fixed()}
+    return natives() + tuple(quantize.family(by_id[name]) for name in quantize.BACKENDS)
 
 
 def configurations_for(
@@ -69,4 +80,5 @@ __all__ = [
     "configurations_for",
     "families",
     "fixed",
+    "natives",
 ]

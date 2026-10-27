@@ -27,7 +27,9 @@ class Sample:
 
     @property
     def spec(self) -> ArraySpec:
-        return ArraySpec(self.data.shape, self.data.dtype, self.sentinel, self.scale)
+        return ArraySpec(
+            self.data.shape, self.data.dtype, self.sentinel, self.scale, self.offset
+        )
 
 
 def values(text: str, default: float) -> tuple[float, ...]:

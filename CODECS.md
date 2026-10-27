@@ -8,6 +8,7 @@ The published lossless results use the configurations below, with JPEG 2000 as a
 | --- | --- | --- | --- |
 | `zstd-c3` | Array stores | Zstandard level 3 over the raw bytes | python-zstandard |
 | `blosc-zstd3-bitshuffle` | Array stores | Blosc with Zstandard level 3 and bit shuffle, the setting of the EOPF Sentinel Zarr products | numcodecs (c-blosc) |
+| `pco` | Array stores | Pcodec level 8 over the flattened array, a lossless codec for numerical sequences | imagecodecs (pcodec 1.0.4) |
 | `deflate-c6` | Raster files | DEFLATE level 6 over the raw bytes | Python zlib |
 | `lzw` | Raster files | LZW over the raw bytes, as in a TIFF written with LZW and no predictor | imagecodecs |
 | `hdiff-zstd9` | Raster files | Horizontal differencing as TIFF `PREDICTOR=2`, then Zstandard level 9 as GDAL writes a ZSTD GeoTIFF | NumPy and python-zstandard |

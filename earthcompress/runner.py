@@ -25,6 +25,7 @@ RESULT_COLUMNS = (
     "codec_version",
     "configuration",
     "mode",
+    "family",
     "tau",
     "budget_level",
     "input_bytes",
@@ -46,7 +47,11 @@ RESULT_COLUMNS = (
     "error_lag1",
     "sentinel_ok",
     "zero_ok",
+    "bound_violations",
+    "sentinel_violations",
+    "zero_violations",
     "fidelity_ok",
+    "status",
 )
 
 _EXACT = Distortion(0.0, 0.0, 0.0, 0.0, math.inf, math.nan, math.nan)
@@ -60,6 +65,7 @@ def _declaration(config: CodecConfiguration) -> dict[str, Any]:
         "codec_version": config.version,
         "configuration": config.id,
         "mode": str(config.mode),
+        "family": "" if config.family is None else str(config.family),
         "tau": "" if budget is None else repr(budget.tau),
         "budget_level": ""
         if budget is None or budget.level is None
@@ -67,8 +73,8 @@ def _declaration(config: CodecConfiguration) -> dict[str, Any]:
     }
 
 
-def _flag(value: bool | None) -> str:
-    """A tri-state check: empty means the check did not apply."""
+def _flag(value: bool | int | None) -> str:
+    """A check or a count; empty means the check did not apply."""
     return "" if value is None else str(value)
 
 
@@ -86,7 +92,7 @@ def _measure(
     # Size, error, and an indicative encode time, from one call without warm-up.
     encode_ns, compressed = timed(lambda: codec.encode(array))
     decoded = codec.decode(compressed)
-    report = _verified(config, array, decoded, sample)
+    report = _checked(config, array, decoded, sample)
 
     # Decode time on every sample; the decode above was the warm-up.
     decode_times, outputs = timed_series(lambda: codec.decode(compressed))
@@ -98,7 +104,7 @@ def _measure(
 
     measured = (
         _EXACT
-        if config.mode is Mode.LOSSLESS
+        if config.mode is Mode.LOSSLESS and report.ok
         else distortion(array, decoded, sample.scale, sample.offset, sample.sentinel)
     )
     input_bytes = array.nbytes
@@ -126,17 +132,26 @@ def _measure(
         error_lag1=measured.error_lag1,
         sentinel_ok=_flag(report.of(Promise.SENTINEL)),
         zero_ok=_flag(report.of(Promise.ZERO)),
-        fidelity_ok=True,
+        bound_violations=_flag(report.count(Promise.BOUND)),
+        sentinel_violations=_flag(report.count(Promise.SENTINEL)),
+        zero_violations=_flag(report.count(Promise.ZERO)),
+        fidelity_ok=report.ok,
+        status="ok" if report.ok else "violation",
     )
     return row
 
 
-def _verified(
+def _checked(
     config: CodecConfiguration,
     array: np.ndarray,
     decoded: np.ndarray,
     sample: Sample,
 ) -> Report:
+    """Every promise of the mode. A broken promise is a result, kept in the row.
+
+    Only a decoded array of the wrong shape or dtype stops the measurement,
+    since no error can be computed against it.
+    """
     report = verify(
         config.mode,
         config.budget,
@@ -146,7 +161,7 @@ def _verified(
         sample.scale,
         sample.offset,
     )
-    if not report.ok:
+    if report.of(Promise.STRUCTURE) is False:
         raise RuntimeError(
             "; ".join(f"{v.promise}: {v.detail}" for v in report.failures)
         )
@@ -154,14 +169,31 @@ def _verified(
 
 
 def _failure(sample: Sample, config: CodecConfiguration) -> dict[str, Any]:
+    """A configuration that raised, or decoded to the wrong shape or dtype."""
     row = dict.fromkeys(RESULT_COLUMNS, "")
     row.update(
         sample_id=sample.id,
         **_declaration(config),
         input_bytes=sample.data.nbytes,
         fidelity_ok=False,
+        status="crash",
     )
     return row
+
+
+def _merged(
+    path: Path, rows: Sequence[dict[str, Any]], replaced: set[str]
+) -> list[dict[str, Any]]:
+    """Earlier rows of the configurations this run did not measure, then this run."""
+    if not path.is_file():
+        return list(rows)
+    with path.open(newline="") as stream:
+        kept = [
+            row
+            for row in csv.DictReader(stream)
+            if row["configuration"] not in replaced
+        ]
+    return kept + list(rows)
 
 
 def _write_results(path: Path, rows: Sequence[dict[str, Any]]) -> None:
@@ -185,7 +217,21 @@ def _describe(row: dict[str, Any]) -> str:
             f" spread={row['error_spread']:.2f}"
             f" lag1={row['error_lag1']:+.2f}"
         )
+    if row["status"] == "violation":
+        broken = (
+            f"{name}={row[f'{name}_violations']}"
+            for name in ("bound", "sentinel", "zero")
+            if row[f"{name}_violations"] not in ("", "0")
+        )
+        text += f" VIOLATION {' '.join(broken)}"
     return text
+
+
+def _status(row: dict[str, Any]) -> str:
+    """The status of a row; rows written before it was recorded either passed or crashed."""
+    if row.get("status"):
+        return str(row["status"])
+    return "ok" if str(row["fidelity_ok"]) == "True" else "crash"
 
 
 def _count(row: dict[str, Any]) -> int:
@@ -200,7 +246,7 @@ def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, di
         selected = [
             row
             for row in rows
-            if row["configuration"] == configuration and row["fidelity_ok"] is True
+            if row["configuration"] == configuration and _status(row) != "crash"
         ]
         if len(selected) != sample_count:
             totals[configuration] = {"complete": False}
@@ -230,6 +276,13 @@ def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, di
                 )
                 / count
             ),
+            "fidelity_ok": all(str(r["fidelity_ok"]) == "True" for r in selected),
+            **{
+                f"{name}_violations": sum(
+                    int(r.get(f"{name}_violations") or 0) for r in selected
+                )
+                for name in ("bound", "sentinel", "zero")
+            },
         }
     return totals
 
@@ -250,6 +303,13 @@ def _print_totals(rows: Sequence[dict[str, Any]], sample_count: int) -> None:
         )
         if total["mode"] != str(Mode.LOSSLESS):
             line += f" max_err={total['max_abs_error']:g} rmse={total['rmse']:g}"
+        if not total["fidelity_ok"]:
+            line += (
+                " VIOLATIONS"
+                f" bound={total['bound_violations']}"
+                f" sentinel={total['sentinel_violations']}"
+                f" zero={total['zero_violations']}"
+            )
         print(line)
 
 
@@ -290,7 +350,8 @@ def run_benchmark(
 
     root = corpus.resolve()
     result_path = root / RESULTS_FILENAME
-    _write_results(result_path, rows)
+    replaced = {config.id for config in configs}
+    _write_results(result_path, _merged(result_path, rows, replaced))
     environment_path = write_environment(root, describe_environment())
     _print_totals(rows, len(samples))
     print(f"\nWrote {result_path}")

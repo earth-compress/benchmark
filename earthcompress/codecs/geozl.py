@@ -39,8 +39,21 @@ RECIPES = {
     "geozl-id-pfor": "id>pfor",
 }
 
+
+def rasters(spec: ArraySpec) -> bool:
+    """GeoZL predicts along rows, so it needs at least two axes."""
+    return len(spec.shape) >= 2
+
+
 VERSION = f"geozl {geozl.__version__} (openzl {version('openzl')})"
 CONFIGURATIONS = tuple(
-    lossless(name, "geozl", VERSION, partial(GeoZL, recipe=recipe), graph=recipe)
+    lossless(
+        name,
+        "geozl",
+        VERSION,
+        partial(GeoZL, recipe=recipe),
+        graph=recipe,
+        supports=rasters,
+    )
     for name, recipe in RECIPES.items()
 )
