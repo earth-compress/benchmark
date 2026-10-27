@@ -1,6 +1,6 @@
 # Codecs
 
-This page lists the lossless configurations in the published run. JPEG 2000 is a separate reference.
+The published lossless results use the configurations below, with JPEG 2000 as a separate reference.
 
 ## Official run
 

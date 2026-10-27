@@ -73,14 +73,15 @@ configs:
 
 # Earth Compress benchmark corpora
 
-The 585 samples of the [Earth Compress benchmark](https://github.com/earth-compress/benchmark),
-in 27 corpora of satellite imagery, reanalysis fields, elevation, land cover
-and embeddings. Each sample is a window of a published product on
-its native grid, with bands or time steps on the first axis; ERA5 samples are
-whole global fields, and Clay samples are blocks of MajorTOM cells. A sample
-holds the published integers, with their scale and offset, when these
-reproduce the published values exactly, and the published floats otherwise.
-The compressed files take 2.6 GB.
+The [Earth Compress benchmark](https://github.com/earth-compress/benchmark)
+has 585 samples in 27 corpora of satellite imagery, reanalysis fields,
+elevation, land cover and embeddings. Most samples are windows cut from
+published products. ERA5 samples are complete global fields requested on a
+regular 0.25-degree grid, and Clay samples are blocks of MajorTOM cells. When
+a sample has several planes, the first axis holds bands, time steps or
+embedding dimensions. A sample holds the published integers, with their scale
+and offset, when these reproduce the published values exactly, and the
+published floats otherwise. The compressed sample files total 2.75 GB.
 
 ## Layout
 
@@ -93,9 +94,11 @@ The compressed files take 2.6 GB.
 
 `manifest.csv` has one row per sample with its source asset, CRS, GDAL
 geotransform, start and end dates, bands, shape, dtype, unit, scale, offset,
-NoData and the SHA-256 of the array, which is enough to write the sample as a
-GeoTIFF. `spec.md` describes the corpus and how its samples were chosen. The
-PNG is a preview.
+NoData and the SHA-256 of the array. For most corpora, these fields are enough
+to write a georeferenced raster. Clay cell rows are not aligned, so
+`clay-embeddings/cells/{sample}.csv` gives the exact bounds of each cell.
+`spec.md` describes the corpus and how its samples were chosen. The PNG is a
+preview.
 
 | corpus | contents | shape | dtype | samples |
 | --- | --- | --- | --- | ---: |

@@ -257,8 +257,9 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-def chart_block(select: str = "", key: str = "all") -> str:
+def chart_block(select: str = "", key: str = "all", caption: str = "") -> str:
     pick = f'<label class="pick">{select}</label>' if select else ""
+    note = f'<p class="chart-note">{caption}</p>' if caption else ""
     return f"""<section class="results">
 <div class="controls">
 <div class="tabs" role="tablist" aria-label="Fidelity mode">
@@ -268,7 +269,7 @@ def chart_block(select: str = "", key: str = "all") -> str:
 </div>
 {pick}
 </div>
-<div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div></div>
+<div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div>{note}</div>
 <div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>Coming soon.</p></div>
 <div class="panel soonpanel" role="tabpanel" id="panel-lossy" hidden><p>Coming soon.</p></div>
 </section>"""
@@ -354,11 +355,13 @@ def build() -> None:
     }
 
     corpus_totals: dict[str, dict] = {}
+    sample_counts: dict[str, int] = {}
     corpus_cards = []
     for row in datasets:
         cid = plain(row["corpus"])
         folder = ROOT / "corpora" / cid
         samples = manifest(folder)
+        sample_counts[cid] = len(samples)
         rows = lossless_rows(folder)
         found = totals(rows)
         by_sample = per_sample(rows)
@@ -456,11 +459,21 @@ def build() -> None:
     grid = "".join(
         card("", href, image, cid, meta) for cid, href, image, meta in corpus_cards
     )
+    intro = (
+        '<div class="home-intro"><h1>Earth Compress benchmark</h1>'
+        f'<p>Lossless compression results for {sum(sample_counts[cid] for cid in measured)} '
+        f'samples across {len(measured)} corpora of imagery, environmental fields and embeddings.</p></div>'
+    )
+    caption = (
+        "Each point is a configuration. The line marks the best observed trade-offs. "
+        "All corpora pools sizes and decode times across samples, so larger corpora "
+        "carry more weight. Only configurations completed on every corpus appear."
+    )
     (OUT / "index.html").write_text(
         layout(
             "",
             "Earth Compress benchmark",
-            f'{chart_block(select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            f'{intro}{chart_block(select, caption=caption)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
             chart,
         )
     )

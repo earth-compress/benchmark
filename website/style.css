@@ -56,7 +56,11 @@ h2 { font-size: 21px; font-weight: 600; margin: 0 0 6px; }
 h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
 .note { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 
+.home-intro { padding-top: 28px; }
+.home-intro h1 { font: 600 28px var(--sans); margin: 0 0 2px; }
+.home-intro p { margin: 0; color: var(--muted); }
 .results { padding: 28px 0 40px; }
+.chart-note { max-width: 900px; margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
 .tabs { display: flex; gap: 28px; }
 .tabs button { white-space: nowrap; background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 0 6px; cursor: pointer; font: 600 20px var(--sans); color: var(--faint); }
@@ -142,6 +146,7 @@ footer p { margin: 0 0 8px; }
   .sample { grid-template-columns: 1fr; gap: 16px; }
   .spec { grid-template-columns: 1fr; }
   h1 { font-size: 22px; }
+  .home-intro h1 { font-size: 22px; }
 }
 .doc td:first-child code { white-space: nowrap; }
 

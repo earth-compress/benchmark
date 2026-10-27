@@ -1,8 +1,8 @@
 # Tolerance
 
-This page sets the near-lossless error bounds for eligible corpora and explains where they come from.
+Near-lossless runs use three error bounds for each eligible corpus.
 
-A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. We set three bounds for each eligible corpus using the same rule. They let us compare configurations on that corpus at a fixed error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
+A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. The three levels let us compare configurations on a corpus at the same error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
 
 ## 1. The rule
 

@@ -1,6 +1,6 @@
 # Datasets
 
-The benchmark measures the corpora listed below. Their samples are hosted in the Hugging Face dataset [earth-compress/benchmark](https://huggingface.co/datasets/earth-compress/benchmark) and downloaded on first use. Each corpus directory contains a build script, a description, and a manifest.
+The benchmark contains 585 samples in 27 corpora. They are hosted in the Hugging Face dataset [earth-compress/benchmark](https://huggingface.co/datasets/earth-compress/benchmark) and downloaded on first use. Each corpus directory contains a build script, a description, and a manifest.
 
 Most samples are windows cut from published products. ERA5 samples are complete global fields, and Clay samples are blocks of MajorTOM cells. When a sample has several planes, the first axis holds bands, time steps, or embedding dimensions.
 
