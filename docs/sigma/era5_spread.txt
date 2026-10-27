@@ -1,0 +1,6 @@
+# uv run --extra corpus python docs/sigma/era5_spread.py <directory>, 2026-10-27
+2t    80 fields  median 0.3016
+10u   80 fields  median 0.297
+msl   80 fields  median 15.17
+tcc   80 fields  median 0.09351
+tp    80 fields  median 3.195e-05

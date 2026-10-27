@@ -1,0 +1,18 @@
+# uv run --extra corpus python docs/sigma/imerg_random_error.py, 2026-10-27
+imerg-pcp-12-00
+imerg-pcp-12-01
+imerg-pcp-12-02
+imerg-pcp-12-03
+imerg-pcp-12-04
+imerg-pcp-12-05
+imerg-pcp-12-06
+imerg-pcp-12-07
+imerg-pcp-12-08
+imerg-pcp-12-09
+imerg-pcp-12-10
+imerg-pcp-12-11
+imerg-pcp-12-12
+imerg-pcp-12-13
+imerg-pcp-12-14
+all cells    47185920  p10 0.240  median 0.240  p90 1.250 mm/hr
+raining       6161249  p10 0.710  median 2.740  p90 11.100 mm/hr
