@@ -131,7 +131,7 @@ def test_quantisation_rejects_a_budget_below_one_step():
     spec = ArraySpec((8,), np.dtype(np.uint16), None, (10.0,))
     for config in configurations_for("imerg-pcp-12"):
         if config.mode is Mode.NEAR_LOSSLESS:
-            # The largest tau, 1 mm/hr, is a tenth of a step of 10.
+            # The largest tau, 0.96 mm/hr, is under a tenth of a step of 10.
             assert not config.supports(spec)
 
 
