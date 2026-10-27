@@ -1,6 +1,6 @@
 # Codecs
 
-The configurations measured in the official run, and one reference measured once. All are lossless.
+This page lists the lossless configurations in the published run. JPEG 2000 is a separate reference.
 
 ## Official run
 

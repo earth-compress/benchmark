@@ -1,14 +1,14 @@
 # Earth Compress Measurement Protocol v1.0
 
-This protocol measures compression of Earth observation and environmental arrays in three fidelity modes: lossless, near-lossless, and lossy.
+This protocol measures compression of Earth observation and environmental arrays in lossless, near-lossless, and lossy modes.
 
-Each measurement uses one array in memory. The protocol covers compressed size, decode time, distortion, and an indicative encode time. It does not cover storage layout, network transfer, partial reads, parallel or accelerated decoding, or the effect of compression on an analysis. Section 9 describes a separate protocol for that last question.
+Each measurement uses one array in memory. We report compressed size, decode time, distortion, and an indicative encode time. Storage layout, network transfer, partial reads, parallel or accelerated decoding, and downstream analyses are outside this protocol. Section 9 gives examples of separate analysis checks.
 
 ## 1. Starting representation
 
-The same values can be stored in more than one way, and the compression ratio depends on the one a codec receives. For example, ERA5 2 m temperature is archived as 16-bit integer codes with a step of 2^-9 K and an offset per hour, so an hourly field holds at most 65,536 distinct values. Copies distributed as float32 store each of those values in 32 bits. A codec given such a copy can halve it by removing bits the source never had, and its ratio then describes the copy, not the temperature field.
+Compression ratio depends on the array a codec receives. For instance, ERA5 2 m temperature is archived as 16-bit integer codes with a step of 2^-9 K and an offset per hour. A float32 copy stores each value in 32 bits. Compressing that copy may remove bits the source never had, so its ratio describes the copy rather than the archived field.
 
-For each dataset, store integers when they reproduce the published data exactly:
+For each corpus, use integers when they reproduce the published values exactly.
 
 1. Start with the array as published by the producer.
 2. Test whether an integer array plus a `(scale, offset)` pair reproduces it bit for bit.
@@ -18,14 +18,18 @@ For each dataset, store integers when they reproduce the published data exactly:
 
 Data published as integers, including categorical codes, pass step 2 with `scale = 1` and `offset = 0` and are stored as published.
 
-The second step is an exactness test:
+Step 2 uses this exactness test.
 
 ```python
+plane_shape = (-1,) + (1,) * (codes.ndim - 1)
+scale = np.asarray(scale, dtype=np.float64).reshape(plane_shape)
+offset = np.asarray(offset, dtype=np.float64).reshape(plane_shape)
 back = (codes.astype(np.float64) * scale + offset).astype(published.dtype)
+assert back.shape == published.shape
 assert back.tobytes(order="C") == published.tobytes(order="C")
 ```
 
-The benchmark does not add quantisation. Quantisation already applied by the producer is part of the published data.
+Preparing the starting representation does not add quantisation. Quantisation already applied by the producer is part of the published data. A near-lossless codec may quantise during compression.
 
 ## 2. Fidelity modes
 
@@ -37,18 +41,18 @@ Every configuration declares a mode. The mode determines which properties the ru
 | `near-lossless` | `structure`, `determinism`, `bound`, `sentinel`, `zero` |
 | `lossy` | `structure`, `determinism`, `sentinel` |
 
-- **`structure`:** decoded shape and dtype match the input.
-- **`determinism`:** the same input produces the same bytes, and the same bytes decode to the same array.
-- **`exactness`:** the decoded array is identical to the input, bit for bit.
-- **`bound`:** the error bound defined in Section 2.1 holds.
-- **`sentinel`:** every NoData value remains in its original position, and no valid input value becomes a sentinel.
-- **`zero`:** every value equal to zero in native units decodes to zero.
+- **`structure`** means decoded shape and dtype match the input.
+- **`determinism`** means the same input produces the same bytes, and the same bytes decode to the same array.
+- **`exactness`** means the decoded array is identical to the input, bit for bit.
+- **`bound`** means the error bound defined in Section 2.1 holds.
+- **`sentinel`** means every NoData value remains in its original position, and no valid input value becomes a sentinel.
+- **`zero`** means every value equal to zero in native units decodes to zero.
 
-If a configuration breaks a promise for a sample, that row has `fidelity_ok = false` and empty measurements, and the configuration has no place in that corpus's aggregate.
+If a configuration breaks a promise for a sample, that row has `fidelity_ok = false` and empty measurements. The configuration is excluded from that corpus's aggregate.
 
 ### 2.1 Error bound
 
-A near-lossless configuration declares an absolute bound `tau`, in the native unit of the sample:
+A near-lossless configuration declares an absolute bound `tau` in the sample's native unit.
 
 ```text
 |x - x̂| <= tau
@@ -58,16 +62,16 @@ An element decoded to exactly its input value always passes, including infinitie
 
 ## 3. Error budgets
 
-Near-lossless configurations run at the budgets in `TOLERANCE.md`, which derives up to three levels per corpus, `conservative`, `matched`, and `aggressive`, from the uncertainty of each product. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
+Near-lossless configurations use the budgets in `TOLERANCE.md`. That page sets `conservative`, `matched`, and `aggressive` bounds from a reference error for each eligible corpus. These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
 
-The following rules apply:
+The same rules apply to every budget.
 
 1. **Fixed budget.** Each corpus has one `tau` per level, in native units. The codec receives that number and must keep every element within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset.
-2. **NoData is not counted.** `tau` applies to valid elements; NoData values must decode unchanged.
+2. **NoData is not counted.** `tau` applies to valid elements. NoData positions must be preserved, and no new NoData values may appear.
 
 ### 3.1 Corpora without a near-lossless point
 
-Some corpora have no meaningful nonzero error budget. This applies to categorical values, where a change of one may mean a different class; values that are not physical quantities, such as embedding codes; arrays whose planes have different units; data without a known per-element uncertainty; and data for which the effect of a proposed budget on downstream analyses has not been established. These corpora are measured in lossless mode only.
+The corpora in the lossless-only table of `TOLERANCE.md` have no near-lossless budget. That page gives the reason for each corpus. They are measured in lossless mode only.
 
 ## 4. Corpus layout
 
@@ -84,7 +88,7 @@ corpora/<corpus-id>/
 
 Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It contains `data`, plus `scale` and `offset` when they are not 1 and 0, and `nodata` where applicable. `scale` and `offset` may be arrays, with one value per band or field.
 
-`manifest.csv` has one row per sample, with these columns:
+Each `manifest.csv` has one row per sample and the columns below.
 
 | column | content |
 | --- | --- |
@@ -104,16 +108,16 @@ Each sample is an uncompressed NumPy `.npz` inside a Zstandard wrapper. It conta
 
 Values that differ by plane, such as `bands`, `scale`, and `offset`, are separated by `|`. Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date, except `clay-embeddings`, whose cells are listed in `cells/`.
 
-`build.py` has two steps:
+Each corpus's `build.py` has two steps.
 
 1. `select` chooses the samples and writes `manifest.csv`. It runs once.
-2. `build` reads only `manifest.csv`, fetches each `asset` over the window given by `transform` and `shape`, writes the sample, and checks `input_sha256`.
+2. `build` uses the existing `manifest.csv` to fetch each `asset` over the window given by `transform` and `shape`, write the sample, and check `input_sha256`.
 
 A rebuild runs `build` only.
 
 ## 5. Measurement
 
-The official run measures the configurations listed in `CODECS.md`.
+Each run measures its selected configurations under the same rules. `CODECS.md` documents the configurations used for published results and identifies any separate reference.
 
 - Each codec receives `data` as an in-memory array; corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
@@ -136,7 +140,7 @@ Each promised property has a check. The failures below were observed by Reichelt
 | `sentinel` | Sentinels remain in place and appear nowhere else | SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error |
 | `zero` | Exact zeros survive | ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values |
 
-If a check cannot run, report it as *not run* rather than *passed*.
+Checks that do not apply, such as the sentinel check when a sample has no sentinel, leave their result field empty rather than report a pass.
 
 ## 7. Metrics
 
@@ -149,7 +153,7 @@ decode_MB_s       = input_bytes / decode_ns * 1000
 
 `input_bytes` is the size of `data` in its starting representation, excluding metadata and container overhead. `MB` uses decimal units.
 
-Distortion is computed over the valid elements of the sample, in float64 and native units:
+For near-lossless and lossy modes, distortion is computed over the valid elements of the sample, in float64 and native units.
 
 ```text
 max_abs_error = max |x - x̂|        mae        = mean |x - x̂|
@@ -157,7 +161,7 @@ rmse          = sqrt(mean (x-x̂)²)  mean_error = mean (x̂ - x)
 psnr_dB       = 20·log10(peak / rmse)
 ```
 
-`mean_error` detects bias. `peak` is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, the error metrics are zero by construction.
+`mean_error` detects bias. `peak` is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, `max_abs_error`, `mae`, `rmse`, and `mean_error` are zero. `psnr_dB` is infinite, while `error_spread` and `error_lag1` are undefined.
 
 Two additional metrics describe the distribution and spatial structure of error:
 
@@ -197,7 +201,7 @@ Any quoted near-lossless ratio must include `tau` and `budget_level`.
 
 An elementwise bound does not guarantee that a derived result is stable. Subtracting two nearly equal fields, for example, amplifies their compression errors (Baker et al., 2016).
 
-Task validation is a separate protocol. It runs an analysis on the original and decoded arrays and compares the outputs, not the arrays.
+Task validation is outside this protocol. The tasks below are examples of checks that could compare an analysis on the original and decoded arrays.
 
 | task | corpus | effect tested |
 | --- | --- | --- |
@@ -207,5 +211,5 @@ Task validation is a separate protocol. It runs an analysis on the original and 
 
 ## References
 
-- Baker, A. H., et al. (2016). Evaluating lossy data compression on climate simulation data within a large ensemble. *Geosci. Model Dev.*, 9, 4381–4403.
-- Reichelt, T., et al. (2026). ClimateBenchPress (v1.0): a benchmark for lossy compression of climate data. *Geosci. Model Dev.*, 19, 5933–5960.
+- Baker, A. H., et al. (2016). [Evaluating lossy data compression on climate simulation data within a large ensemble](https://gmd.copernicus.org/articles/9/4381/2016/). *Geosci. Model Dev.*, 9, 4381–4403.
+- Reichelt, T., et al. (2026). [ClimateBenchPress (v1.0): a benchmark for lossy compression of climate data](https://gmd.copernicus.org/articles/19/5933/2026/index.html). *Geosci. Model Dev.*, 19, 5933–5960.
