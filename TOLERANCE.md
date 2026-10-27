@@ -1,6 +1,6 @@
 # Tolerance
 
-Near-lossless runs use three error bounds for each eligible corpus.
+Near-lossless runs use three error bounds for each eligible corpus, and the ERA5 corpora add a fourth recommended by experts.
 
 A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. The three levels let us compare configurations on a corpus at the same error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
 
@@ -65,6 +65,20 @@ For multiband corpora, `sigma` is a typical value across bands. Noise can also v
 - **ERA5 precipitation.** The published ensemble spread covers three-hour accumulations, while the corpus uses hourly values. We use the WMO requirement of 0.1 mm/h uncertainty for precipitation intensity from 0.2 to 2 mm/h at 95% probability (WMO 2008, Annex 1.B, note 5). This is about two standard deviations, giving a reference of 0.05 mm/h, or 5e-5 m over one hour.
 - **IMERG.** The `randomError` field reports error per cell in mm/hr (Huffman et al. 2023). Its median over all corpus cells is 0.24 mm/hr (`docs/sigma/imerg_random_error.py` and `docs/sigma/imerg_random_error.txt`). Most cells are dry and carry this value. The median among rainy cells is 2.7 mm/hr. The producers caution that the half-hourly error estimate is not fully consistent at this scale (Huffman et al. 2023).
 
+### The `recommended` level
+
+For the ERA5 corpora we add a fourth level, the bounds that ECMWF scientists recommend for these variables in the community recommendations for safe lossy compression (Tyree et al. 2026, version 0.1.0b1). It does not follow the rule of Section 1, so we report it as a separate level.
+
+| corpus | recommendation | kind | `tau` |
+| --- | --- | --- | ---: |
+| `era5-t2m-1h` | 0.01 K | maximum per point | 0.009765625 (5) |
+| `era5-msl-1h` | 1 Pa | maximum per point | 1 (4) |
+| `era5-u10-1h` | 0.001 m/s | mean | 0.0009765625 (1) |
+| `era5-tcc-1h` | 0.05 | mean | 0.04998779296875 (1638) |
+| `era5-tp-1h` | 1e-5 m | mean | 9.5367431640625e-06 (5) |
+
+Two recommendations are maximum errors per point and apply as they stand. The other three bound the mean error. Near-lossless needs a maximum, so we apply them as a maximum, which is stricter than the recommendation. Each rounds down to whole steps of the largest `scale`, given in parentheses. At these bounds a codec may change little more than the GRIB packing of ERA5 already did.
+
 ## 3. Lossless-only corpora
 
 These corpora have no near-lossless budget.
@@ -104,4 +118,5 @@ For a particular pipeline, compare its outputs before and after compression. Sec
 - Morfitt, R., et al. (2015). Landsat-8 Operational Land Imager (OLI) radiometric performance on-orbit. *Remote Sens.*, 7, 2208–2237.
 - Thompson, D. R., et al. (2024a). On-orbit calibration and performance of the EMIT imaging spectrometer. *Remote Sens. Environ.*, 303, 113986.
 - Thompson, D. R., et al. (2024b). [*EMIT L2A Algorithm, Surface Reflectance and Scene Content Masks, Theoretical Basis*](https://lpdaac.usgs.gov/documents/1571/EMITL2A_ATBD_v1.pdf), version 1.5. JPL D-104255.
+- Tyree, J., Faghih-Naini, S., Klöwer, M., Dueben, P., and Järvinen, H. (2026). [*Recommendations for Safe Lossy Compression of weather and climate data*](https://doi.org/10.5281/zenodo.22761209), version 0.1.0b1. Zenodo.
 - WMO (2008). *Guide to Meteorological Instruments and Methods of Observation*, WMO-No. 8, seventh edition.

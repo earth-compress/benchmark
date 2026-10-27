@@ -461,8 +461,8 @@ def build() -> None:
     )
     intro = (
         '<div class="home-intro"><h1>Earth Compress benchmark</h1>'
-        f'<p>Lossless compression results for {sum(sample_counts[cid] for cid in measured)} '
-        f'samples across {len(measured)} corpora of imagery, environmental fields and embeddings.</p></div>'
+        f"<p>Lossless compression results for {sum(sample_counts[cid] for cid in measured)} "
+        f"samples across {len(measured)} corpora of imagery, environmental fields and embeddings.</p></div>"
     )
     caption = (
         "Each point is a configuration. The line marks the best observed trade-offs. "

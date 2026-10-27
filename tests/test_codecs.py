@@ -134,3 +134,23 @@ def test_a_budget_in_native_units_is_honoured_on_a_fine_scale():
 def test_steps_round_down_with_the_largest_scale():
     spec = ArraySpec((2, 4), np.dtype(np.uint16), None, (2.0**-21, 2.0**-20))
     assert spec.steps(2e-5) == 20
+
+
+def test_codecs_md_lists_the_native_and_quantized_configurations():
+    from pathlib import Path
+
+    from earthcompress.codecs import natives
+    from earthcompress.codecs.quantize import BACKENDS
+    from earthcompress.contract import Budget
+
+    text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
+    native = text.split("### Native", 1)[1].split("### Quantized", 1)[0]
+    listed = {
+        line.split("|")[1].strip().strip("`")
+        for line in native.splitlines()
+        if line.startswith("| `")
+    }
+    budget = Budget(1.0)
+    assert listed == {make(budget).id.removesuffix("-tau1") for make in natives()}
+    quantized = text.split("### Quantized", 1)[1].split("### Safeguarded", 1)[0]
+    assert all(f"`{name}`" in quantized for name in BACKENDS)
