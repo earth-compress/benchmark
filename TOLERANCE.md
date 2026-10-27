@@ -75,15 +75,7 @@ These corpora are measured in lossless mode only.
 | `goes-abi-16` | Each band has its own `scale` and mixes reflectance factor with brightness temperature, so one budget in native units does not apply to the whole array. |
 | `s1-grd-iw-2` | No per-element uncertainty of the linear backscatter is established. |
 
-## 4. Pending
-
-| corpus | status |
-| --- | --- |
-| `lm-mss-4` | No measured noise in product DN is published. `sigma` comes from TM and from the estimate on the corpus. |
-| `l8-tirs-2` | The noise figures were measured in 2013 and 2014, before TIRS moved to its backup electronics. |
-| `era5-tcc-1h`, `era5-tp-1h` | `sigma` comes from an observation standard, not from the uncertainty of ERA5. |
-
-## 5. What this does not settle
+## 4. What this does not settle
 
 A budget from the uncertainty of a product says whether the decoded array still represents the measurement as well as the original. It does not say whether an analysis gives the same result.
 
