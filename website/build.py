@@ -167,9 +167,15 @@ NAV = (
     ("Datasets", "datasets/"),
     ("Protocol", "protocol/"),
     ("Codecs", "codecs/"),
+    ("Use cases", "usecases/"),
     ("Tolerance", "tolerance/"),
 )
-DOCS = {"protocol": "PROTOCOL.md", "codecs": "CODECS.md", "tolerance": "TOLERANCE.md"}
+DOCS = {
+    "protocol": "PROTOCOL.md",
+    "codecs": "CODECS.md",
+    "usecases": "USECASE.md",
+    "tolerance": "TOLERANCE.md",
+}
 PAGES = {**{name: slug for slug, name in DOCS.items()}, "DATASETS.md": "datasets"}
 GITHUB_ICON = (
     '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" '
