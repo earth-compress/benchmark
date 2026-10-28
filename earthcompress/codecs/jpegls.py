@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import struct
 from functools import partial
 
 import imagecodecs
@@ -8,9 +7,7 @@ import numpy as np
 
 from ..contract import Budget
 from ..spec import ArraySpec
-from .base import Family, code_bound, near_lossless
-
-_COUNT = struct.Struct("<I")
+from .base import Family, code_bound, near_lossless, pack_frames, unpack_frames
 
 
 def _largest_near(dtype: np.dtype) -> int:
@@ -29,27 +26,19 @@ class JpegLs:
         return array if array.ndim == 3 else array[np.newaxis]
 
     def encode(self, array):
-        streams = [
-            bytes(
-                imagecodecs.jpegls_encode(np.ascontiguousarray(plane), level=self.near)
-            )
-            for plane in self._planes(array)
-        ]
-        header = _COUNT.pack(len(streams)) + b"".join(
-            _COUNT.pack(len(stream)) for stream in streams
+        return pack_frames(
+            [
+                bytes(
+                    imagecodecs.jpegls_encode(
+                        np.ascontiguousarray(plane), level=self.near
+                    )
+                )
+                for plane in self._planes(array)
+            ]
         )
-        return header + b"".join(streams)
 
     def decode(self, data):
-        (count,) = _COUNT.unpack_from(data)
-        sizes = [
-            _COUNT.unpack_from(data, _COUNT.size * (1 + i))[0] for i in range(count)
-        ]
-        start = _COUNT.size * (1 + count)
-        planes = []
-        for size in sizes:
-            planes.append(imagecodecs.jpegls_decode(data[start : start + size]))
-            start += size
+        planes = [imagecodecs.jpegls_decode(frame) for frame in unpack_frames(data)]
         return np.ascontiguousarray(np.stack(planes), dtype=self.spec.dtype).reshape(
             self.spec.shape
         )

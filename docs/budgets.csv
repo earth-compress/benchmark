@@ -1,57 +1,57 @@
-corpus,level,tau
-era5-tcc-1h,conservative,0.022491455078125
-era5-tcc-1h,matched,0.089996337890625
-era5-tcc-1h,aggressive,0.3599853515625
-era5-tcc-1h,recommended,0.04998779296875
-era5-u10-1h,conservative,0.07421875
-era5-u10-1h,matched,0.2998046875
-era5-u10-1h,aggressive,1.19921875
-era5-u10-1h,recommended,0.0009765625
-era5-t2m-1h,conservative,0.07421875
-era5-t2m-1h,matched,0.298828125
-era5-t2m-1h,aggressive,1.19921875
-era5-t2m-1h,recommended,0.009765625
-era5-msl-1h,conservative,3.75
-era5-msl-1h,matched,15
-era5-msl-1h,aggressive,60
-era5-msl-1h,recommended,1
-era5-tp-1h,conservative,1.1444091796875e-05
-era5-tp-1h,matched,4.9591064453125e-05
-era5-tp-1h,aggressive,1.983642578125e-04
-era5-tp-1h,recommended,9.5367431640625e-06
-cop-dem-glo30,conservative,0.25
-cop-dem-glo30,matched,1
-cop-dem-glo30,aggressive,4
-emit-l2a-285,conservative,1.25e-4
-emit-l2a-285,matched,5e-4
-emit-l2a-285,aggressive,2e-3
-l8-oli-8,conservative,2
-l8-oli-8,matched,10
-l8-oli-8,aggressive,40
-l8-oli-pan,conservative,3
-l8-oli-pan,matched,15
-l8-oli-pan,aggressive,60
-l8-tirs-2,conservative,5
-l8-tirs-2,matched,20
-l8-tirs-2,aggressive,80
-s2-l1c-10m-4,conservative,2
-s2-l1c-10m-4,matched,10
-s2-l1c-10m-4,aggressive,40
-s2-l1c-20m-6,conservative,1
-s2-l1c-20m-6,matched,7
-s2-l1c-20m-6,aggressive,28
-s2-l1c-60m-3,matched,2
-s2-l1c-60m-3,aggressive,8
-imerg-pcp-12,conservative,0.06
-imerg-pcp-12,matched,0.24
-imerg-pcp-12,aggressive,0.96
-lm-mss-4,matched,1
-lm-mss-4,aggressive,4
-l5-tm-6,matched,1
-l5-tm-6,aggressive,4
-l5-tm-tir,aggressive,2
-l7-etm-6,matched,1
-l7-etm-6,aggressive,4
-l7-etm-tir-2,aggressive,2
-l7-etm-pan,matched,1
-l7-etm-pan,aggressive,6
+corpus,level,tau,modes
+era5-tcc-1h,conservative,0.022491455078125,near-lossless lossy
+era5-tcc-1h,matched,0.089996337890625,near-lossless lossy
+era5-tcc-1h,aggressive,0.3599853515625,near-lossless lossy
+era5-tcc-1h,recommended,0.04998779296875,near-lossless lossy
+era5-u10-1h,conservative,0.07421875,near-lossless lossy
+era5-u10-1h,matched,0.2998046875,near-lossless lossy
+era5-u10-1h,aggressive,1.19921875,near-lossless lossy
+era5-u10-1h,recommended,0.0009765625,near-lossless lossy
+era5-t2m-1h,conservative,0.07421875,near-lossless lossy
+era5-t2m-1h,matched,0.298828125,near-lossless lossy
+era5-t2m-1h,aggressive,1.19921875,near-lossless lossy
+era5-t2m-1h,recommended,0.009765625,near-lossless
+era5-msl-1h,conservative,3.75,near-lossless lossy
+era5-msl-1h,matched,15,near-lossless lossy
+era5-msl-1h,aggressive,60,near-lossless lossy
+era5-msl-1h,recommended,1,near-lossless
+era5-tp-1h,conservative,1.1444091796875e-05,near-lossless lossy
+era5-tp-1h,matched,4.9591064453125e-05,near-lossless lossy
+era5-tp-1h,aggressive,1.983642578125e-04,near-lossless lossy
+era5-tp-1h,recommended,9.5367431640625e-06,near-lossless lossy
+cop-dem-glo30,conservative,0.25,near-lossless lossy
+cop-dem-glo30,matched,1,near-lossless lossy
+cop-dem-glo30,aggressive,4,near-lossless lossy
+emit-l2a-285,conservative,1.25e-4,near-lossless lossy
+emit-l2a-285,matched,5e-4,near-lossless lossy
+emit-l2a-285,aggressive,2e-3,near-lossless lossy
+l8-oli-8,conservative,2,near-lossless lossy
+l8-oli-8,matched,10,near-lossless lossy
+l8-oli-8,aggressive,40,near-lossless lossy
+l8-oli-pan,conservative,3,near-lossless lossy
+l8-oli-pan,matched,15,near-lossless lossy
+l8-oli-pan,aggressive,60,near-lossless lossy
+l8-tirs-2,conservative,5,near-lossless lossy
+l8-tirs-2,matched,20,near-lossless lossy
+l8-tirs-2,aggressive,80,near-lossless lossy
+s2-l1c-10m-4,conservative,2,near-lossless lossy
+s2-l1c-10m-4,matched,10,near-lossless lossy
+s2-l1c-10m-4,aggressive,40,near-lossless lossy
+s2-l1c-20m-6,conservative,1,near-lossless lossy
+s2-l1c-20m-6,matched,7,near-lossless lossy
+s2-l1c-20m-6,aggressive,28,near-lossless lossy
+s2-l1c-60m-3,matched,2,near-lossless lossy
+s2-l1c-60m-3,aggressive,8,near-lossless lossy
+imerg-pcp-12,conservative,0.06,near-lossless lossy
+imerg-pcp-12,matched,0.24,near-lossless lossy
+imerg-pcp-12,aggressive,0.96,near-lossless lossy
+lm-mss-4,matched,1,near-lossless lossy
+lm-mss-4,aggressive,4,near-lossless lossy
+l5-tm-6,matched,1,near-lossless lossy
+l5-tm-6,aggressive,4,near-lossless lossy
+l5-tm-tir,aggressive,2,near-lossless lossy
+l7-etm-6,matched,1,near-lossless lossy
+l7-etm-6,aggressive,4,near-lossless lossy
+l7-etm-tir-2,aggressive,2,near-lossless lossy
+l7-etm-pan,matched,1,near-lossless lossy
+l7-etm-pan,aggressive,6,near-lossless lossy

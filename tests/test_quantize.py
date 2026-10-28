@@ -5,7 +5,12 @@ import pytest
 
 from earthcompress.codecs import configurations_for, fixed
 from earthcompress.codecs.base import Family
-from earthcompress.codecs.quantize import BACKENDS, Quantized, supports
+from earthcompress.codecs.quantize import (
+    BACKENDS,
+    LOSSY_BACKENDS,
+    Quantized,
+    supports,
+)
 from earthcompress.contract import Budget, Mode, Promise
 from earthcompress.promises import verify
 from earthcompress.spec import ArraySpec
@@ -144,8 +149,10 @@ def test_every_backend_keeps_the_promises_on_its_indices(name, dtype):
 
 def test_the_registry_gives_each_backend_a_quantized_variant():
     quantized = {
-        config.id.rsplit("-", 1)[0]
+        (config.mode, config.id.rsplit("-", 1)[0])
         for config in configurations_for("s2-l1c-10m-4")
         if config.family is Family.QUANTIZED
     }
-    assert quantized == {f"quant-{name}" for name in BACKENDS}
+    assert quantized == {(Mode.NEAR_LOSSLESS, f"quant-{name}") for name in BACKENDS} | {
+        (Mode.LOSSY, f"quant-{name}-rms") for name in LOSSY_BACKENDS
+    }

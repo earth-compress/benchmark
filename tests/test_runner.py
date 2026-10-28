@@ -82,7 +82,7 @@ def _config(factory, mode, budget=None, config_id="demo") -> CodecConfiguration:
         parameters={},
         factory=factory,
         budget=budget,
-        family=Family.NATIVE if mode is Mode.NEAR_LOSSLESS else None,
+        family=None if mode is Mode.LOSSLESS else Family.NATIVE,
     )
 
 
@@ -203,13 +203,28 @@ def test_lossy_mode_checks_sentinels(tmp_path: Path):
         {"l-00": np.array([[0, 5, 7, 9]], dtype=np.int16)},
         nodata="0",
     )
-    assert _run(corpus, _config(OffByOne, Mode.LOSSY))
+    assert _run(corpus, _config(OffByOne, Mode.LOSSY, Budget(1.0)))
     row = _rows(corpus)[0]
     assert row["sentinel_ok"] == "False" and row["sentinel_violations"] == "1"
+    assert row["rms_violations"] == "0" and row["status"] == "violation"
     corpus = write_corpus(
         tmp_path / "plain", {"p-00": np.array([[3, 5, 7, 9]], dtype=np.int16)}
     )
-    assert _run(corpus, _config(OffByOne, Mode.LOSSY))
+    assert _run(corpus, _config(OffByOne, Mode.LOSSY, Budget(1.0)))
+    assert _rows(corpus)[0]["status"] == "ok"
+
+
+def test_an_rms_error_above_tau_is_a_violation(tmp_path: Path):
+    corpus = write_corpus(
+        tmp_path / "rms", {"r-00": np.array([[3, 5, 7, 9]], dtype=np.int16)}
+    )
+    assert _run(corpus, _config(OffByOne, Mode.LOSSY, Budget(0.5, Level.MATCHED)))
+    row = _rows(corpus)[0]
+    assert row["status"] == "violation" and row["rms_violations"] == "1"
+    assert row["bound_violations"] == "" and float(row["rmse"]) == 1.0
+    assert row["tau"] == "0.5" and row["budget_level"] == "matched"
+    total = aggregate(_rows(corpus), 1)["demo"]
+    assert total["rms_violations"] == 1 and not total["fidelity_ok"]
 
 
 def test_a_second_encode_runs_on_the_first_middle_and_last_sample(corpus: Path):

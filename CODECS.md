@@ -6,20 +6,19 @@ A codec can run in more than one fidelity mode, and each run of it is a configur
 | --- | --- | --- | --- |
 | Zstandard | `zstd-c3`, `hdiff-zstd9` | `quant-zstd-c3`, `quant-hdiff-zstd9` | |
 | Blosc | `blosc-zstd3-bitshuffle` | `quant-blosc-zstd3-bitshuffle` | |
-| PCO | `pco` | `quant-pco` | |
+| PCO | `pco` | `quant-pco` | `quant-pco-rms` |
 | DEFLATE | `deflate-c6` | | |
 | LZW | `lzw` | | |
 | OpenZL | `openzl-generic`, `openzl-delta-fieldlz`, `openzl-delta-pivco` | `quant-openzl-generic` | |
 | GeoZL | seven recipes | `geozl-med-entropy-linear`, `quant-geozl-med-entropy` | |
 | LERC | | `lerc` | |
 | JPEG-LS | | `jpegls-near` | |
-| SZ3 | | `sz3-abs` | |
+| SZ3 | | `sz3-abs` | `sz3-l2norm` |
 | ZFP | | `zfp-accuracy` | |
-| SPERR | | `sperr-pwe` | |
-| JPEG 2000 | `jpeg2000`, as a reference | | |
+| SPERR | | `sperr-pwe` | `sperr-psnr` |
+| JPEG 2000 | `jpeg2000`, as a reference | | `jpeg2000-psnr` |
+| JPEG XL | | | `jpegxl-distance` |
 | Compression Safeguards | | `sg-` before each native configuration, and `sg-zero` | |
-
-Lossy configurations are not measured yet.
 
 ## Official run
 
@@ -96,6 +95,25 @@ Each native configuration wrapped in Compression Safeguards (Tyree et al., 2026)
 
 The software is compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5, with their own lossless coding of the corrections.
 
+## Lossy
+
+Each lossy configuration runs at every lossy level that `TOLERANCE.md` gives the corpus, and its id ends with the level, as in `jpeg2000-psnr-matched`. It holds the root-mean-square error of each sample within `tau` rather than every element, so its maximum error is not bounded. The `zero` check is reported but is not a promise. The `family` column records how the configuration reaches `tau`.
+
+| id | family | definition | NoData | software |
+| --- | --- | --- | --- | --- |
+| `jpeg2000-psnr` | native | JPEG 2000 with the irreversible 9/7 wavelet, bands as components with no colour transform, its quality layer set to the PSNR whose mean squared error is `tau` squared | | imagecodecs (OpenJPEG 2.5.4) |
+| `sperr-psnr` | native | SPERR in PSNR mode, the target set from the range of the sample so that the root-mean-square error is `tau` | | imagecodecs (SPERR 0.8.5) |
+| `sz3-l2norm` | native | SZ3 in its L2-norm mode, passed as the absolute bound `sqrt(3) tau` that SZ3 derives from it | | imagecodecs (SZ3 3.4.0) |
+| `jpegxl-distance` | searched | JPEG XL at effort 7, one grayscale frame per plane, the largest distance found whose error is within `tau` | | imagecodecs (libjxl 0.12.0) |
+| `quant-pco-rms` | quantized | The shared quantiser on a grid as wide as `tau` allows, then `pco` | bottom of the type | imagecodecs (pcodec 1.0.4) |
+
+- OpenJPEG measures PSNR over every component together, against the largest value of the sample type, so the target is the root-mean-square error of the sample. `jpeg2000-psnr` runs on integer corpora of up to 16 bits.
+- SPERR measures PSNR over the range of the data it receives. A sample whose range is within `tau` gets a target of 0.001 dB, since SPERR rejects zero.
+- imagecodecs exposes only the absolute mode of SZ3. SZ3 runs its L2-norm mode as an absolute bound of `sqrt(3 / n)` times the norm, which for a root-mean-square error of `tau` is `sqrt(3) tau`, so `sz3-l2norm` passes that bound. Integer output is rounded to whole codes, which can move the error past `tau`.
+- JPEG XL takes a perceptual distance rather than an error. On each sample the wrapper tries 25, the largest distance libjxl accepts, then halves the logarithmic interval down to 0.01 eight times and keeps the largest distance whose error is within `tau`. It measures that error over the whole sample in stored units, since the codec does not know NoData, and falls back to lossless JPEG XL when no distance holds. Every trial is part of the encode time. `jpegxl-distance` runs on 8- and 16-bit unsigned integers.
+- The quantiser starts from the widest grid whose rounding error, if uniform, has a root-mean-square of `tau`, the rule SZ3 uses for its L2-norm mode. For integers that is the largest `k` with `k (k + 1) / 3 <= (tau / scale)²` in each plane, and for floats a step of `2 sqrt(3) tau`. If the error of the sample is still above `tau`, the grid narrows until it is not, and the width it settles on is stored with the data. Zeros and a sentinel at the bottom of the type stay exact. ClimateBenchPress found rounding followed by PCO a reliable baseline (Reichelt et al., 2026).
+- LERC, JPEG-LS, ZFP and GeoZL bound every element and have no lossy configuration. Their near-lossless rows at the same `tau` already meet the lossy bound.
+
 ## Settings
 
 - One thread for every codec.
@@ -104,7 +122,7 @@ The software is compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc
 
 ## Adding a configuration
 
-Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS` for lossless configurations, or `FAMILIES` for a native near-lossless codec. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`. A family is a function from a budget to a configuration, made with `near_lossless` in `earthcompress/codecs/base.py`, and the benchmark gives it a safeguarded variant.
+Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS` for lossless configurations, `FAMILIES` for a native near-lossless codec, or `LOSSY` for a lossy one. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`. A family is a function from a budget to a configuration, made with `near_lossless` or `lossy` in `earthcompress/codecs/base.py`. The benchmark gives every near-lossless family a safeguarded variant.
 
 ```python
 import mycodec

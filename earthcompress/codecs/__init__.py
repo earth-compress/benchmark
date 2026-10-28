@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..budgets import budgets_for
-from ..contract import Budget
+from ..contract import Budget, Mode
 from . import quantize, safeguards
 from .base import Codec, CodecConfiguration
 
@@ -69,15 +69,31 @@ def families() -> tuple[Family, ...]:
     )
 
 
+def lossy() -> tuple[Family, ...]:
+    """Every lossy configuration awaiting a budget.
+
+    The codecs that take a root-mean-square target of their own or have one
+    searched, and the shared quantiser in front of PCO.
+    """
+    by_id = {config.id: config for config in fixed()}
+    found: list[Family] = []
+    for module in _modules():
+        found.extend(getattr(module, "LOSSY", ()))
+    return tuple(found) + tuple(
+        quantize.rms_family(by_id[name]) for name in quantize.LOSSY_BACKENDS
+    )
+
+
 def configurations_for(
     corpus: str, registry: Path | None = None
 ) -> tuple[CodecConfiguration, ...]:
     """Every configuration measurable on ``corpus``."""
     discovered = list(fixed())
-    budgets = budgets_for(corpus, registry)
-    for make in families():
-        for budget in budgets.values():
-            discovered.append(make(budget))
+    for mode, makers in ((Mode.NEAR_LOSSLESS, families()), (Mode.LOSSY, lossy())):
+        budgets = budgets_for(corpus, registry, mode)
+        for make in makers:
+            for budget in budgets.values():
+                discovered.append(make(budget))
     return _unique(discovered)
 
 
@@ -87,5 +103,6 @@ __all__ = [
     "configurations_for",
     "families",
     "fixed",
+    "lossy",
     "natives",
 ]

@@ -24,6 +24,7 @@ def test_each_mode_declares_the_promises_of_the_protocol():
     assert PROMISES[Mode.LOSSY] == {
         Promise.STRUCTURE,
         Promise.DETERMINISM,
+        Promise.RMS,
         Promise.SENTINEL,
     }
 
@@ -38,24 +39,24 @@ def test_a_budget_carries_its_level():
     assert Budget(2.0, Level.MATCHED).level is Level.MATCHED
 
 
-def test_only_near_lossless_carries_a_budget():
+@pytest.mark.parametrize("mode", [Mode.NEAR_LOSSLESS, Mode.LOSSY])
+def test_only_bounded_modes_carry_a_budget(mode):
     common = dict(
         id="x", codec="x", version="0", parameters={}, factory=lambda spec: None
     )
     with pytest.raises(ValueError):
-        CodecConfiguration(mode=Mode.NEAR_LOSSLESS, **common)
+        CodecConfiguration(mode=mode, family=Family.NATIVE, **common)
     with pytest.raises(ValueError):
         CodecConfiguration(mode=Mode.LOSSLESS, budget=Budget(1.0), **common)
-    CodecConfiguration(
-        mode=Mode.NEAR_LOSSLESS, budget=Budget(1.0), family=Family.NATIVE, **common
-    )
+    CodecConfiguration(mode=mode, budget=Budget(1.0), family=Family.NATIVE, **common)
 
 
-def test_only_near_lossless_belongs_to_a_family():
+@pytest.mark.parametrize("mode", [Mode.NEAR_LOSSLESS, Mode.LOSSY])
+def test_only_bounded_modes_belong_to_a_family(mode):
     common = dict(
         id="x", codec="x", version="0", parameters={}, factory=lambda spec: None
     )
     with pytest.raises(ValueError):
-        CodecConfiguration(mode=Mode.NEAR_LOSSLESS, budget=Budget(1.0), **common)
+        CodecConfiguration(mode=mode, budget=Budget(1.0), **common)
     with pytest.raises(ValueError):
         CodecConfiguration(mode=Mode.LOSSLESS, family=Family.QUANTIZED, **common)

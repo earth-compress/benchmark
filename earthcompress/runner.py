@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from .codecs.base import CodecConfiguration
-from .contract import Mode, Promise
+from .contract import PROMISES, Mode, Promise
 from .corpus import Sample, load_samples
 from .environment import describe_environment, write_environment
 from .metrics import Distortion, distortion, same_bytes
@@ -48,11 +48,28 @@ RESULT_COLUMNS = (
     "sentinel_ok",
     "zero_ok",
     "bound_violations",
+    "rms_violations",
     "sentinel_violations",
     "zero_violations",
     "fidelity_ok",
     "status",
 )
+
+_VIOLATIONS = ("bound", "rms", "sentinel", "zero")
+"""Promises whose broken elements, or broken samples for rms, are counted."""
+
+
+def _promised(mode: str) -> tuple[str, ...]:
+    """The counted promises that ``mode`` makes."""
+    return tuple(name for name in _VIOLATIONS if Promise(name) in PROMISES[Mode(mode)])
+
+
+def _zeros_changed(mode: str, count) -> str:
+    """Zeros changed where lossy reports them without promising them."""
+    if mode != str(Mode.LOSSY) or str(count) in ("", "0"):
+        return ""
+    return f" zeros_changed={count}"
+
 
 _EXACT = Distortion(0.0, 0.0, 0.0, 0.0, math.inf, math.nan, math.nan)
 
@@ -133,6 +150,7 @@ def _measure(
         sentinel_ok=_flag(report.of(Promise.SENTINEL)),
         zero_ok=_flag(report.of(Promise.ZERO)),
         bound_violations=_flag(report.count(Promise.BOUND)),
+        rms_violations=_flag(report.count(Promise.RMS)),
         sentinel_violations=_flag(report.count(Promise.SENTINEL)),
         zero_violations=_flag(report.count(Promise.ZERO)),
         fidelity_ok=report.ok,
@@ -214,13 +232,15 @@ def _describe(row: dict[str, Any]) -> str:
     if row["mode"] != str(Mode.LOSSLESS):
         text += (
             f" err={row['max_abs_error']:g}"
+            f" rmse={row['rmse']:g}"
             f" spread={row['error_spread']:.2f}"
             f" lag1={row['error_lag1']:+.2f}"
         )
+    text += _zeros_changed(row["mode"], row["zero_violations"])
     if row["status"] == "violation":
         broken = (
             f"{name}={row[f'{name}_violations']}"
-            for name in ("bound", "sentinel", "zero")
+            for name in _promised(row["mode"])
             if row[f"{name}_violations"] not in ("", "0")
         )
         text += f" VIOLATION {' '.join(broken)}"
@@ -281,7 +301,7 @@ def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, di
                 f"{name}_violations": sum(
                     int(r.get(f"{name}_violations") or 0) for r in selected
                 )
-                for name in ("bound", "sentinel", "zero")
+                for name in _VIOLATIONS
             },
         }
     return totals
@@ -303,12 +323,11 @@ def _print_totals(rows: Sequence[dict[str, Any]], sample_count: int) -> None:
         )
         if total["mode"] != str(Mode.LOSSLESS):
             line += f" max_err={total['max_abs_error']:g} rmse={total['rmse']:g}"
+        line += _zeros_changed(total["mode"], total["zero_violations"])
         if not total["fidelity_ok"]:
-            line += (
-                " VIOLATIONS"
-                f" bound={total['bound_violations']}"
-                f" sentinel={total['sentinel_violations']}"
-                f" zero={total['zero_violations']}"
+            line += " VIOLATIONS " + " ".join(
+                f"{name}={total[f'{name}_violations']}"
+                for name in _promised(total["mode"])
             )
         print(line)
 

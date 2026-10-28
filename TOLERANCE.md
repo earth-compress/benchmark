@@ -1,8 +1,8 @@
 # Tolerance
 
-Near-lossless runs use three error bounds for each eligible corpus, and the ERA5 corpora add a fourth recommended by experts.
+Near-lossless and lossy runs use three error bounds for each eligible corpus, and the ERA5 corpora add a fourth recommended by experts.
 
-A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. The three levels let us compare configurations on a corpus at the same error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
+A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. A lossy configuration uses the same `tau` as the largest root-mean-square error of the sample. The three levels let us compare configurations on a corpus at the same error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
 
 ## 1. The rule
 
@@ -14,7 +14,7 @@ We use a reference error, `sigma`, to set the three bounds. It comes from instru
 | `matched` | `sigma` | 10 DN | 0.5% | equal to it |
 | `aggressive` | `4 · sigma` | 40 DN | 2% | four times larger |
 
-If compression error is independent of the existing random error and has no overall bias, their mean squared errors add. Even if every compression error reaches `tau` in magnitude, the root-mean-square error across the array could rise by up to about 3% at `conservative` or 41% at `matched`. These percentages describe the array, not individual elements. The factors 1/4, 1 and 4 are choices for this benchmark.
+If compression error is independent of the existing random error and has no overall bias, their mean squared errors add. Even if every compression error reaches `tau` in magnitude, the root-mean-square error across the array could rise by up to about 3% at `conservative` or 41% at `matched`. These percentages describe the array, not individual elements. They hold in lossy mode too, where `tau` bounds the root-mean-square error itself. The factors 1/4, 1 and 4 are choices for this benchmark.
 
 For integer corpora, we round each bound down to a multiple of the largest `scale` in the corpus. `scale` is the value of one stored integer step. In the Sentinel-2 example, `sigma / 4` is 2.5 DN and rounds to 2 DN. A bound below one step rounds to zero, so the lossless result stands for it. Floating-point bounds use `tau` as shown.
 
@@ -73,15 +73,15 @@ For the ERA5 corpora we add a fourth level, the bounds that ECMWF scientists rec
 | --- | --- | --- | ---: |
 | `era5-t2m-1h` | 0.01 K | maximum per point | 0.009765625 (5) |
 | `era5-msl-1h` | 1 Pa | maximum per point | 1 (4) |
-| `era5-u10-1h` | 0.001 m/s | mean | 0.0009765625 (1) |
-| `era5-tcc-1h` | 0.05 | mean | 0.04998779296875 (1638) |
-| `era5-tp-1h` | 1e-5 m | mean | 9.5367431640625e-06 (5) |
+| `era5-u10-1h` | 0.001 m/s | mean absolute | 0.0009765625 (1) |
+| `era5-tcc-1h` | 0.05 | mean absolute | 0.04998779296875 (1638) |
+| `era5-tp-1h` | 1e-5 m | mean absolute | 9.5367431640625e-06 (5) |
 
-Two recommendations are maximum errors per point and apply as they stand. The other three bound the mean error. Near-lossless needs a maximum, so we apply them as a maximum, which is stricter than the recommendation. Each rounds down to whole steps of the largest `scale`, given in parentheses. At these bounds a codec may change little more than the GRIB packing of ERA5 already did.
+Two recommendations are maximum errors per point and apply as they stand. The other three bound the mean absolute error. Near-lossless needs a maximum, so we apply them as a maximum, which is stricter than the recommendation. Lossy applies them to the root-mean-square error, which is never below the mean absolute error, so it is stricter too. A root-mean-square bound cannot meet a maximum per point, so `era5-t2m-1h` and `era5-msl-1h` have no lossy `recommended` level. Each rounds down to whole steps of the largest `scale`, given in parentheses. At these bounds a codec may change little more than the GRIB packing of ERA5 already did.
 
 ## 3. Lossless-only corpora
 
-These corpora have no near-lossless budget.
+These corpora have no budget, so they run in lossless mode only.
 
 | corpus | reason |
 | --- | --- |
@@ -99,7 +99,9 @@ The bounds compare compression error with a reference error. They do not measure
 
 Compression error can be correlated with the signal, even when it is smaller than the noise. A derived quantity can also amplify it. A 10 DN bound on two similar reflectance bands allows a larger relative error in their normalised difference than in either band. A 1 m bound on DEM pixels allows up to 2 m of error in the height difference between neighbours.
 
-For precipitation, a small change can turn light rain into zero. In the IMERG corpus, 41.0 million of 47.2 million cells are exact zeros. Among the 6.2 million rainy cells, 952,771, or 15%, have 0.06 mm/hr or less. A codec meeting the `conservative` bound of 0.06 mm/hr could still decode any of them as zero. The `zero` promise preserves input zeros, but not light rain.
+For precipitation, a small change can turn light rain into zero. In the IMERG corpus, 41.0 million of 47.2 million cells are exact zeros. Among the 6.2 million rainy cells, 952,771, or 15%, have 0.06 mm/hr or less. A codec meeting the `conservative` bound of 0.06 mm/hr could still decode any of them as zero. The `zero` promise preserves input zeros, but not light rain. Lossy mode does not promise zeros and only reports the ones it changes.
+
+A lossy bound limits the error of the sample, not of each element. A codec can meet it while missing a few elements, such as the peaks of a rain field, by many times `tau`. Lossy results therefore report the maximum error beside the ratio.
 
 For a particular pipeline, compare its outputs before and after compression. Section 9 of `PROTOCOL.md` gives examples of such checks.
 

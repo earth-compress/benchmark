@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 
 from earthcompress.budgets import budgets_for
-from earthcompress.codecs import configurations_for, families, fixed, reference
+from earthcompress.codecs import configurations_for, families, fixed, lossy, reference
 from earthcompress.codecs.base import Family
-from earthcompress.contract import Mode, Promise
+from earthcompress.contract import Level, Mode, Promise
 from earthcompress.metrics import same_bytes
 from earthcompress.promises import verify
 from earthcompress.spec import ArraySpec
@@ -37,14 +37,32 @@ def test_a_corpus_without_budgets_gets_only_fixed_configurations():
     assert configurations_for("esa-wc-v200") == fixed()
 
 
-def test_a_corpus_with_budgets_gets_one_configuration_per_family_and_level():
-    expected = len(fixed()) + len(families()) * len(budgets_for("s2-l1c-10m-4"))
-    assert len(configurations_for("s2-l1c-10m-4")) == expected
+@pytest.mark.parametrize("corpus", ["s2-l1c-10m-4", "era5-t2m-1h", "era5-tp-1h"])
+def test_a_corpus_with_budgets_gets_one_configuration_per_family_and_level(corpus):
+    expected = (
+        len(fixed())
+        + len(families()) * len(budgets_for(corpus, mode=Mode.NEAR_LOSSLESS))
+        + len(lossy()) * len(budgets_for(corpus, mode=Mode.LOSSY))
+    )
+    assert len(configurations_for(corpus)) == expected
 
 
 def test_the_mode_decides_whether_a_budget_is_present():
     for config in configurations_for("s2-l1c-10m-4"):
-        assert (config.budget is not None) == (config.mode is Mode.NEAR_LOSSLESS)
+        assert (config.budget is not None) == (config.mode is not Mode.LOSSLESS)
+
+
+def test_lossy_has_no_recommended_level_where_experts_bound_every_point():
+    levels = {
+        corpus: {
+            config.budget.level
+            for config in configurations_for(corpus)
+            if config.mode is Mode.LOSSY
+        }
+        for corpus in ("era5-t2m-1h", "era5-tp-1h")
+    }
+    assert Level.RECOMMENDED not in levels["era5-t2m-1h"]
+    assert Level.RECOMMENDED in levels["era5-tp-1h"]
 
 
 @pytest.mark.parametrize("dtype", ALL)
@@ -154,3 +172,21 @@ def test_codecs_md_lists_the_native_and_quantized_configurations():
     assert listed == {make(budget).id.removesuffix("-tau1") for make in natives()}
     quantized = text.split("### Quantized", 1)[1].split("### Safeguarded", 1)[0]
     assert all(f"`{name}`" in quantized for name in BACKENDS)
+
+
+def test_codecs_md_lists_the_lossy_configurations():
+    from pathlib import Path
+
+    from earthcompress.contract import Budget
+
+    text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
+    section = text.split("## Lossy", 1)[1].split("## Settings", 1)[0]
+    listed = {
+        line.split("|")[1].strip().strip("`")
+        for line in section.splitlines()
+        if line.startswith("| `")
+    }
+    budget = Budget(1.0)
+    assert listed == {make(budget).id.removesuffix("-tau1") for make in lossy()}
+    matrix = text.split("## Official run", 1)[0]
+    assert all(f"`{name}`" in matrix for name in listed)

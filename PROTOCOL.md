@@ -39,40 +39,45 @@ Every configuration declares a mode. The mode determines which properties the ru
 | --- | --- |
 | `lossless` | `structure`, `determinism`, `exactness` |
 | `near-lossless` | `structure`, `determinism`, `bound`, `sentinel`, `zero` |
-| `lossy` | `structure`, `determinism`, `sentinel` |
+| `lossy` | `structure`, `determinism`, `rms`, `sentinel` |
 
 - **`structure`** means decoded shape and dtype match the input.
 - **`determinism`** means the same input produces the same bytes, and the same bytes decode to the same array.
 - **`exactness`** means the decoded array is identical to the input, bit for bit.
-- **`bound`** means the error bound defined in Section 2.1 holds.
+- **`bound`** means every valid element meets the error bound of Section 2.1.
+- **`rms`** means the root-mean-square error of the valid elements meets the error bound of Section 2.1.
 - **`sentinel`** means every NoData value remains in its original position, and no valid input value becomes a sentinel.
 - **`zero`** means every value equal to zero in native units decodes to zero.
 
-A broken promise is a result. The row keeps every measurement, sets `fidelity_ok = false` and `status = violation`, and counts the elements that broke each promise. A configuration that raises an error, or decodes to the wrong shape or dtype, has `status = crash` and no measurements. A configuration that cannot take a corpus, for example one limited to 16-bit integers, does not run on it.
+Lossy mode also runs the `zero` check and reports it in `zero_ok` and `zero_violations`. It is not a promise there, so it does not change `fidelity_ok`.
+
+A broken promise is a result. The row keeps every measurement, sets `fidelity_ok = false` and `status = violation`, and counts the elements that broke each promise, or the sample for `rms`. A configuration that raises an error, or decodes to the wrong shape or dtype, has `status = crash` and no measurements. A configuration that cannot take a corpus, for example one limited to 16-bit integers, does not run on it.
 
 ### 2.1 Error bound
 
-A near-lossless configuration declares an absolute bound `tau` in the sample's native unit.
+A near-lossless or lossy configuration declares an absolute bound `tau` in the sample's native unit. Near-lossless holds every valid element within it. Lossy holds the root-mean-square error of the valid elements of each sample within it.
 
 ```text
-|x - x̂| <= tau
+near-lossless   |x - x̂| <= tau              for every valid element
+lossy           sqrt(mean (x - x̂)²) <= tau  over the valid elements
 ```
 
-An element decoded to exactly its input value always passes, including infinities.
+An element decoded to exactly its input value has no error, including infinities. Any other element with an error that is not finite breaks both bounds. Errors within `tau` have a root-mean-square within `tau`, so every near-lossless result also meets the lossy bound at the same `tau`. The lossy bound does not limit the error of a single element.
 
 ## 3. Error budgets
 
-Near-lossless configurations use the budgets in `TOLERANCE.md`. That page sets `conservative`, `matched`, and `aggressive` bounds from a reference error for each eligible corpus, and a `recommended` bound where domain experts have published one. These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
+Near-lossless and lossy configurations use the budgets in `TOLERANCE.md`, with the same `tau` in both modes. That page sets `conservative`, `matched`, and `aggressive` bounds from a reference error for each eligible corpus, and a `recommended` bound where domain experts have published one. Lossy uses a `recommended` bound only where the experts bound a mean error rather than every element. `budgets.csv` lists the modes of each budget. These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
 
 The same rules apply to every budget.
 
-1. **Fixed budget.** Each corpus has one `tau` per level, in native units. The codec receives that number and must keep every element within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset.
+1. **Fixed budget.** Each corpus has one `tau` per level, in native units. The codec receives that number and must keep every element, or in lossy mode the root-mean-square error, within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset. A wrapper may convert `tau` into the kind of target a codec takes, such as a PSNR, when the converted target is the same error over the sample.
 2. **NoData is not counted.** `tau` applies to valid elements. NoData positions must be preserved, and no new NoData values may appear.
 3. **Only adapters around a codec.** A codec receives `tau` in the units of the stored values, and the sentinel only where its interface takes one. A wrapper may change the type or layout of the data to one the codec accepts, and back; it may not correct the codec's output. Corrections belong to a separate configuration that declares them, such as a safeguarded one in `CODECS.md`.
+4. **A searched setting.** A codec with no error target of its own may have one setting searched on each sample. The wrapper encodes with several values of the setting and keeps one whose decoded sample meets the bound. Every trial is part of the encode, so the encode time includes the search.
 
-### 3.1 Corpora without a near-lossless point
+### 3.1 Corpora without a budget
 
-The corpora in the lossless-only table of `TOLERANCE.md` have no near-lossless budget. That page gives the reason for each corpus. They are measured in lossless mode only.
+The corpora in the lossless-only table of `TOLERANCE.md` have no budget. That page gives the reason for each corpus. They are measured in lossless mode only.
 
 ## 4. Corpus layout
 
@@ -138,6 +143,7 @@ Each promised property has a check. The failures below were observed by Reichelt
 | check | assertion | observed precedent |
 | --- | --- | --- |
 | `bound` | Every valid element meets the bound | SPERR exceeded its stated bound |
+| `rms` | The root-mean-square error of the valid elements meets the bound | None, as Reichelt et al. checked pointwise bounds only |
 | `sentinel` | Sentinels remain in place and appear nowhere else | SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error |
 | `zero` | Exact zeros survive | ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values |
 
@@ -171,7 +177,7 @@ error_spread = p99(|x - x̂|) / max(|x - x̂|)
 error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
 ```
 
-`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `family`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `sentinel_ok`, `zero_ok`, `bound_violations`, `sentinel_violations`, `zero_violations`, `fidelity_ok`, and `status`. A run replaces the rows of the configurations it measures and keeps the others.
+`results.csv` has one row per sample and configuration: `sample_id`, `codec`, `codec_version`, `configuration`, `mode`, `family`, `tau`, `budget_level`, `input_bytes`, `compressed_bytes`, `compression_ratio`, `bits_per_value`, `encode_ns`, `decode_ns`, `decode_ns_min`, `decode_ns_max`, `encode_MB_s`, `decode_MB_s`, `max_abs_error`, `mae`, `rmse`, `mean_error`, `psnr_dB`, `error_spread`, `error_lag1`, `sentinel_ok`, `zero_ok`, `bound_violations`, `rms_violations`, `sentinel_violations`, `zero_violations`, `fidelity_ok`, and `status`. A run replaces the rows of the configurations it measures and keeps the others.
 
 ## 8. Aggregation and comparability
 
@@ -191,16 +197,15 @@ Do not aggregate `psnr_dB`, because its peak differs by sample. Include a config
 Results should show operating points and curves rather than name an overall winner. Comparisons follow these rules:
 
 - Two `lossless` configurations can be compared directly.
-- Two `near-lossless` configurations can be compared at the same `tau`.
-- A `near-lossless` configuration and a `lossy` one can be compared as curves, with the difference in their guarantees stated.
-- Two `lossy` configurations can be compared over a sweep, rather than from a single row.
+- Two `near-lossless` configurations can be compared at the same `tau`, and so can two `lossy` ones.
+- A `near-lossless` configuration and a `lossy` one can be compared at the same `tau`, with the difference in their guarantees stated. Their ratio is the cost of holding every element rather than the root-mean-square.
 - Ratios computed from different starting representations of the same data do not isolate codec performance.
 
-Any quoted near-lossless ratio must include `tau`, `budget_level`, and whether every promise held.
+Any quoted near-lossless or lossy ratio must include its mode, `tau`, `budget_level`, and whether every promise held. A quoted lossy ratio should also give `max_abs_error`, which the lossy bound does not limit.
 
 ## 9. Task validation
 
-An elementwise bound does not guarantee that a derived result is stable. Subtracting two nearly equal fields, for example, amplifies their compression errors (Baker et al., 2016).
+Neither an elementwise bound nor a root-mean-square one guarantees that a derived result is stable. Subtracting two nearly equal fields, for example, amplifies their compression errors (Baker et al., 2016).
 
 Task validation is outside this protocol. The tasks below are examples of checks that could compare an analysis on the original and decoded arrays.
 

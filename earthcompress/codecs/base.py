@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -12,7 +13,7 @@ from ..spec import ArraySpec
 
 
 class Family(StrEnum):
-    """How a near-lossless configuration meets its bound."""
+    """How a near-lossless or lossy configuration meets its bound."""
 
     NATIVE = "native"
     """The codec's own bounded mode, run as published."""
@@ -20,6 +21,8 @@ class Family(StrEnum):
     """The shared quantiser of this benchmark, then a lossless codec."""
     SAFEGUARDED = "safeguarded"
     """A native configuration wrapped in Compression Safeguards."""
+    SEARCHED = "searched"
+    """A codec with no error target, its setting searched on each sample."""
 
 
 class Codec(Protocol):
@@ -41,10 +44,13 @@ class CodecConfiguration:
     family: Family | None = None
 
     def __post_init__(self) -> None:
-        if (self.mode is Mode.NEAR_LOSSLESS) != (self.budget is not None):
-            raise ValueError(f"{self.id}: only near-lossless carries a budget")
-        if (self.mode is Mode.NEAR_LOSSLESS) != (self.family is not None):
-            raise ValueError(f"{self.id}: only near-lossless belongs to a family")
+        bounded = self.mode is not Mode.LOSSLESS
+        if bounded != (self.budget is not None):
+            raise ValueError(f"{self.id}: only near-lossless and lossy carry a budget")
+        if bounded != (self.family is not None):
+            raise ValueError(
+                f"{self.id}: only near-lossless and lossy belong to a family"
+            )
 
 
 def lossless(
@@ -53,6 +59,31 @@ def lossless(
     supports = parameters.pop("supports", lambda spec: True)
     return CodecConfiguration(
         id, codec, version, Mode.LOSSLESS, parameters, factory, supports=supports
+    )
+
+
+def _bounded(
+    mode: Mode,
+    name: str,
+    codec: str,
+    version: str,
+    factory,
+    budget: Budget,
+    family: Family,
+    supports: Callable[[ArraySpec], bool],
+    parameters: Mapping[str, object],
+) -> CodecConfiguration:
+    suffix = budget.level if budget.level is not None else f"tau{budget.tau:g}"
+    return CodecConfiguration(
+        id=f"{name}-{suffix}",
+        codec=codec,
+        version=version,
+        mode=mode,
+        parameters=parameters,
+        factory=factory,
+        budget=budget,
+        supports=supports,
+        family=family,
     )
 
 
@@ -67,17 +98,32 @@ def near_lossless(
     **parameters,
 ) -> CodecConfiguration:
     """A configuration at ``budget``, named after its level or its tau."""
-    suffix = budget.level if budget.level is not None else f"tau{budget.tau:g}"
-    return CodecConfiguration(
-        id=f"{name}-{suffix}",
-        codec=codec,
-        version=version,
-        mode=Mode.NEAR_LOSSLESS,
-        parameters=parameters,
-        factory=factory,
-        budget=budget,
-        supports=supports,
-        family=family,
+    return _bounded(
+        Mode.NEAR_LOSSLESS,
+        name,
+        codec,
+        version,
+        factory,
+        budget,
+        family,
+        supports,
+        parameters,
+    )
+
+
+def lossy(
+    name: str,
+    codec: str,
+    version: str,
+    factory,
+    budget: Budget,
+    family: Family,
+    supports: Callable[[ArraySpec], bool] = lambda spec: True,
+    **parameters,
+) -> CodecConfiguration:
+    """A configuration whose root-mean-square error is held within ``budget``."""
+    return _bounded(
+        Mode.LOSSY, name, codec, version, factory, budget, family, supports, parameters
     )
 
 
@@ -94,6 +140,12 @@ def working_float(dtype: np.dtype) -> np.dtype:
     if dtype.kind == "f":
         return dtype
     return np.dtype(np.float32 if dtype.itemsize <= 2 else np.float64)
+
+
+def code_rms(array: np.ndarray, decoded: np.ndarray) -> float:
+    """The root-mean-square difference of two arrays, in stored units."""
+    error = array.astype(np.float64) - decoded.astype(np.float64)
+    return float(np.sqrt(np.mean(np.square(error)))) if error.size else 0.0
 
 
 def to_stored(values: np.ndarray, spec: ArraySpec) -> np.ndarray:
@@ -118,3 +170,26 @@ def as_bits(array: np.ndarray) -> np.ndarray:
     if array.dtype.kind == "f":
         return array.view(f"u{array.dtype.itemsize}")
     return array
+
+
+_COUNT = struct.Struct("<I")
+
+
+def pack_frames(frames: list[bytes]) -> bytes:
+    """Frames behind a header of their count and sizes."""
+    header = _COUNT.pack(len(frames)) + b"".join(
+        _COUNT.pack(len(frame)) for frame in frames
+    )
+    return header + b"".join(frames)
+
+
+def unpack_frames(data: bytes) -> list[bytes]:
+    """The frames of ``pack_frames``, in order."""
+    (count,) = _COUNT.unpack_from(data)
+    start = _COUNT.size * (1 + count)
+    frames = []
+    for i in range(count):
+        (size,) = _COUNT.unpack_from(data, _COUNT.size * (1 + i))
+        frames.append(data[start : start + size])
+        start += size
+    return frames

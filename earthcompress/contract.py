@@ -30,6 +30,7 @@ class Promise(StrEnum):
     DETERMINISM = "determinism"
     EXACTNESS = "exactness"
     BOUND = "bound"
+    RMS = "rms"
     SENTINEL = "sentinel"
     ZERO = "zero"
 
@@ -47,13 +48,27 @@ PROMISES: dict[Mode, frozenset[Promise]] = {
             Promise.ZERO,
         }
     ),
-    Mode.LOSSY: frozenset({Promise.STRUCTURE, Promise.DETERMINISM, Promise.SENTINEL}),
+    Mode.LOSSY: frozenset(
+        {Promise.STRUCTURE, Promise.DETERMINISM, Promise.RMS, Promise.SENTINEL}
+    ),
 }
+
+
+REPORTED: dict[Mode, frozenset[Promise]] = {
+    Mode.LOSSLESS: frozenset(),
+    Mode.NEAR_LOSSLESS: frozenset(),
+    Mode.LOSSY: frozenset({Promise.ZERO}),
+}
+"""Checks a mode runs and reports without promising them."""
 
 
 @dataclass(frozen=True)
 class Budget:
-    """An absolute error bound ``|x - x̂| <= tau``, in the native unit of the sample."""
+    """An error bound ``tau`` in the native unit of the sample.
+
+    Near-lossless holds every element within it, ``|x - x̂| <= tau``, and lossy
+    holds the root-mean-square error of the sample within it.
+    """
 
     tau: float
     level: Level | None = None
