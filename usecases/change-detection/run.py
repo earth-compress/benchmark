@@ -65,11 +65,26 @@ def task(item: tuple[Sample, str]) -> list[dict]:
     return rows
 
 
+def preview(path: Path) -> None:
+    """Iowa in 2025, with the pixels that changed since 2017."""
+    from PIL import Image
+
+    from earthcompress.build import rgb
+
+    after = load_samples(CORPUS, limit=4)[3].data
+    with np.load(HERE / "npz" / "alphaearth-v1-64-03.npz") as archive:
+        before = archive["data"]
+    image = rgb(embedding(after)[i] for i in (0, 16, 9))
+    image[changed(before, after)] = (230, 60, 90)
+    Image.fromarray(image).save(path, optimize=True)
+
+
 def main() -> None:
     with (HERE / "manifest.csv").open(newline="") as stream:
         paths = {row["id"]: row["npz_path"] for row in csv.DictReader(stream)}
     samples = load_samples(CORPUS)
     run(task, [(s, paths[s.id]) for s in samples], HERE / "results.csv")
+    preview(HERE / "preview.png")
 
 
 if __name__ == "__main__":

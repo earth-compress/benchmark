@@ -4,8 +4,10 @@ import csv
 import hashlib
 import html
 import json
+import math
 import re
 import shutil
+import statistics
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -170,13 +172,12 @@ NAV = (
     ("Use cases", "usecases/"),
     ("Tolerance", "tolerance/"),
 )
-DOCS = {
-    "protocol": "PROTOCOL.md",
-    "codecs": "CODECS.md",
-    "usecases": "USECASE.md",
-    "tolerance": "TOLERANCE.md",
+DOCS = {"protocol": "PROTOCOL.md", "codecs": "CODECS.md", "tolerance": "TOLERANCE.md"}
+PAGES = {
+    **{name: slug for slug, name in DOCS.items()},
+    "DATASETS.md": "datasets",
+    "USECASE.md": "usecases",
 }
-PAGES = {**{name: slug for slug, name in DOCS.items()}, "DATASETS.md": "datasets"}
 GITHUB_ICON = (
     '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" '
     'd="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49'
@@ -495,6 +496,259 @@ def build() -> None:
             + document("DATASETS.md")
             .replace("<h1>Datasets</h1>", "", 1)
             .replace('class="doc"', 'class="doc wide"', 1),
+        )
+    )
+    usecases()
+
+
+# Use cases
+
+USECASES = (
+    (
+        "Methane plumes",
+        "methane",
+        "delta_iou",
+        "The enhancement of methane-s2-05, with its plume mask outlined.",
+    ),
+    (
+        "Drainage networks",
+        "drainage",
+        "stream_f1",
+        "The relief of cop-dem-glo30-00 with its stream network.",
+    ),
+    (
+        "Change detection",
+        "change-detection",
+        "change_iou",
+        "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
+    ),
+)
+SENSORS = {"s2": "Sentinel-2", "l89": "Landsat 8/9"}
+LINES = {
+    "geozl-med-entropy-linear": "#2e8c8c",
+    "jpegls-near": "#d0892a",
+    "lerc": "#6d87a3",
+    "sz3-abs": "#7a68c2",
+    "zfp-accuracy": "#c4557a",
+    "sperr-pwe": "#5d9a3c",
+    "quantizer": "#143031",
+    "safeguards": "#8aa09f",
+}
+
+
+def linked(text: str, root: str) -> str:
+    """Links to other documents of the repository pointed at their pages."""
+    for other, slug in PAGES.items():
+        text = text.replace(f'href="{other}"', f'href="{root}{slug}/"')
+        text = text.replace(
+            f"<code>{other}</code>", f'<a href="{root}{slug}/"><code>{other}</code></a>'
+        )
+    return text
+
+
+def lines_of(rows: list[dict[str, str]], metric: str, level) -> dict[str, dict]:
+    """The metric of each line by sample and level.
+
+    The quantiser backends decode the same array and share one line. A
+    safeguarded configuration gets a line of its own only where it changes the
+    result by more than 0.001.
+    """
+    raw: dict[str, dict] = {}
+    for r in rows:
+        name = r["configuration"].rsplit("-", 1)[0]
+        raw.setdefault(name, {})[(r["id"], level(r))] = float(r[metric])
+    lines: dict[str, dict] = {}
+    for name, values in raw.items():
+        label = "quantizer" if name.startswith("quant-") else name
+        label = "safeguards" if name == "sg-zero" else label
+        base = raw.get(label[3:], {}) if label.startswith("sg-") else {}
+        if base.keys() == values.keys() and all(
+            abs(values[k] - base[k]) <= 1e-3 for k in values
+        ):
+            continue
+        if lines.get(label, values) != values:
+            label = name
+        lines.setdefault(label, values)
+    return lines
+
+
+def ticks(low: float, high: float) -> list[float]:
+    span = high - low
+    step = (
+        0.02 if span <= 0.12 else 0.05 if span <= 0.3 else 0.1 if span <= 0.6 else 0.2
+    )
+    count = round(span / step)
+    return [round(low + k * step, 6) for k in range(count + 1)]
+
+
+def panel(title: str, labels: list[str], series: dict[str, list], low, high) -> str:
+    """Medians of each line against the error bound, as an inline SVG."""
+    w, h, left, right, top, bottom = 360, 240, 46, 16, 34, 30
+
+    def x(i: int) -> float:
+        return left + (i + 0.5) * (w - left - right) / len(labels)
+
+    def y(v: float) -> float:
+        v = min(max(v, low), high)
+        return top + (high - v) / (high - low) * (h - top - bottom)
+
+    out = [f'<text class="title" x="{left}" y="18">{html.escape(title)}</text>']
+    for v in ticks(low, high):
+        out.append(
+            f'<line class="rule" x1="{left}" x2="{w - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
+            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.2f}</text>'
+        )
+    for i, label in enumerate(labels):
+        out.append(
+            f'<text class="tick" x="{x(i):.1f}" y="{h - 8}" text-anchor="middle">{html.escape(label)}</text>'
+        )
+    for name, values in series.items():
+        colour = LINES.get(name.removeprefix("sg-"), LINES["safeguards"])
+        dashed = ' class="dashed"' if name.startswith("sg-") else ""
+        points = [(i, v) for i, v in enumerate(values) if v is not None]
+        dots = "".join(
+            f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="3.5">'
+            f"<title>{html.escape(name)} · {html.escape(labels[i])} · {v:.3f}</title></circle>"
+            for i, v in points
+        )
+        path = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in points)
+        out.append(
+            f'<g style="--c:{colour}"><polyline{dashed} points="{path}"/>{dots}</g>'
+        )
+    return (
+        f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
+        f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
+    )
+
+
+def results_block(folder: str, metric: str) -> tuple[str, int]:
+    """The panels of one use case, and its number of samples."""
+    with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    regimes = {
+        s["id"]: s["regime"] for s in manifest(ROOT / "corpora" / "cop-dem-glo30")
+    }
+
+    def group(r: dict[str, str]) -> str:
+        if "sensor" in r:
+            return SENSORS[r["sensor"]]
+        return regimes.get(r["id"], "All samples")
+
+    def level(r: dict[str, str]) -> str:
+        if r.get("budget_level"):
+            return r["budget_level"]
+        codes = float(r["tau"])
+        return f"{codes:g} code" + ("" if codes == 1 else "s")
+
+    tau = {}
+    for r in rows:
+        tau[level(r)] = min(tau.get(level(r), float("inf")), float(r["tau"]))
+    labels = sorted(tau, key=tau.get)
+    lines = lines_of(rows, metric, level)
+    groups = list(dict.fromkeys(group(r) for r in rows))
+    members = {g: {r["id"] for r in rows if group(r) == g} for g in groups}
+
+    medians: dict[str, dict[str, list]] = {}
+    for g in groups:
+        for name, values in lines.items():
+            column = []
+            for label in labels:
+                found = [
+                    v
+                    for (i, lv), v in values.items()
+                    if lv == label and i in members[g]
+                ]
+                column.append(statistics.median(found) if found else None)
+            if any(v is not None for v in column):
+                medians.setdefault(g, {})[name] = column
+    found = [
+        v for g in medians.values() for c in g.values() for v in c if v is not None
+    ]
+    high = 0.0 if metric.startswith("delta") else 1.0
+    step = ticks(min(found), high)[1] - ticks(min(found), high)[0]
+    low = min(math.floor(min(found) / step) * step, high - step)
+    present = list(dict.fromkeys(n for g in medians.values() for n in g))
+    legend = "".join(
+        f'<span class="{"dashed" if n.startswith("sg-") else ""}" '
+        f'style="--c:{LINES.get(n.removeprefix("sg-"), LINES["safeguards"])}"><i></i>{html.escape(n)}</span>'
+        for n in present
+    )
+    panels = "".join(panel(g, labels, medians[g], low, high) for g in medians)
+    note = (
+        f"Median of <code>{metric}</code> over the samples of each panel. The quantiser "
+        "backends decode the same arrays and share one line, and a safeguarded "
+        "configuration has a dashed line of its own where it changes the result by "
+        "more than 0.001."
+    )
+    block = (
+        f'<section class="results"><h2>Results</h2><p class="note">{note}</p>'
+        f'<div class="legend uc-legend">{legend}</div><div class="uc-panels">{panels}</div></section>'
+    )
+    return block, len({r["id"] for r in rows})
+
+
+def usecases() -> None:
+    intro, *parts = (ROOT / "USECASE.md").read_text().split("\n## ")
+    sections = {p.split("\n", 1)[0]: p.split("\n", 1)[1] for p in parts}
+    cards = []
+    for title, folder, metric, caption in USECASES:
+        text = sections[title]
+        lead, *blocks = text.split("\n### ")
+        blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
+        md = lambda s: linked(  # noqa: E731
+            markdown.markdown(s, extensions=["tables"]), "../../"
+        )
+        spec = "".join(
+            f"<div><h3>{html.escape(name)}</h3>{md(body)}</div>"
+            for name, body in blocks.items()
+            if name != "Results"
+        )
+        results, count = results_block(folder, metric)
+        source = ROOT / "usecases" / folder / "preview.png"
+        source = source if source.exists() else None
+        thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{folder}-large.webp", LARGE, False)
+        figure = (
+            f'<img src="../../{large}" alt="{html.escape(caption)}">'
+            if large
+            else '<div class="noimg"></div>'
+        )
+        body = f"""{crumbs("../../", ("Use cases", "usecases/"), (title, None))}
+<h1>{html.escape(title)}</h1>
+<p class="lead">{inline(lead.strip())}</p>
+{results}
+<div class="sample">
+<div class="figure">{figure}<p class="note">{html.escape(caption)}</p></div>
+<div class="doc">{md(blocks.get("Results", ""))}</div>
+</div>
+<section class="spec">{spec}</section>
+<p class="folder"><a href="{REPO}/tree/main/usecases/{folder}">Folder on GitHub</a> · <a href="{REPO}/blob/main/usecases/{folder}/results.csv">results.csv</a></p>"""
+        target = OUT / "usecases" / folder / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
+        cards.append(
+            card(
+                "../",
+                f"usecases/{folder}/",
+                thumb,
+                title,
+                f"{count} samples · <code>{metric}</code>",
+            )
+        )
+    about = markdown.markdown(
+        intro.split("\n", 1)[1], extensions=["tables", "fenced_code", "codehilite"]
+    )
+    for title, folder, _, _ in USECASES:
+        anchor = "#" + title.lower().replace(" ", "-")
+        about = about.replace(f'href="{anchor}"', f'href="{folder}/"')
+    (OUT / "usecases").mkdir(exist_ok=True)
+    (OUT / "usecases" / "index.html").write_text(
+        layout(
+            "../",
+            "Use cases · Earth Compress benchmark",
+            f"{crumbs('../', ('Use cases', None))}<h1>Use cases</h1>"
+            f'<div class="grid">{"".join(cards)}</div>'
+            f'<article class="doc wide">{linked(about, "../")}</article>',
         )
     )
 

@@ -33,15 +33,20 @@ def enhancement(target: np.ndarray, bg: np.ndarray, sign: float = 1.0) -> np.nda
         return sign * ((t[1] / r[1]) / (t[0] / r[0]) - 1)
 
 
+def fit(target: np.ndarray, bg: np.ndarray, plume: np.ndarray) -> tuple[float, float]:
+    """The sign that makes the plume positive, and the threshold outside it."""
+    e = enhancement(target, bg)
+    sign = 1.0 if np.nanmean(e[plume]) > np.nanmean(e[~plume]) else -1.0
+    return sign, float(np.nanpercentile(sign * e[~plume], 99.5))
+
+
 def task(row: dict[str, str]) -> list[dict]:
     with np.load(HERE / row["npz_path"]) as patch:
         target, bg, plume = patch["target"], patch["bg"], patch["plume"]
 
     # The sign and the threshold are fitted on the original and kept.
-    e = enhancement(target, bg)
-    sign = 1.0 if np.nanmean(e[plume]) > np.nanmean(e[~plume]) else -1.0
-    threshold = np.nanpercentile(sign * e[~plume], 99.5)
-    before = iou(sign * e > threshold, plume)
+    sign, threshold = fit(target, bg, plume)
+    before = iou(enhancement(target, bg, sign) > threshold, plume)
 
     spec = ArraySpec(target.shape, target.dtype)
     rows = []
@@ -65,10 +70,34 @@ def task(row: dict[str, str]) -> list[dict]:
     return rows
 
 
+def preview(path: Path) -> None:
+    """The enhancement of the patch the detector finds best, its mask outlined."""
+    from PIL import Image
+
+    from earthcompress.build import colour
+
+    with np.load(HERE / "npz" / "methane-s2-05.npz") as patch:
+        target, bg, plume = patch["target"], patch["bg"], patch["plume"]
+    e = enhancement(target, bg, fit(target, bg, plume)[0])
+    low, high = np.nanpercentile(e, (2, 99.5))
+    image = colour(np.nan_to_num(np.clip((e - low) / (high - low), 0, 1)), "magma")
+    inside = np.pad(
+        plume[1:-1, 1:-1]
+        & plume[:-2, 1:-1]
+        & plume[2:, 1:-1]
+        & plume[1:-1, :-2]
+        & plume[1:-1, 2:],
+        1,
+    )
+    image[plume & ~inside] = 255
+    Image.fromarray(image).resize((600, 600), Image.NEAREST).save(path, optimize=True)
+
+
 def main() -> None:
     with (HERE / "manifest.csv").open(newline="") as stream:
         patches = list(csv.DictReader(stream))
     run(task, patches, HERE / "results.csv")
+    preview(HERE / "preview.png")
 
 
 if __name__ == "__main__":

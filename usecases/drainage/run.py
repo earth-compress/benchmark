@@ -106,9 +106,22 @@ def task(sample: Sample) -> list[dict]:
     return rows
 
 
+def preview(path: Path) -> None:
+    """The relief of the first sample with its stream network."""
+    from PIL import Image
+
+    from earthcompress.build import relief
+
+    dem = load_samples(CORPUS, limit=1)[0].data
+    image = relief(dem, 30.0)
+    image[near(upstream(dem) >= STREAM)] = (24, 92, 196)
+    Image.fromarray(image).save(path, optimize=True)
+
+
 def main() -> None:
     samples = load_samples(CORPUS)
     run(task, [samples[i] for i in SAMPLES], HERE / "results.csv")
+    preview(HERE / "preview.png")
 
 
 if __name__ == "__main__":
