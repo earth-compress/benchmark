@@ -503,25 +503,41 @@ def build() -> None:
 
 # Use cases
 
+HF_TREE = f"https://huggingface.co/datasets/{HF_DATASET}/tree/main"
 USECASES = (
-    (
-        "Methane plumes",
-        "methane",
-        "delta_iou",
-        "The enhancement of methane-s2-05, with its plume mask outlined.",
-    ),
-    (
-        "Drainage networks",
-        "drainage",
-        "stream_f1",
-        "The relief of cop-dem-glo30-00 with its stream network.",
-    ),
-    (
-        "Change detection",
-        "change-detection",
-        "change_iou",
-        "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
-    ),
+    {
+        "title": "Methane plumes",
+        "folder": "methane",
+        "metric": "delta_iou",
+        "caption": "The enhancement of methane-s2-05, with its plume mask outlined.",
+        "samples": [("20 patches on Hugging Face", f"{HF_TREE}/usecases/methane/npz")],
+        "source": (
+            "MethaneSET",
+            "https://huggingface.co/datasets/tacofoundation/methaneset",
+        ),
+        "licence": "CC BY-NC-SA 4.0, as MethaneSET",
+    },
+    {
+        "title": "Drainage networks",
+        "folder": "drainage",
+        "metric": "stream_f1",
+        "caption": "The relief of cop-dem-glo30-00 with its stream network.",
+        "samples": [("10 samples of cop-dem-glo30", "datasets/cop-dem-glo30/")],
+    },
+    {
+        "title": "Change detection",
+        "folder": "change-detection",
+        "metric": "change_iou",
+        "caption": "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
+        "samples": [
+            ("2025, the samples of alphaearth-v1-64", "datasets/alphaearth-v1-64/"),
+            (
+                "2017, the same windows on Hugging Face",
+                f"{HF_TREE}/usecases/change-detection/npz",
+            ),
+        ],
+        "licence": "CC BY 4.0, AlphaEarth Foundations by Google and Google DeepMind",
+    },
 )
 SENSORS = {"s2": "Sentinel-2", "l89": "Landsat 8/9"}
 LINES = {
@@ -621,8 +637,8 @@ def panel(title: str, labels: list[str], series: dict[str, list], low, high) -> 
     )
 
 
-def results_block(folder: str, metric: str) -> tuple[str, int]:
-    """The panels of one use case, and its number of samples."""
+def results_block(folder: str, metric: str, extra: str) -> tuple[str, int]:
+    """The panels of one use case followed by ``extra``, and its number of samples."""
     with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
         rows = list(csv.DictReader(stream))
     regimes = {
@@ -682,47 +698,79 @@ def results_block(folder: str, metric: str) -> tuple[str, int]:
     )
     block = (
         f'<section class="results"><h2>Results</h2><p class="note">{note}</p>'
-        f'<div class="legend uc-legend">{legend}</div><div class="uc-panels">{panels}</div></section>'
+        f'<div class="legend uc-legend">{legend}</div><div class="uc-panels">{panels}</div>'
+        f"{extra}</section>"
     )
     return block, len({r["id"] for r in rows})
 
 
+def materials(case: dict, root: str) -> str:
+    """Where the samples and the code of a use case are, and how to run it."""
+    folder = case["folder"]
+
+    def link(text: str, url: str) -> str:
+        href = url if url.startswith("http") else root + url
+        return f'<a href="{href}">{html.escape(text)}</a>'
+
+    rows = [("samples", "<br>".join(link(t, u) for t, u in case["samples"]))]
+    if "source" in case:
+        rows.append(("built from", link(*case["source"])))
+    anchor = case["title"].lower().replace(" ", "-")
+    rows += [
+        ("code", link(f"usecases/{folder}", f"{REPO}/tree/main/usecases/{folder}")),
+        (
+            "results",
+            link("results.csv", f"{REPO}/blob/main/usecases/{folder}/results.csv"),
+        ),
+        ("description", link("USECASE.md", f"{REPO}/blob/main/USECASE.md#{anchor}")),
+    ]
+    if "licence" in case:
+        rows.append(("licence", html.escape(case["licence"])))
+    table = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
+    return f"""<section class="materials"><h2>Materials</h2>
+<table class="meta-table">{table}</table>
+<h3>Run it</h3>
+<pre><code>git clone {REPO}
+cd benchmark
+uv run python usecases/{folder}/run.py</code></pre>
+<p class="note"><code>run.py</code> downloads the samples it lacks, compresses them with every configuration and writes <code>results.csv</code>.</p>
+</section>"""
+
+
 def usecases() -> None:
-    intro, *parts = (ROOT / "USECASE.md").read_text().split("\n## ")
+    _, *parts = (ROOT / "USECASE.md").read_text().split("\n## ")
     sections = {p.split("\n", 1)[0]: p.split("\n", 1)[1] for p in parts}
     cards = []
-    for title, folder, metric, caption in USECASES:
-        text = sections[title]
-        lead, *blocks = text.split("\n### ")
+    for case in USECASES:
+        title, folder, metric = case["title"], case["folder"], case["metric"]
+        lead, *blocks = sections[title].split("\n### ")
         blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
         md = lambda s: linked(  # noqa: E731
             markdown.markdown(s, extensions=["tables"]), "../../"
         )
-        spec = "".join(
-            f"<div><h3>{html.escape(name)}</h3>{md(body)}</div>"
-            for name, body in blocks.items()
-            if name != "Results"
+        extra = (
+            f'<div class="doc">{md(blocks["Results"])}'
+            f"<h3>Budgets</h3>{md(blocks['Budgets'])}</div>"
         )
-        results, count = results_block(folder, metric)
+        results, count = results_block(folder, metric, extra)
         source = ROOT / "usecases" / folder / "preview.png"
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
         large = resized(source, f"img/usecases/{folder}-large.webp", LARGE, False)
         figure = (
-            f'<img src="../../{large}" alt="{html.escape(caption)}">'
+            f'<img src="../../{large}" alt="{html.escape(case["caption"])}">'
             if large
             else '<div class="noimg"></div>'
         )
         body = f"""{crumbs("../../", ("Use cases", "usecases/"), (title, None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
-{results}
 <div class="sample">
-<div class="figure">{figure}<p class="note">{html.escape(caption)}</p></div>
-<div class="doc">{md(blocks.get("Results", ""))}</div>
+<div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
+<div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}</div>
 </div>
-<section class="spec">{spec}</section>
-<p class="folder"><a href="{REPO}/tree/main/usecases/{folder}">Folder on GitHub</a> · <a href="{REPO}/blob/main/usecases/{folder}/results.csv">results.csv</a></p>"""
+{materials(case, "../../")}
+{results}"""
         target = OUT / "usecases" / folder / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
@@ -735,20 +783,13 @@ def usecases() -> None:
                 f"{count} samples · <code>{metric}</code>",
             )
         )
-    about = markdown.markdown(
-        intro.split("\n", 1)[1], extensions=["tables", "fenced_code", "codehilite"]
-    )
-    for title, folder, _, _ in USECASES:
-        anchor = "#" + title.lower().replace(" ", "-")
-        about = about.replace(f'href="{anchor}"', f'href="{folder}/"')
     (OUT / "usecases").mkdir(exist_ok=True)
     (OUT / "usecases" / "index.html").write_text(
         layout(
             "../",
             "Use cases · Earth Compress benchmark",
             f"{crumbs('../', ('Use cases', None))}<h1>Use cases</h1>"
-            f'<div class="grid">{"".join(cards)}</div>'
-            f'<article class="doc wide">{linked(about, "../")}</article>',
+            f'<div class="grid">{"".join(cards)}</div>',
         )
     )
 

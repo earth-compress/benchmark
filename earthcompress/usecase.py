@@ -13,7 +13,25 @@ import numpy as np
 from .codecs import families
 from .codecs.base import CodecConfiguration
 from .contract import Budget
+from .corpus import DATASET
 from .spec import ArraySpec
+
+
+def fetch(folder: Path, paths: Iterable[str]) -> None:
+    """Download the missing samples of the use case in ``folder``.
+
+    They sit on Hugging Face under ``usecases/<use-case>/``, as in the repository.
+    """
+    from huggingface_hub import snapshot_download
+
+    missing = [path for path in paths if not (folder / path).is_file()]
+    if missing:
+        snapshot_download(
+            DATASET,
+            repo_type="dataset",
+            allow_patterns=[f"usecases/{folder.name}/{path}" for path in missing],
+            local_dir=folder.parent.parent,
+        )
 
 
 def configurations(

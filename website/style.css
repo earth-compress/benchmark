@@ -143,6 +143,13 @@ table.numbers td:first-child { white-space: nowrap; }
 .uc-panel polyline.dashed { stroke-dasharray: 5 4; }
 .uc-panel circle { fill: var(--c); }
 .sample .doc { padding: 0; }
+.sample .experiment h2 { font-size: 21px; margin: 0 0 6px; }
+.experiment ul { padding-left: 18px; margin: 0; }
+.experiment li { margin: 8px 0; }
+.materials .meta-table { max-width: 780px; }
+.materials h3 { margin: 24px 0 8px; }
+.materials pre { max-width: 780px; background: var(--tint); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.results .doc { padding: 16px 0 0; }
 
 footer { border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 13px; color: var(--muted); }
 footer p { margin: 0 0 8px; }

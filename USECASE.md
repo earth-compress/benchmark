@@ -8,19 +8,24 @@ A use case runs one analysis on the original samples and on their decoded copies
 | [Drainage networks](#drainage-networks) | `cop-dem-glo30` | 10 | `stream_f1` |
 | [Change detection](#change-detection) | `alphaearth-v1-64`, 2017 and 2025 | 6 | `change_iou` |
 
-Each use case keeps its files in `usecases/<use-case>/`. `build.py`, where there is one, downloads the samples once into `npz/`, and `run.py` writes `results.csv` with one row per sample and configuration.
+Each use case keeps its code and results in `usecases/<use-case>/` and its samples on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases). `run.py` downloads the samples it lacks and writes `results.csv` with one row per sample and configuration. `build.py`, where there is one, rebuilds the samples from their source.
 
 ```bash
-uv run --with tacoreader --with pandas --with "duckdb<1.5" python usecases/methane/build.py
 uv run python usecases/methane/run.py
 uv run python usecases/drainage/run.py
-uv run python usecases/change-detection/build.py
 uv run python usecases/change-detection/run.py
 ```
 
 ## Methane plumes
 
 Does compression change the plume a methane detector finds in Sentinel-2 and Landsat 8/9?
+
+### Experiment
+
+- **Data.** 20 MethaneSET patches, 10 from Sentinel-2 and 10 from Landsat 8/9, each with a target, its backgrounds and a plume mask.
+- **Compressed.** The two shortwave infrared bands of the target and of every background. The mask is not compressed.
+- **Analysis.** A band ratio detector, fitted on the original and reused on the decoded copy.
+- **Metric.** `delta_iou`, the change in overlap between the detection and the plume mask.
 
 ### Data
 
@@ -31,7 +36,7 @@ Twenty patches from [MethaneSET](https://huggingface.co/datasets/tacofoundation/
 | Sentinel-2 | `methaneset-s2-finetune` | B11, B12 | uint16 | 10 |
 | Landsat 8/9 | `methaneset-l89-finetune` | B6, B7 | float32 reflectance | 10 |
 
-The target and each background are compressed as separate arrays of 2 × 200 × 200. The plume mask is never compressed. Landsat uses only `bg0` as background, because `bg1` to `bg3` are stored in DN and the target in reflectance.
+The target and each background are compressed as separate arrays of 2 × 200 × 200. The plume mask is never compressed. Landsat uses only `bg0` as background, because `bg1` to `bg3` are stored in DN and the target in reflectance. The patches keep the CC BY-NC-SA 4.0 licence of MethaneSET.
 
 ### Detector
 
@@ -69,6 +74,13 @@ Up to `matched` no patch loses more than 0.022 of IoU. At `aggressive` the loss 
 
 Does compression move the streams that flow routing draws on a DEM?
 
+### Experiment
+
+- **Data.** 10 DEMs of `cop-dem-glo30`, two per regime.
+- **Compressed.** The DEM.
+- **Analysis.** Flow routing from the edges of the DEM. A cell with 1000 or more cells upstream is a stream.
+- **Metric.** `stream_f1`, the agreement of the decoded stream network with the original one, within one cell.
+
 ### Data
 
 Ten samples of `cop-dem-glo30` as stored in the corpus, the first two of each regime (mountain, hill, plain, coastal and desert).
@@ -105,9 +117,16 @@ The network holds in relief and moves in flat terrain, where a bound of 0.25 m a
 
 Does compression change where AlphaEarth embeddings show change between 2017 and 2025?
 
+### Experiment
+
+- **Data.** 6 AlphaEarth windows with change, in 2017 and 2025.
+- **Compressed.** The embeddings of both years.
+- **Analysis.** A pixel has changed when the cosine similarity of its two years is below 0.8.
+- **Metric.** `change_iou`, the overlap of the decoded change map with the original one.
+
 ### Data
 
-The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 with NoData at -128, and both years are compressed.
+The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 with NoData at -128, and both years are compressed. The 2017 windows keep the CC BY 4.0 licence of the AlphaEarth Foundations Satellite Embedding dataset, produced by Google and Google DeepMind.
 
 The use case keeps the six samples whose original change map covers at least 0.5% of the sample. With less change, a single changed pixel on the decoded copy moves the IoU between 1 and 0.
 

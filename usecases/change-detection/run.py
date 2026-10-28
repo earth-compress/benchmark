@@ -10,7 +10,7 @@ import numpy as np
 
 from earthcompress.contract import Budget
 from earthcompress.corpus import Sample, load_samples
-from earthcompress.usecase import configurations, iou, roundtrip, run
+from earthcompress.usecase import configurations, fetch, iou, roundtrip, run
 
 HERE = Path(__file__).resolve().parent
 CORPUS = HERE.parent.parent / "corpora" / "alphaearth-v1-64"
@@ -82,6 +82,7 @@ def preview(path: Path) -> None:
 def main() -> None:
     with (HERE / "manifest.csv").open(newline="") as stream:
         paths = {row["id"]: row["npz_path"] for row in csv.DictReader(stream)}
+    fetch(HERE, paths.values())
     samples = load_samples(CORPUS)
     run(task, [(s, paths[s.id]) for s in samples], HERE / "results.csv")
     preview(HERE / "preview.png")

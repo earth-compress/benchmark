@@ -11,7 +11,7 @@ import numpy as np
 from earthcompress.budgets import budgets_for
 from earthcompress.contract import Budget
 from earthcompress.spec import ArraySpec
-from earthcompress.usecase import configurations, iou, roundtrip, run
+from earthcompress.usecase import configurations, fetch, iou, roundtrip, run
 
 HERE = Path(__file__).resolve().parent
 CORPUS = {"s2": "s2-l1c-20m-6", "l89": "l8-oli-8"}
@@ -96,6 +96,7 @@ def preview(path: Path) -> None:
 def main() -> None:
     with (HERE / "manifest.csv").open(newline="") as stream:
         patches = list(csv.DictReader(stream))
+    fetch(HERE, [row["npz_path"] for row in patches])
     run(task, patches, HERE / "results.csv")
     preview(HERE / "preview.png")
 
