@@ -1,6 +1,6 @@
 # Codecs
 
-A codec can run in more than one fidelity mode, and each run of it is a configuration. The table below lists every codec by mode. The sections after it define the configurations of each mode.
+A configuration is one way of running a codec, named by its id. The table lists them by codec and by the fidelity modes of `PROTOCOL.md`.
 
 | codec | lossless | near-lossless | lossy |
 | --- | --- | --- | --- |
@@ -20,9 +20,16 @@ A codec can run in more than one fidelity mode, and each run of it is a configur
 | JPEG XL | | | `jpegxl-distance` |
 | Compression Safeguards | | `sg-` before each native configuration, and `sg-zero` | |
 
-## Official run
+Near-lossless and lossy configurations run at each level that `TOLERANCE.md` gives the corpus, and their ids end with the level, as in `lerc-matched`. The `family` column of `results.csv` says how they reach `tau`.
 
-The lossless configurations of the published run.
+| family | how `tau` is reached | modes |
+| --- | --- | --- |
+| `native` | the codec's own bounded mode, run as published | near-lossless, lossy |
+| `quantized` | the quantiser of this benchmark, then a lossless configuration | near-lossless, lossy |
+| `safeguarded` | a native configuration wrapped in Compression Safeguards | near-lossless |
+| `searched` | one codec setting, searched on each sample | lossy |
+
+## Lossless
 
 | id | group | definition | software |
 | --- | --- | --- | --- |
@@ -43,86 +50,78 @@ The lossless configurations of the published run.
 | `geozl-average-entropy` | GeoZL | `average>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
 | `geozl-id-pfor` | GeoZL | `id>pfor` | geozl 0.19.0 on openzl 0.3.0 |
 
-`hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, bands are pixel-interleaved before differencing, and floating-point values are differenced as integers of the same width.
+### Reference
 
-For one-byte elements, the GeoZL recipes drop `transpose`, since there is nothing to transpose.
-
-## Reference
+`jpeg2000` is measured once, as a reference line, rather than in every run.
 
 | id | definition | software |
 | --- | --- | --- |
 | `jpeg2000` | JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components | imagecodecs (OpenJPEG 2.5.4) |
 
-It runs on integer corpora of up to 16 bits.
-
 ## Near-lossless
-
-Each near-lossless configuration runs at every level that `TOLERANCE.md` gives the corpus, and its id ends with the level, as in `lerc-matched`. It belongs to one of three families, recorded in the `family` column of `results.csv`. A row that breaks a promise is a result and keeps its measurements, as `PROTOCOL.md` sets out.
-
-### Native
-
-The codec's own bounded mode, run as published.
-
-| id | definition | NoData | software |
-| --- | --- | --- | --- |
-| `geozl-med-entropy-linear` | GeoZL `med>zigzag>transpose>entropy` with its `LINEAR` quantiser, the budget as `error` | `nodata` | geozl 0.19.0 on openzl 0.3.0 |
-| `lerc` | LERC with the budget as `maxZError`, as GDAL writes it | valid mask | imagecodecs (LERC 4.2.0) |
-| `jpegls-near` | JPEG-LS with the budget as `NEAR`, one stream per plane | | imagecodecs (CharLS 2.4.4) |
-| `sz3-abs` | SZ3 with an absolute bound | | imagecodecs (SZ3 3.4.0) |
-| `zfp-accuracy` | ZFP in fixed-accuracy mode, the budget as tolerance | | imagecodecs (zfp 1.0.1) |
-| `sperr-pwe` | SPERR in point-wise error mode | | imagecodecs (SPERR 0.8.5) |
-
-A codec receives the budget in the units of the stored values, which for integers is the number of whole steps of the largest `scale`, and the sentinel only where its interface takes one. SZ3, ZFP and SPERR take floats only, so integer codes reach them as floats that hold every code exactly, and their output is rounded to the nearest code and clipped to the type. Rounding to a whole code cannot widen an error that is within a whole number of codes.
-
-- GeoZL takes its lossy domain from the raster a graph is built from, so the graph is built from each sample while it is encoded. Its integer grid is `2k` codes wide where `2k + 1` would fit.
-- LERC floors the bound for integers and reads 777 as a request for another mode, so a budget of 777 codes is passed as 777.5.
-- CharLS accepts `NEAR` up to 127 for 8-bit and 255 for 16-bit data. Above that, `jpegls-near` does not run.
-- SPERR takes two- and three-dimensional arrays only.
-- JPEG 2000 has no bounded mode, so it has no near-lossless configuration.
-
-### Quantized
-
-The shared quantiser of this benchmark, then an unchanged lossless configuration on the grid indices.
-
-- **Integers.** Each plane gets `k = floor(tau / scale)` steps of its own scale, and values round to a grid `2k + 1` codes wide, anchored at the code of a native zero. A sentinel at the bottom of the type keeps index 0 to itself, and valid values decode above it.
-- **Floats.** Values round to multiples of `2 tau`, so zero stays exact. Values that rounding in the element type moves just past `tau`, and values that are not finite, are kept exactly beside the grid.
-
-The indices reach the lossless configuration in the narrowest unsigned type that holds them. Every quantized row keeps the promises by construction, and differs from the others only by its lossless stage. The lossless configurations are `zstd-c3`, `pco`, and the best ratio of each group in the lossless run, `blosc-zstd3-bitshuffle`, `hdiff-zstd9`, `openzl-generic` and `geozl-med-entropy`.
-
-### Safeguarded
-
-Each native configuration wrapped in Compression Safeguards (Tyree et al., 2026), as `sg-<id>`. The safeguards are an absolute bound equal to the budget, the sentinel kept to its own positions, and exact zeros kept. While encoding, the safeguards decode the native output and store the corrections that restore every promise; decoding applies them. The native codec runs unchanged, so the difference from its native row is the cost of safety. `sg-zero` wraps a codec that decodes to zeros, so every value comes from the corrections.
-
-The software is compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5, with their own lossless coding of the corrections.
-
-## Lossy
-
-Each lossy configuration runs at every lossy level that `TOLERANCE.md` gives the corpus, and its id ends with the level, as in `jpeg2000-psnr-matched`. It holds the root-mean-square error of each sample within `tau` rather than every element, so its maximum error is not bounded. The `zero` check is reported but is not a promise. The `family` column records how the configuration reaches `tau`.
 
 | id | family | definition | NoData | software |
 | --- | --- | --- | --- | --- |
-| `jpeg2000-psnr` | native | JPEG 2000 with the irreversible 9/7 wavelet, bands as components with no colour transform, its quality layer set to the PSNR whose mean squared error is `tau` squared | | imagecodecs (OpenJPEG 2.5.4) |
-| `sperr-psnr` | native | SPERR in PSNR mode, the target set from the range of the sample so that the root-mean-square error is `tau` | | imagecodecs (SPERR 0.8.5) |
-| `sz3-l2norm` | native | SZ3 in its L2-norm mode, passed as the absolute bound `sqrt(3) tau` that SZ3 derives from it | | imagecodecs (SZ3 3.4.0) |
-| `jpegxl-distance` | searched | JPEG XL at effort 7, one grayscale frame per plane, the largest distance found whose error is within `tau` | | imagecodecs (libjxl 0.12.0) |
-| `quant-pco-rms` | quantized | The shared quantiser on a grid as wide as `tau` allows, then `pco` | bottom of the type | imagecodecs (pcodec 1.0.4) |
+| `geozl-med-entropy-linear` | native | GeoZL `med>zigzag>transpose>entropy` with its `LINEAR` quantiser, `tau` as `error` | `nodata` | geozl 0.19.0 on openzl 0.3.0 |
+| `lerc` | native | LERC with `tau` as `maxZError`, as GDAL writes it | valid mask | imagecodecs (LERC 4.2.0) |
+| `jpegls-near` | native | JPEG-LS with `tau` as `NEAR`, one stream per plane | | imagecodecs (CharLS 2.4.4) |
+| `sz3-abs` | native | SZ3 with `tau` as its absolute bound | | imagecodecs (SZ3 3.4.0) |
+| `zfp-accuracy` | native | ZFP in fixed-accuracy mode, `tau` as the tolerance | | imagecodecs (zfp 1.0.1) |
+| `sperr-pwe` | native | SPERR in point-wise error mode | | imagecodecs (SPERR 0.8.5) |
+| `quant-<id>` | quantized | The quantiser, then the lossless configuration `<id>` | bottom of the type | that of `<id>` |
+| `sg-<id>` | safeguarded | The native configuration `<id>` inside Compression Safeguards | kept | compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5 |
+| `sg-zero` | safeguarded | Compression Safeguards around a codec that decodes to zeros | kept | compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5 |
 
-- OpenJPEG measures PSNR over every component together, against the largest value of the sample type, so the target is the root-mean-square error of the sample. `jpeg2000-psnr` runs on integer corpora of up to 16 bits.
-- SPERR measures PSNR over the range of the data it receives. A sample whose range is within `tau` gets a target of 0.001 dB, since SPERR rejects zero.
-- imagecodecs exposes only the absolute mode of SZ3. SZ3 runs its L2-norm mode as an absolute bound of `sqrt(3 / n)` times the norm, which for a root-mean-square error of `tau` is `sqrt(3) tau`, so `sz3-l2norm` passes that bound. Integer output is rounded to whole codes, which can move the error past `tau`.
-- JPEG XL takes a perceptual distance rather than an error. On each sample the wrapper tries 25, the largest distance libjxl accepts, then halves the logarithmic interval down to 0.01 eight times and keeps the largest distance whose error is within `tau`. It measures that error over the whole sample in stored units, since the codec does not know NoData, and falls back to lossless JPEG XL when no distance holds. Every trial is part of the encode time. `jpegxl-distance` runs on 8- and 16-bit unsigned integers.
-- The quantiser starts from the widest grid whose rounding error, if uniform, has a root-mean-square of `tau`, the rule SZ3 uses for its L2-norm mode. For integers that is the largest `k` with `k (k + 1) / 3 <= (tau / scale)²` in each plane, and for floats a step of `2 sqrt(3) tau`. If the error of the sample is still above `tau`, the grid narrows until it is not, and the width it settles on is stored with the data. Zeros and a sentinel at the bottom of the type stay exact. ClimateBenchPress found rounding followed by PCO a reliable baseline (Reichelt et al., 2026).
-- LERC, JPEG-LS, ZFP and GeoZL bound every element and have no lossy configuration. Their near-lossless rows at the same `tau` already meet the lossy bound.
+The quantised configurations follow `zstd-c3`, `pco`, and the best ratio of each group in the lossless run, `blosc-zstd3-bitshuffle`, `hdiff-zstd9`, `openzl-generic` and `geozl-med-entropy`.
+
+## Lossy
+
+| id | family | definition | NoData | software |
+| --- | --- | --- | --- | --- |
+| `jpeg2000-psnr` | native | JPEG 2000 with the irreversible 9/7 wavelet and no colour transform, at the PSNR whose root-mean-square error is `tau` | | imagecodecs (OpenJPEG 2.5.4) |
+| `sperr-psnr` | native | SPERR in PSNR mode, at the PSNR whose root-mean-square error is `tau` | | imagecodecs (SPERR 0.8.5) |
+| `sz3-l2norm` | native | SZ3 in its L2-norm mode | | imagecodecs (SZ3 3.4.0) |
+| `jpegxl-distance` | searched | JPEG XL at effort 7, one grayscale frame per plane, the distance searched | | imagecodecs (libjxl 0.12.0) |
+| `quant-pco-rms` | quantized | The quantiser with its lossy grid, then `pco` | bottom of the type | imagecodecs (pcodec 1.0.4) |
+
+LERC, JPEG-LS, ZFP and GeoZL bound every element and have no lossy configuration. Their near-lossless rows already meet the lossy bound at the same `tau`.
+
+## The quantiser
+
+The quantiser rounds each value to a grid and passes the grid indices, in the narrowest unsigned type that holds them, to an unchanged lossless configuration. Quantised rows keep every promise by construction, and rows of one mode differ only by their lossless stage.
+
+Integer grids are `2k + 1` codes wide in each plane and anchored at the code of a native zero, so zeros stay exact. Near-lossless takes `k = floor(tau / scale)`. Lossy starts from the largest `k` with `k (k + 1) / 3 <= (tau / scale)²`, where a uniform rounding error has a root-mean-square of `tau`, the rule SZ3 uses for its L2-norm mode. A sentinel at the bottom of the type keeps index 0 to itself, and valid values decode above it.
+
+Floats round to multiples of `2 tau` in near-lossless and of `2 sqrt(3) tau` in lossy, so zero stays exact. Values that rounding in the element type moves past the bound, and values that are not finite, are kept exactly beside the grid.
+
+In lossy mode, a sample whose error is still above `tau` gets a narrower grid until it is not, and the width is stored with the data. ClimateBenchPress found rounding followed by PCO a reliable baseline (Reichelt et al., 2026), so `pco` is the lossless stage in lossy mode.
+
+## Compression Safeguards
+
+`sg-<id>` wraps a native near-lossless configuration in Compression Safeguards (Tyree et al., 2026), set to an absolute bound of `tau`, the sentinel kept to its own positions, and exact zeros kept. While encoding, the safeguards decode the native output and store the corrections that restore every promise, and decoding applies them. The native codec runs unchanged, so the difference from its own row is the cost of safety. In `sg-zero` every value comes from the corrections.
 
 ## Settings
 
 - One thread for every codec.
-- Checksums are disabled for Zstandard and OpenZL. GeoZL writes a frame checksum that its Python API cannot turn off; decoding skips its verification.
-- Library versions not listed above are pinned in `uv.lock`.
+- A codec receives `tau` in stored units, which for integers is whole steps of the largest `scale`, and the sentinel only where its interface takes one.
+- SZ3, ZFP and SPERR take floats only. Integer codes reach them as floats that hold every code exactly, and their output is rounded to the nearest code and clipped to the type. Rounding cannot widen an error that is within a whole number of codes, but it can raise a root-mean-square error.
+- Checksums are off for Zstandard and OpenZL. GeoZL writes a frame checksum that its Python API cannot turn off, and decoding skips its verification.
+- Library versions not given here are pinned in `uv.lock`.
+
+## Notes by codec
+
+- `hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, bands are pixel-interleaved before differencing, and floating-point values are differenced as integers of the same width.
+- GeoZL recipes drop `transpose` for one-byte elements. GeoZL takes its lossy domain from the raster a graph is built from, so `geozl-med-entropy-linear` builds the graph from each sample while encoding it. Its integer grid is `2k` codes wide where `2k + 1` would fit.
+- LERC floors the bound for integers and reads 777 as a request for another mode, so a budget of 777 codes is passed as 777.5.
+- CharLS accepts `NEAR` up to 127 for 8-bit and 255 for 16-bit data. Above that, `jpegls-near` does not run.
+- SZ3 runs its L2-norm mode as an absolute bound of `sqrt(3 / n)` times the norm, which for a root-mean-square error of `tau` is `sqrt(3) tau`. imagecodecs exposes only the absolute mode, so `sz3-l2norm` passes that bound.
+- SPERR takes two- and three-dimensional arrays only. It measures PSNR over the range of the data it receives and rejects a target of zero, so a sample whose range is within `tau` gets 0.001 dB.
+- JPEG 2000 has no bounded mode, so it has no near-lossless configuration. OpenJPEG measures PSNR over all components together, against the largest value of the type. Both JPEG 2000 configurations take integers of up to 16 bits.
+- JPEG XL takes a perceptual distance rather than an error. On each sample, `jpegxl-distance` tries 25, the largest distance libjxl accepts, then halves the logarithmic interval down to 0.01 eight times. It keeps the largest distance whose root-mean-square error over the whole sample, in stored units, is within `tau`, and falls back to lossless JPEG XL when none is. Every trial counts in the encode time. It takes 8- and 16-bit unsigned integers.
 
 ## Adding a configuration
 
-Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS` for lossless configurations, `FAMILIES` for a native near-lossless codec, or `LOSSY` for a lossy one. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`. A family is a function from a budget to a configuration, made with `near_lossless` or `lossy` in `earthcompress/codecs/base.py`. The benchmark gives every near-lossless family a safeguarded variant.
+Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS` for lossless configurations, `FAMILIES` for a native near-lossless codec, or `LOSSY` for a lossy one. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`. A family is a function from a budget to a configuration, made with `near_lossless` or `lossy` in `earthcompress/codecs/base.py`. Every native near-lossless family also gets a safeguarded variant.
 
 ```python
 import mycodec

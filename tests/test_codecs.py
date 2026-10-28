@@ -83,7 +83,7 @@ def test_the_official_run_has_the_configurations_of_codecs_md():
     from pathlib import Path
 
     text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
-    official = text.split("## Official run", 1)[1].split("## Reference", 1)[0]
+    official = text.split("## Lossless", 1)[1].split("### Reference", 1)[0]
     listed = {
         line.split("|")[1].strip().strip("`")
         for line in official.splitlines()
@@ -162,16 +162,15 @@ def test_codecs_md_lists_the_native_and_quantized_configurations():
     from earthcompress.contract import Budget
 
     text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
-    native = text.split("### Native", 1)[1].split("### Quantized", 1)[0]
-    listed = {
-        line.split("|")[1].strip().strip("`")
-        for line in native.splitlines()
-        if line.startswith("| `")
-    }
+    section = text.split("## Near-lossless", 1)[1].split("\n## ", 1)[0]
+    rows = [line.split("|") for line in section.splitlines() if line.startswith("| `")]
+    native = {row[1].strip().strip("`") for row in rows if row[2].strip() == "native"}
     budget = Budget(1.0)
-    assert listed == {make(budget).id.removesuffix("-tau1") for make in natives()}
-    quantized = text.split("### Quantized", 1)[1].split("### Safeguarded", 1)[0]
-    assert all(f"`{name}`" in quantized for name in BACKENDS)
+    assert native == {make(budget).id.removesuffix("-tau1") for make in natives()}
+    families = {row[1].strip().strip("`"): row[2].strip() for row in rows}
+    assert families["quant-<id>"] == "quantized"
+    assert families["sg-<id>"] == families["sg-zero"] == "safeguarded"
+    assert all(f"`{name}`" in section for name in BACKENDS)
 
 
 def test_codecs_md_lists_the_lossy_configurations():
@@ -180,7 +179,7 @@ def test_codecs_md_lists_the_lossy_configurations():
     from earthcompress.contract import Budget
 
     text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
-    section = text.split("## Lossy", 1)[1].split("## Settings", 1)[0]
+    section = text.split("## Lossy", 1)[1].split("\n## ", 1)[0]
     listed = {
         line.split("|")[1].strip().strip("`")
         for line in section.splitlines()
@@ -188,5 +187,5 @@ def test_codecs_md_lists_the_lossy_configurations():
     }
     budget = Budget(1.0)
     assert listed == {make(budget).id.removesuffix("-tau1") for make in lossy()}
-    matrix = text.split("## Official run", 1)[0]
+    matrix = text.split("## Lossless", 1)[0]
     assert all(f"`{name}`" in matrix for name in listed)
