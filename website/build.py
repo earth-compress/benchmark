@@ -745,12 +745,12 @@ def usecases() -> None:
         title, folder, metric = case["title"], case["folder"], case["metric"]
         lead, *blocks = sections[title].split("\n### ")
         blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
-        md = lambda s: linked(  # noqa: E731
-            markdown.markdown(s, extensions=["tables"]), "../../"
+        md = lambda s, root="../../": linked(  # noqa: E731
+            markdown.markdown(s, extensions=["tables"]), root
         )
         extra = (
-            f'<div class="doc">{md(blocks["Results"])}'
-            f"<h3>Budgets</h3>{md(blocks['Budgets'])}</div>"
+            f'<div class="doc">{md(blocks["Results"], "../../../")}'
+            f"<h3>Budgets</h3>{md(blocks['Budgets'], '../../../')}</div>"
         )
         results, count = results_block(folder, metric, extra)
         source = ROOT / "usecases" / folder / "preview.png"
@@ -767,13 +767,22 @@ def usecases() -> None:
 <p class="lead">{inline(lead.strip())}</p>
 <div class="sample">
 <div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
-<div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}</div>
+<div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
+<p><a class="button primary" href="results/">Results</a></p></div>
 </div>
-{materials(case, "../../")}
-{results}"""
+{materials(case, "../../")}"""
         target = OUT / "usecases" / folder / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
+        page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
+<h1>{html.escape(title)}</h1>
+<p class="lead">{inline(lead.strip())}</p>
+{results}"""
+        target = OUT / "usecases" / folder / "results" / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            layout("../../../", f"{title} results · Earth Compress benchmark", page)
+        )
         cards.append(
             card(
                 "../",

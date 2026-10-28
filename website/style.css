@@ -144,6 +144,8 @@ table.numbers td:first-child { white-space: nowrap; }
 .uc-panel circle { fill: var(--c); }
 .sample .doc { padding: 0; }
 .sample .experiment h2 { font-size: 21px; margin: 0 0 6px; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; padding: 9px 22px; }
+.button.primary:hover { background: var(--ink); border-color: var(--ink); }
 .experiment ul { padding-left: 18px; margin: 0; }
 .experiment li { margin: 8px 0; }
 .materials .meta-table { max-width: 780px; }

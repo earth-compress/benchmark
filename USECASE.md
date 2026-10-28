@@ -22,10 +22,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-- **Data.** 20 MethaneSET patches, 10 from Sentinel-2 and 10 from Landsat 8/9, each with a target, its backgrounds and a plume mask.
-- **Compressed.** The two shortwave infrared bands of the target and of every background. The mask is not compressed.
-- **Analysis.** A band ratio detector, fitted on the original and reused on the decoded copy.
-- **Metric.** `delta_iou`, the change in overlap between the detection and the plume mask.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. Every codec compresses the two shortwave infrared bands of the target and of each background, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
@@ -76,10 +73,7 @@ Does compression move the streams that flow routing draws on a DEM?
 
 ### Experiment
 
-- **Data.** 10 DEMs of `cop-dem-glo30`, two per regime.
-- **Compressed.** The DEM.
-- **Analysis.** Flow routing from the edges of the DEM. A cell with 1000 or more cells upstream is a stream.
-- **Metric.** `stream_f1`, the agreement of the decoded stream network with the original one, within one cell.
+The experiment takes 10 DEMs of the corpus `cop-dem-glo30`, two from each regime, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/cop-dem-glo30/npz) with the rest of the corpus. Every codec compresses the DEM, and flow routing draws the stream network of the original and of the decoded copy, where a stream is every cell with 1000 or more cells upstream. The result is `stream_f1`, how well the decoded network matches the original one within one cell.
 
 ### Data
 
@@ -119,10 +113,7 @@ Does compression change where AlphaEarth embeddings show change between 2017 and
 
 ### Experiment
 
-- **Data.** 6 AlphaEarth windows with change, in 2017 and 2025.
-- **Compressed.** The embeddings of both years.
-- **Analysis.** A pixel has changed when the cosine similarity of its two years is below 0.8.
-- **Metric.** `change_iou`, the overlap of the decoded change map with the original one.
+The experiment takes 6 AlphaEarth windows where the land changed between 2017 and 2025. The 2025 embeddings are samples of the corpus `alphaearth-v1-64`, and the 2017 ones are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/change-detection/npz) next to them. Every codec compresses both years, and a pixel counts as changed when the cosine similarity of its two years is below 0.8, on the original and on the decoded copy. The result is `change_iou`, the overlap of the decoded change map with the original one.
 
 ### Data
 
