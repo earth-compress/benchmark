@@ -1,0 +1,106 @@
+"""The twenty patches of the methane use case, from MethaneSET as published.
+
+uv run --with tacoreader --with pandas --with "duckdb<1.5" python usecases/methane/build.py
+"""
+
+import csv
+import os
+from pathlib import Path
+
+import numpy as np
+
+os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+
+import rasterio  # noqa: E402
+import tacoreader  # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+ROOT = "https://huggingface.co/datasets/tacofoundation/methaneset/resolve/main"
+SENSORS = {
+    "s2": dict(
+        collection="methaneset-s2-finetune",
+        bands=[11, 12],
+        backgrounds=["bg0", "bg1", "bg2", "bg3"],
+    ),
+    "l89": dict(
+        collection="methaneset-l89-finetune",
+        bands=[5, 6],
+        backgrounds=["bg0"],
+    ),
+}
+PATCHES = {
+    "s2": [
+        "b615fcc6-7589-405e-9048-1ff06c587746",
+        "f4bb9caf-6538-4180-94d2-371556b5622a",
+        "c05c3b35-e370-434e-b63a-941b292c9d05",
+        "4be2300a-3b72-4741-85a8-e51201277b2b",
+        "563a9025-917f-4cfb-bf08-a2ff880a038d",
+        "34f5931e-b55e-4684-b81d-82e693ce5b32",
+        "92010314-21bc-4330-94cb-6a4a058f3f81",
+        "e0507c84-8413-469c-8add-0b878c80baa2",
+        "a5c82654-2d3a-45db-a480-cdbdd1497f8a",
+        "c54b3e35-4dad-4eaa-8dd4-4b432e72661e",
+    ],
+    "l89": [
+        "7dc92434-bfca-4201-98b1-81cfa0691633",
+        "5c214d71-ffe7-4b2f-b291-f0f88367dfb3",
+        "e4f42b60-0ccf-49d3-8c6b-7a66e35e99db",
+        "08f43b29-b354-4256-83a0-3a663eaa1234",
+        "7f376ed2-b346-4cba-bfb7-ae95ada7d7f2",
+        "77732c17-89ce-46d0-88ba-acfec3e1343e",
+        "f0d14542-b785-4dbe-bd8c-6aff3a9d50d0",
+        "8feb1956-b9f7-4bad-9e2b-aa51dc755801",
+        "6d5784e3-1265-4c5a-b054-ffab64feb2e5",
+        "08b4aec1-6fb0-4cf8-88a7-8c8b18da4cb6",
+    ],
+}
+
+
+def read(scene, layer: str) -> tuple[np.ndarray, float | None]:
+    with rasterio.open(scene.read(layer)) as src:
+        return src.read(), src.nodata
+
+
+def main() -> None:
+    tacoreader.use("pandas")
+    (HERE / "npz").mkdir(exist_ok=True)
+    rows = []
+    for sensor, s in SENSORS.items():
+        dataset = tacoreader.load(f"{ROOT}/{s['collection']}/")
+        ids = list(dataset.data.to_pandas()["id"])
+        for k, patch in enumerate(PATCHES[sensor]):
+            scene = dataset.read(ids.index(patch))
+            target, nodata = read(scene, "target")
+            target = target[s["bands"]]
+            bg = np.stack(
+                [read(scene, name)[0][s["bands"]] for name in s["backgrounds"]]
+            )
+            if bg.dtype != target.dtype:
+                raise ValueError(
+                    f"{patch}: backgrounds are {bg.dtype}, target {target.dtype}"
+                )
+            plume = read(scene, "plume")[0][0] > 0
+            name = f"methane-{sensor}-{k:02d}"
+            np.savez_compressed(
+                HERE / "npz" / f"{name}.npz", target=target, bg=bg, plume=plume
+            )
+            rows.append(
+                {
+                    "id": name,
+                    "sensor": sensor,
+                    "methaneset_id": patch,
+                    "dtype": str(target.dtype),
+                    "nodata": "" if nodata is None else nodata,
+                    "plume_pixels": int(plume.sum()),
+                    "npz_path": f"npz/{name}.npz",
+                }
+            )
+            print(name, target.dtype, nodata, int(plume.sum()), flush=True)
+    with (HERE / "manifest.csv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+if __name__ == "__main__":
+    main()

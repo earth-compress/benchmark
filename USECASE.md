@@ -1,100 +1,141 @@
 # Use cases
 
-A use case runs one analysis on the original samples and on their decoded copies, and reports how its result changes. The bounds in [TOLERANCE.md](TOLERANCE.md) hold element by element, while an analysis can combine elements in ways that amplify the error or hide it ([PROTOCOL.md](PROTOCOL.md), Section 9). Each use case tests one such way.
+A use case runs one analysis on the original samples and on their decoded copies, and reports one metric of how its result changes. The analysis is fitted once on the original and reused on the decoded copy. Every array the analysis reads passes through the codec, and labels never do. The configurations are the near-lossless configurations of [CODECS.md](CODECS.md) at the budgets of [TOLERANCE.md](TOLERANCE.md), or at the bounds a use case states where its corpus has none.
 
-| use case | data | what it tests | status |
-| --- | --- | --- | --- |
-| [Methane plumes](#2-methane-plumes) | MethaneSET, Sentinel-2 and Landsat 8/9 | A signal of a few percent in a ratio of two bands and two dates, close to the noise | draft |
-| Cloud properties | Sentinel-2 L1C, cloudy scenes | Band ratios, parallax between bands, and the texture of convective cells | planned |
-| Change detection | `alphaearth-v1-64` | Distances between the embeddings of two years, for a corpus that is lossless only today | planned |
-| Drainage networks | `cop-dem-glo30` | Flow routing, where a small error in flat terrain can move a divide far away | planned |
+| use case | data | samples | metric |
+| --- | --- | ---: | --- |
+| [Methane plumes](#methane-plumes) | MethaneSET, Sentinel-2 and Landsat 8/9 | 20 | `delta_iou` |
+| [Drainage networks](#drainage-networks) | `cop-dem-glo30` | 10 | `stream_f1` |
+| [Change detection](#change-detection) | `alphaearth-v1-64`, 2017 and 2025 | 6 | `change_iou` |
 
-## 1. Rules
+Each use case keeps its files in `usecases/<use-case>/`. `build.py`, where there is one, downloads the samples once into `npz/`, and `run.py` writes `results.csv` with one row per sample and configuration.
 
-Every use case follows these rules.
-
-1. **The analysis is fixed on the original.** Every value the analysis fits, such as a threshold, a sign or a set of weights, is fitted once on the original sample and reused on the decoded copy. Refitting on the decoded copy would absorb part of the damage.
-2. **Everything the archive holds is compressed.** When the analysis reads several acquisitions, such as a target and its backgrounds, each one passes through the same configuration. Labels and masks used as reference are never compressed.
-3. **The codec receives the product.** Each array starts from the representation of `PROTOCOL.md`, Section 1, on the native grid of its bands. A copy resampled to a finer grid is reduced to the native grid before encoding and resampled again after decoding. Each codec receives an array the size of a corpus sample, 512 × 512 native pixels, that contains the area the analysis reads.
-4. **The configurations and budgets are those of the benchmark.** Near-lossless configurations of `CODECS.md` run at the levels that `TOLERANCE.md` gives the corpus holding the same bands. Lossy configurations run at the same budgets and are read as curves. One lossless configuration runs to confirm that the pipeline reports no change.
-5. **Each outcome is reported on its own.** A use case reports the quantities its users act on, such as a detection rate, a count of false alarms or an emission rate. A single overlap score can add a loss to a gain and show neither.
-6. **Each change is read against noise.** The analysis also runs on the original plus independent Gaussian noise with the `sigma` of `TOLERANCE.md`, rounded to whole stored steps, with a fixed seed. A configuration is within noise for an outcome when its change is no larger than the change from this noise reference, at the median and at the 90th percentile over samples.
-
-Each use case keeps its files in `usecases/<use-case>/`.
-
-```text
-usecases/<use-case>/
-├── build.py         sample selection, rebuild, and exactness assertions
-├── manifest.csv     one row per sample
-├── npz/             samples, stored as in a corpus
-├── analysis.py      the frozen analysis
-└── results.csv      one row per sample and configuration
+```bash
+uv run --with tacoreader --with pandas --with "duckdb<1.5" python usecases/methane/build.py
+uv run python usecases/methane/run.py
+uv run python usecases/drainage/run.py
+uv run python usecases/change-detection/build.py
+uv run python usecases/change-detection/run.py
 ```
 
-## 2. Methane plumes
+## Methane plumes
 
-We ask whether compression changes three things a methane detector reports from Sentinel-2 and Landsat 8/9. These are the part of a plume it detects, the false alarms it raises elsewhere, and the emission rate it estimates.
+Does compression change the plume a methane detector finds in Sentinel-2 and Landsat 8/9?
 
-Methane absorbs strongly inside the second shortwave infrared band (Sentinel-2 B12, Landsat B7) and much less inside the first (B11, B6). A plume lowers the second band relative to the first by a few percent, which for many plumes is close to the noise. The detector divides the two bands, and divides each by a background from other dates, so independent errors in four arrays enter one ratio.
+### Data
 
-### 2.1 Data
+Twenty patches from [MethaneSET](https://huggingface.co/datasets/tacofoundation/methaneset), ten per sensor, the ones chosen in [lossy-plume-test](https://github.com/JulioContrerasH/lossy-plume-test). Each patch is 200 × 200 pixels at 10 m and holds a target, four backgrounds and a plume mask. `build.py` keeps the two shortwave infrared bands.
 
-The samples come from [MethaneSET](https://huggingface.co/datasets/tacofoundation/methaneset), collections `methaneset-s2-finetune` with 3,552 samples and `methaneset-l89-finetune` with 1,353. Each sample is a 2 km chip on a 10 m grid. It holds a target acquisition, four background acquisitions of the same place on other dates, a plume mask, and the wind and emission rate of the detection (`meteo:wind_u`, `meteo:wind_v`, `detection:ch4_fluxrate`, `detection:ch4_fluxrate_std`).
+| sensor | collection | bands | dtype | patches |
+| --- | --- | --- | --- | ---: |
+| Sentinel-2 | `methaneset-s2-finetune` | B11, B12 | uint16 | 10 |
+| Landsat 8/9 | `methaneset-l89-finetune` | B6, B7 | float32 reflectance | 10 |
 
-We draw 30 samples per sensor with a fixed seed, ten from each tercile of `detection:ch4_fluxrate`, among onshore samples (`detection:offshore` false) with a cloud-free target (`target:cloud` equal to 0). The lowest tercile holds the faint plumes, where the signal is closest to the noise.
+The target and each background are compressed as separate arrays of 2 × 200 × 200. The plume mask is never compressed. Landsat uses only `bg0` as background, because `bg1` to `bg3` are stored in DN and the target in reflectance.
 
-MethaneSET repeats pixels to bring every band to 10 m. In Sentinel-2, B11 and B12 come in blocks of 2 × 2 pixels; in Landsat, every band except the panchromatic one comes in blocks of 3 × 3. Landsat samples also mix representations. The target and the first background are float32 reflectance, and the other three backgrounds are uint16 DN.
+### Detector
 
-We therefore rebuild every acquisition from its source product, Sentinel-2 L1C or Landsat Collection 2 Level-1, as uint16 DN on the native grid of 20 m or 30 m. `build.py` finds each product from the sample metadata (`target:tile`, `bg:tile0`, and `bg:sensor*` with `bg:date*`). It checks that the rebuilt Sentinel-2 target, repeated to 10 m, reproduces the MethaneSET target.
+1. The reference `R` is the median of the backgrounds.
+2. The enhancement is `e = (T2 / R2) / (T1 / R1) - 1`, with its sign chosen on the original so that the plume is positive.
+3. The threshold `t` is the 99.5th percentile of `e` outside the mask, and the detection is `D = e > t`.
 
-Only the two shortwave infrared bands enter the analysis. Each acquisition is stored as one 2 × 512 × 512 uint16 array of these bands, centred on the chip, which covers 10.24 km at 20 m and 15.36 km at 30 m.
+The sign and `t` of the original are kept for the decoded copy.
 
-### 2.2 Analysis
+### Budgets
 
-The detector is a ratio form of the multi-band multi-pass method (Varon et al., 2021). It runs in five steps.
+Sentinel-2 uses the budgets of `s2-l1c-20m-6`, which holds B11 and B12. Landsat uses those of `l8-oli-8` converted to reflectance at 2e-5 per DN.
 
-1. Convert each acquisition from DN to reflectance with the scale and offset of its own product. Sentinel-2 products from processing baseline 04.00 onwards carry an offset of -1000 DN (`RADIO_ADD_OFFSET`), and Landsat products give `REFLECTANCE_MULT_BAND_x` and `REFLECTANCE_ADD_BAND_x`. Backgrounds can come from other baselines, so a ratio of raw DN would mix offsets.
-2. Repeat each band to the 10 m grid of the chip, and cut the chip out of the window.
-3. Take the per-pixel median of the four backgrounds, for each band, as the reference `R`.
-4. Compute the enhancement `e = 1 - (T2 / R2) / (T1 / R1)`, where `T` is the target, band 1 is B11 or B6, and band 2 is B12 or B7. A plume makes `e` positive.
-5. Set the threshold `t` to the 99.5th percentile of `e` outside the plume mask `P`, on the original. The detection is `D = e > t`.
+| sensor | conservative | matched | aggressive |
+| --- | ---: | ---: | ---: |
+| Sentinel-2 | 1 DN | 7 DN | 28 DN |
+| Landsat 8/9 | 4e-5 | 2e-4 | 8e-4 |
 
-The threshold and the reference of the original are kept, and steps 1 to 4 and the detection are repeated on the decoded copy. Each sample gives four outcomes.
+### Metric
 
-| outcome | definition |
-| --- | --- |
-| `recall` | `count(D and P) / count(P)`, the part of the plume detected |
-| `false_alarms` | `count(D and not P)`, the detections outside the plume |
-| `ime_ratio` | the sum of `e` over `P` on the decoded copy, divided by the same sum on the original |
-| `flux` | `detection:ch4_fluxrate × ime_ratio` |
+`delta_iou` is the intersection over union of `D` and the plume mask on the decoded copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.57 in Sentinel-2 and 0.55 in Landsat.
 
-The conversion from enhancement to column mass, the wind speed and the plume length are the same for the original and the decoded copy. To first order the emission rate then scales with the enhancement integrated over the mask (Varon et al., 2018), so the decoded rate is the reported rate times `ime_ratio`. Its change is also read against `detection:ch4_fluxrate_std`, the uncertainty the producers report.
+### Results
 
-### 2.3 Budgets
+Median and worst `delta_iou` over the patches and the configurations of each level, 19 in Sentinel-2 and 17 in Landsat.
 
-Sentinel-2 uses the budgets of `s2-l1c-20m-6`, which holds B11 and B12, and Landsat those of `l8-oli-8`, which holds B6 and B7. The noise reference uses the `sigma` of the same corpora, added to the target and to each background. Landsat 9 uses the Landsat 8 values.
+| sensor | conservative | matched | aggressive |
+| --- | ---: | ---: | ---: |
+| Sentinel-2 | 0.000 (-0.009) | -0.002 (-0.022) | -0.053 (-0.301) |
+| Landsat 8/9 | -0.001 (-0.005) | -0.002 (-0.019) | -0.018 (-0.123) |
 
-| sensor | corpus | `sigma` | `conservative` | `matched` | `aggressive` |
-| --- | --- | ---: | ---: | ---: | ---: |
-| Sentinel-2 | `s2-l1c-20m-6` | 7 DN | 1 DN | 7 DN | 28 DN |
-| Landsat 8/9 | `l8-oli-8` | 10 DN | 2 DN | 10 DN | 40 DN |
+Up to `matched` no patch loses more than 0.022 of IoU. At `aggressive` the loss depends on the codec, from none with `zfp-accuracy` to a median of 0.092 with the shared quantiser in Sentinel-2.
 
-### 2.4 Results
+## Drainage networks
 
-`results.csv` has one row per sample and configuration, with `sample_id`, `sensor`, `configuration`, `family`, `tau`, `budget_level`, `recall`, `recall_original`, `false_alarms`, `false_alarms_original`, `ime_ratio`, `flux`, `flux_std` and `fidelity_ok`. The noise reference is a row with configuration `noise`.
+Does compression move the streams that flow routing draws on a DEM?
 
-The summary is given per sensor, budget level and configuration, and again per tercile of emission rate. It reports the median and the 90th percentile over samples of three changes, which are the change in `recall`, the ratio of `false_alarms` to the original, and the relative change in `flux`. Beside them it gives the same values for the noise reference and the fraction of samples whose `flux` changed by more than `flux_std`.
+### Data
 
-A first check, on the ten clearest Sentinel-2 plumes and on the MethaneSET grid, used a uniform quantiser. With a bound of 28 DN, `recall` and `ime_ratio` stayed within 3% of the original while `false_alarms` grew by a factor of 2.4. With 7 DN, `false_alarms` grew by 6%. An overlap score with the original detection fell to 0.72 at 28 DN and could not tell these effects apart.
+Ten samples of `cop-dem-glo30` as stored in the corpus, the first two of each regime (mountain, hill, plain, coastal and desert).
 
-### 2.5 Limits
+### Analysis
 
-- The detector is the classical ratio method. A detector trained on MethaneSET may respond differently, in particular to block artefacts, and can be added as a second analysis under the same rules.
-- The emission rate is scaled from the reported one, not retrieved again. A retrieval that converts enhancement to column mass with radiative transfer is not linear for strong plumes.
-- The plume mask is fixed, so a codec that widens a plume beyond the mask shows as false alarms rather than as a larger plume.
-- Two bands enter the analysis, so a codec that exploits the correlation across all bands of a sensor is measured on two of them.
+1. A priority flood from the edges of the sample reaches every cell from the lowest cell around it, and each cell drains to the cell that reached it. Pits and flats drain too, flats in the order the flood reaches them.
+2. The upstream count of a cell is the number of cells that drain through it.
+3. A cell with 1000 or more upstream cells, under 1 km², is a stream.
 
-## References
+### Budgets
 
-- Varon, D. J., et al. (2018). Quantifying methane point sources from fine-scale satellite observations of atmospheric methane plumes. *Atmos. Meas. Tech.*, 11, 5673–5686.
-- Varon, D. J., et al. (2021). High-frequency monitoring of anomalous methane point sources with multispectral Sentinel-2 satellite observations. *Atmos. Meas. Tech.*, 14, 2771–2785.
+The levels of `cop-dem-glo30`, 0.25 m, 1 m and 4 m.
+
+### Metric
+
+`stream_f1` is the F1 score of the decoded stream network against the original one, where a stream cell matches when the other network passes within one cell. It is 1 when the two networks agree.
+
+### Results
+
+Median and worst `stream_f1` over the two samples of each regime and 17 configurations.
+
+| regime | conservative | matched | aggressive |
+| --- | ---: | ---: | ---: |
+| mountain | 0.97 (0.96) | 0.93 (0.90) | 0.79 (0.76) |
+| hill | 0.99 (0.98) | 0.96 (0.96) | 0.91 (0.86) |
+| plain | 0.86 (0.43) | 0.65 (0.24) | 0.27 (0.09) |
+| coastal | 0.76 (0.50) | 0.66 (0.34) | 0.50 (0.15) |
+| desert | 0.89 (0.79) | 0.64 (0.60) | 0.36 (0.32) |
+
+The network holds in relief and moves in flat terrain, where a bound of 0.25 m already brings the Pampas sample to 0.43.
+
+## Change detection
+
+Does compression change where AlphaEarth embeddings show change between 2017 and 2025?
+
+### Data
+
+The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 with NoData at -128, and both years are compressed.
+
+The use case keeps the six samples whose original change map covers at least 0.5% of the sample. With less change, a single changed pixel on the decoded copy moves the IoU between 1 and 0.
+
+### Analysis
+
+1. Each year is dequantised as `(v / 127.5)² · sign(v)`.
+2. The similarity of a pixel is the cosine between its two embeddings.
+3. A pixel has changed when its similarity is below 0.8. A pixel with NoData in either year has not changed.
+
+### Budgets
+
+`alphaearth-v1-64` has no budget in `TOLERANCE.md`. The use case runs bounds of 1, 4 and 16 int8 codes, so its result is what such a budget would rest on.
+
+### Metric
+
+`change_iou` is the intersection over union of the decoded change map and the original one. It is 1 when the two maps agree.
+
+### Results
+
+Median and worst `change_iou` over the 17 configurations of each bound.
+
+| site | changed area | 1 code | 4 codes | 16 codes |
+| --- | ---: | ---: | ---: | ---: |
+| tokyo | 1.1% | 0.98 (0.97) | 0.89 (0.87) | 0.30 (0.27) |
+| lagos | 2.6% | 0.97 (0.96) | 0.86 (0.82) | 0.15 (0.13) |
+| iowa | 8.3% | 0.99 (0.99) | 0.96 (0.95) | 0.51 (0.46) |
+| pampas | 5.8% | 0.95 (0.92) | 0.76 (0.74) | 0.13 (0.09) |
+| namib | 0.6% | 0.93 (0.91) | 0.71 (0.64) | 0.02 (0.02) |
+| wadden | 1.7% | 0.98 (0.97) | 0.92 (0.90) | 0.47 (0.43) |
+
+A bound of one code keeps every change map above 0.90. At 16 codes the result depends on the codec, from a median of 0.97 with `zfp-accuracy` to 0.20 with the shared quantiser.

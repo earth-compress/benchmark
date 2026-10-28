@@ -222,6 +222,9 @@ __marimo__/
 # Corpus samples and previews are published on Hugging Face, not in git
 corpora/*/npz/
 corpora/*/png/
+
+# Use case samples are rebuilt by their build.py
+usecases/*/npz/
 website/dist/
 website/dist.next/
 website/dist.old/

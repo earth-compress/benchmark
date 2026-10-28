@@ -1,0 +1,16 @@
+id,site,year,asset,npz_path
+alphaearth-v1-64-00,tokyo,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/54N/x5dtrn9g45in72gn3-0000000000-0000000000.tiff,npz/alphaearth-v1-64-00.npz
+alphaearth-v1-64-01,lagos,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/31N/xquwx0p47odb39cnu-0000000000-0000000000.tiff,npz/alphaearth-v1-64-01.npz
+alphaearth-v1-64-02,lima,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/18S/xpsuasca8qe7abn4n-0000008192-0000008192.tiff,npz/alphaearth-v1-64-02.npz
+alphaearth-v1-64-03,iowa,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/15N/xd228gjlxlsduv4mk-0000000000-0000008192.tiff,npz/alphaearth-v1-64-03.npz
+alphaearth-v1-64-04,punjab,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/43N/xz071ohwwlfltv60t-0000008192-0000000000.tiff,npz/alphaearth-v1-64-04.npz
+alphaearth-v1-64-05,pampas,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/20S/xkl4h4rxrc3iplqgs-0000000000-0000008192.tiff,npz/alphaearth-v1-64-05.npz
+alphaearth-v1-64-06,borneo,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/49N/xdxvn4k6txfrq7unp-0000000000-0000008192.tiff,npz/alphaearth-v1-64-06.npz
+alphaearth-v1-64-07,congo,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/34N/xkq8pw8yztmrw91sw-0000000000-0000000000.tiff,npz/alphaearth-v1-64-07.npz
+alphaearth-v1-64-08,siberia-taiga,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/46N/xiuv70701xh7kuhee-0000008192-0000008192.tiff,npz/alphaearth-v1-64-08.npz
+alphaearth-v1-64-09,sahara,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/31N/xtpk5kte65ca9u2hh-0000008192-0000000000.tiff,npz/alphaearth-v1-64-09.npz
+alphaearth-v1-64-10,atacama,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/19S/xk06zqrbcwhw5jn95-0000008192-0000008192.tiff,npz/alphaearth-v1-64-10.npz
+alphaearth-v1-64-11,namib,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/33S/x7inbzr98649sakgz-0000000000-0000000000.tiff,npz/alphaearth-v1-64-11.npz
+alphaearth-v1-64-12,wadden,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/31N/xbwhglqin7x5h8m88-0000000000-0000008192.tiff,npz/alphaearth-v1-64-12.npz
+alphaearth-v1-64-13,bahama-bank,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/18N/xt93f4twd7xdhpzy8-0000000000-0000000000.tiff,npz/alphaearth-v1-64-13.npz
+alphaearth-v1-64-14,baikal,2017,https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual/2017/48N/x4158u6pyb056qnbp-0000008192-0000000000.tiff,npz/alphaearth-v1-64-14.npz
