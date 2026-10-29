@@ -15,10 +15,8 @@ from earthcompress.spec import ArraySpec
 from earthcompress.usecase import compress, fetch, iou, run
 
 HERE = Path(__file__).resolve().parent
-UNIT = {"s2": 1.0, "l89": 2e-5}
-"""Value of one DN of Sentinel-2 L1C or Landsat Collection 2 in the stored unit."""
 RMS = (1, 2, 4, 8, 16, 32, 64)
-"""Root-mean-square errors of the sweep, in DN."""
+"""Root-mean-square errors of the sweep, in DN, the stored unit of every patch."""
 
 
 def makers():
@@ -104,11 +102,10 @@ def task(row: dict[str, str]) -> list[dict]:
     detections(e, plume, original).save(figures / "original.png", optimize=True)
 
     spec = ArraySpec(target.shape, target.dtype)
-    unit = UNIT[row["sensor"]]
     rows = []
     for make in makers():
         for dn in RMS:
-            config = make(Budget(tau=dn * unit))
+            config = make(Budget(tau=dn))
             if not config.supports(spec):
                 continue
             decoded, size = compress(config, target, spec)
@@ -129,7 +126,7 @@ def task(row: dict[str, str]) -> list[dict]:
                     "configuration": config.id,
                     "codec": config.id.split("-tau")[0],
                     "rms_bound_dn": dn,
-                    "rmse_dn": np.sqrt(squared / (target.size + bg.size)) / unit,
+                    "rmse_dn": np.sqrt(squared / (target.size + bg.size)),
                     "compression_ratio": (target.nbytes + bg.nbytes) / size,
                     "delta_iou": iou(detection, plume) - before,
                 }

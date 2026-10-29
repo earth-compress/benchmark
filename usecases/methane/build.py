@@ -61,6 +61,15 @@ def read(scene, layer: str) -> tuple[np.ndarray, float | None]:
         return src.read(), src.nodata
 
 
+REFLECTANCE = 2e-5
+"""Reflectance of one DN of Landsat Collection 2, as in l8-oli-8."""
+
+
+def dn(reflectance: np.ndarray) -> np.ndarray:
+    codes = np.rint(reflectance.astype(np.float64) / REFLECTANCE)
+    return np.clip(codes, 0, np.iinfo(np.uint16).max).astype(np.uint16)
+
+
 def main() -> None:
     tacoreader.use("pandas")
     (HERE / "npz").mkdir(exist_ok=True)
@@ -79,6 +88,10 @@ def main() -> None:
                 raise ValueError(
                     f"{patch}: backgrounds are {bg.dtype}, target {target.dtype}"
                 )
+            if target.dtype.kind == "f":
+                # Landsat reflectance as uint16 DN, which moves no value by more
+                # than half a DN.
+                target, bg, nodata = dn(target), dn(bg), None
             plume = read(scene, "plume")[0][0] > 0
             name = f"methane-{sensor}-{k:02d}"
             np.savez_compressed(

@@ -519,8 +519,8 @@ USECASES = (
         "codecs": (
             "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
             "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
-            "searches its distance on each array. It takes integers only, so it runs on "
-            "Sentinel-2, and where no distance keeps the bound it falls back to lossless."
+            "searches its distance on each array, and where no distance keeps the bound "
+            "it falls back to lossless."
         ),
     },
     {
