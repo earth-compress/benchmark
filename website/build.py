@@ -867,7 +867,7 @@ def results_pages(case: dict, lead: str, about: str) -> str:
     path = ROOT / "usecases" / folder / "results.csv"
     if not path.exists():
         return f"""{header}
-<section class="results"><h2>Results</h2><p class="note">There are no results yet.</p></section>"""
+<section class="results"><h2>Results</h2><p class="note">Coming soon.</p></section>"""
     group, short = case["group"], case["short"]
     top = 0.0 if metric.startswith("delta") else 1.0
     with path.open(newline="") as stream:

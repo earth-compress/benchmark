@@ -110,7 +110,7 @@ Does compression change the clouds that Clouds Decoded finds in Sentinel-2?
 
 ### Experiment
 
-We take 100 Sentinel-2 Level-1C products of one tile in the Bay of Bengal, sensed between 2017 and 2026. They were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and again on each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. There are no results yet.
+We take 100 Sentinel-2 Level-1C products of one tile in the Bay of Bengal, sensed between 2017 and 2026. They were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and again on each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. Results are coming soon.
 
 ### Data
 
