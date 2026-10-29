@@ -166,9 +166,7 @@ table.numbers td:first-child { white-space: nowrap; }
 .button.primary:hover { background: var(--ink); border-color: var(--ink); }
 .experiment ul { padding-left: 18px; margin: 0; }
 .experiment li { margin: 8px 0; }
-.materials .meta-table { max-width: 780px; }
 .materials h3 { margin: 24px 0 8px; }
-.sample .materials h2 { font-size: 21px; margin: 32px 0 6px; }
 .materials pre { max-width: 780px; background: var(--tint); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
 .results .doc { padding: 16px 0 0; }
 
@@ -184,6 +182,8 @@ footer p { margin: 0 0 8px; }
   .soon { display: none; }
   .chart .label { font-size: 11px; }
   .sample { grid-template-columns: 1fr; gap: 16px; }
+  .sample.usecase { grid-template-columns: 1fr; }
+  .usecase .pic { flex: none; aspect-ratio: 1; }
   .spec { grid-template-columns: 1fr; }
   h1 { font-size: 22px; }
   .home-intro h1 { font-size: 22px; }
@@ -200,3 +200,13 @@ footer p { margin: 0 0 8px; }
 .chart .point.active circle:not(.hit) { r: 7; }
 .chart .reference.active text { font-size: 13px; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 4px; }
 .chart svg.ready .point, .chart svg.ready .reference, .chart svg.ready .pareto { transition: opacity 0.15s ease; transition-delay: 0s; }
+.sample.usecase { align-items: stretch; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+.usecase .figure { display: flex; flex-direction: column; }
+.usecase .pic { flex: 1; min-height: 240px; border-radius: 6px; background: var(--tint) center / cover no-repeat; }
+.usecase .figure .note { margin: 6px 0 0; }
+.sample.usecase { padding: 18px 0 0; margin-top: 10px; }
+.usecase .experiment p { margin: 0 0 10px; }
+.usecase .materials h3 { margin: 14px 0 6px; }
+.usecase .materials pre { margin: 0 0 6px; }
+.usecase .materials .note { margin: 0; }
+.usecase .button.primary { margin-top: 8px; }

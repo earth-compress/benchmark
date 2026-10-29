@@ -503,19 +503,12 @@ def build() -> None:
 
 # Use cases
 
-HF_TREE = f"https://huggingface.co/datasets/{HF_DATASET}/tree/main"
 USECASES = (
     {
         "title": "Methane plumes",
         "folder": "methane",
         "metric": "delta_iou",
         "caption": "The enhancement of methane-s2-05, with its plume mask outlined.",
-        "samples": [("20 patches on Hugging Face", f"{HF_TREE}/usecases/methane/npz")],
-        "source": (
-            "MethaneSET",
-            "https://huggingface.co/datasets/tacofoundation/methaneset",
-        ),
-        "licence": "CC BY-NC-SA 4.0, as MethaneSET",
         "codecs": (
             "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
             "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
@@ -529,21 +522,12 @@ USECASES = (
         "folder": "drainage",
         "metric": "stream_f1",
         "caption": "The relief of cop-dem-glo30-00 with its stream network.",
-        "samples": [("10 samples of cop-dem-glo30", "datasets/cop-dem-glo30/")],
     },
     {
         "title": "Change detection",
         "folder": "change-detection",
         "metric": "change_iou",
         "caption": "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
-        "samples": [
-            ("2025, the samples of alphaearth-v1-64", "datasets/alphaearth-v1-64/"),
-            (
-                "2017, the same windows on Hugging Face",
-                f"{HF_TREE}/usecases/change-detection/npz",
-            ),
-        ],
-        "licence": "CC BY 4.0, AlphaEarth Foundations by Google and Google DeepMind",
     },
 )
 SENSORS = {"s2": "Sentinel-2", "l89": "Landsat 8/9"}
@@ -711,32 +695,9 @@ def results_block(folder: str, metric: str, extra: str) -> tuple[str, int]:
     return block, len({r["id"] for r in rows})
 
 
-def materials(case: dict, root: str) -> str:
-    """Where the samples and the code of a use case are, and how to run it."""
-    folder = case["folder"]
-
-    def link(text: str, url: str) -> str:
-        href = url if url.startswith("http") else root + url
-        return f'<a href="{href}">{html.escape(text)}</a>'
-
-    rows = [("samples", "<br>".join(link(t, u) for t, u in case["samples"]))]
-    if "source" in case:
-        rows.append(("built from", link(*case["source"])))
-    anchor = case["title"].lower().replace(" ", "-")
-    rows += [
-        ("code", link(f"usecases/{folder}", f"{REPO}/tree/main/usecases/{folder}")),
-        (
-            "results",
-            link("results.csv", f"{REPO}/blob/main/usecases/{folder}/results.csv"),
-        ),
-        ("description", link("USECASE.md", f"{REPO}/blob/main/USECASE.md#{anchor}")),
-    ]
-    if "licence" in case:
-        rows.append(("licence", html.escape(case["licence"])))
-    table = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
-    return f"""<div class="materials"><h2>Materials</h2>
-<table class="meta-table">{table}</table>
-<h3>Run it</h3>
+def run_it(folder: str) -> str:
+    """How to run a use case."""
+    return f"""<div class="materials"><h3>Run it</h3>
 <pre><code>git clone {REPO}
 cd benchmark
 uv run python usecases/{folder}/run.py</code></pre>
@@ -1000,18 +961,21 @@ def usecases() -> None:
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
         large = resized(source, f"img/usecases/{folder}-large.webp", LARGE, False)
+        # The picture fills the height of the text beside it, so both columns end
+        # together.
         figure = (
-            f'<img src="../../{large}" alt="{html.escape(case["caption"])}">'
+            f'<div class="pic" role="img" aria-label="{html.escape(case["caption"])}" '
+            f"style=\"background-image: url('../../{large}')\"></div>"
             if large
             else '<div class="noimg"></div>'
         )
         body = f"""{crumbs("../../", ("Use cases", "usecases/"), (title, None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
-<div class="sample">
+<div class="sample usecase">
 <div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
-{materials(case, "../../")}
+{run_it(folder)}
 <p><a class="button primary" href="results/">Results</a></p></div>
 </div>"""
         target = OUT / "usecases" / folder / "index.html"
