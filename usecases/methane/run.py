@@ -9,28 +9,24 @@ from pathlib import Path
 
 import numpy as np
 
-from earthcompress.codecs import fixed, jpegxl, quantize
 from earthcompress.contract import Budget
 from earthcompress.spec import ArraySpec
-from earthcompress.usecase import compress, fetch, iou, run
+from earthcompress.usecase import (
+    compress,
+    enlarged,
+    fetch,
+    iou,
+    lossy_codecs,
+    overlay,
+    run,
+    shade,
+)
 
 HERE = Path(__file__).resolve().parent
 RMS = (1, 2, 4, 8, 16, 32, 64)
 """Root-mean-square errors of the sweep, in 1e-4 of reflectance in both sensors."""
 REFLECTANCE = {"s2": 1e-4, "l89": 2e-5}
 """Reflectance of one stored DN, in Sentinel-2 L1C and in Landsat Collection 2."""
-
-
-def makers():
-    """GeoZL with PIVCO and with PFOR behind the lossy quantiser, and JPEG XL with
-    its distance searched, all holding the root-mean-square error of each array
-    within tau."""
-    lossless = {c.id: c for c in fixed()}
-    return (
-        quantize.rms_family(lossless["geozl-med-pivco"]),
-        quantize.rms_family(lossless["geozl-planar-pfor"]),
-        jpegxl.distance,
-    )
 
 
 def enhancement(target: np.ndarray, bg: np.ndarray, sign: float = 1.0) -> np.ndarray:
@@ -60,19 +56,6 @@ def outline(mask: np.ndarray) -> np.ndarray:
     return mask & ~inside
 
 
-def enlarged(image: np.ndarray):
-    """``image`` with every pixel repeated to about 600 pixels across."""
-    from PIL import Image
-
-    factor = max(1, 600 // max(image.shape[:2]))
-    return Image.fromarray(image).resize(
-        (image.shape[1] * factor, image.shape[0] * factor), Image.NEAREST
-    )
-
-
-KEPT, LOST, NEW = (245, 158, 11), (56, 189, 248), (244, 63, 94)
-
-
 def detections(
     e: np.ndarray,
     plume: np.ndarray,
@@ -84,16 +67,12 @@ def detections(
     With a decoded detection, pixels detected on both are orange, pixels the
     decoded copy loses are blue, and pixels it adds are red.
     """
-
-    low, high = np.nanpercentile(e, (2, 99.5))
-    grey = np.nan_to_num(np.clip((e - low) / (high - low), 0, 1))
-    image = np.repeat((40 + 150 * grey).astype(np.uint8)[..., None], 3, axis=2)
     if decoded is None:
-        image[original] = KEPT
+        image = overlay(shade(e), original)
     else:
-        image[original & decoded] = KEPT
-        image[original & ~decoded] = LOST
-        image[~original & decoded] = NEW
+        image = overlay(
+            shade(e), original & decoded, original & ~decoded, ~original & decoded
+        )
     image[outline(plume)] = 255
     return enlarged(image)
 
@@ -115,7 +94,7 @@ def task(row: dict[str, str]) -> list[dict]:
     spec = ArraySpec(target.shape, target.dtype)
     per_dn = REFLECTANCE[row["sensor"]] / 1e-4
     rows = []
-    for make in makers():
+    for make in lossy_codecs():
         for bound in RMS:
             config = make(Budget(tau=bound / per_dn))
             if not config.supports(spec):

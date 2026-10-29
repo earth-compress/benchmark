@@ -63,6 +63,56 @@ def roundtrip(
     return compress(config, array, spec)[0]
 
 
+def lossy_codecs() -> tuple[Callable[[Budget], CodecConfiguration], ...]:
+    """GeoZL with PIVCO and with PFOR behind the lossy quantiser, and JPEG XL with
+    its distance searched, all holding the root-mean-square error of each array
+    within tau."""
+    from .codecs import fixed, jpegxl, quantize
+
+    lossless = {c.id: c for c in fixed()}
+    return (
+        quantize.rms_family(lossless["geozl-med-pivco"]),
+        quantize.rms_family(lossless["geozl-planar-pfor"]),
+        jpegxl.distance,
+    )
+
+
+KEPT, LOST, NEW = (245, 158, 11), (56, 189, 248), (244, 63, 94)
+"""Orange for what both maps hold, blue for what the decoded map loses, red for
+what it adds."""
+
+
+def shade(values: np.ndarray) -> np.ndarray:
+    """``values`` as dark grey RGB, stretched between their 2nd and 99.5th percentiles."""
+    low, high = np.nanpercentile(values, (2, 99.5))
+    scaled = np.nan_to_num(np.clip((values - low) / max(high - low, 1e-12), 0, 1))
+    return np.repeat((40 + 150 * scaled).astype(np.uint8)[..., None], 3, axis=2)
+
+
+def overlay(
+    image: np.ndarray,
+    kept: np.ndarray,
+    lost: np.ndarray | None = None,
+    new: np.ndarray | None = None,
+) -> np.ndarray:
+    """``image`` with ``kept`` pixels in orange, ``lost`` in blue and ``new`` in red."""
+    out = image.copy()
+    for mask, colour in ((lost, LOST), (new, NEW), (kept, KEPT)):
+        if mask is not None:
+            out[mask] = colour
+    return out
+
+
+def enlarged(image: np.ndarray):
+    """``image`` as a PIL image, every pixel repeated to about 600 pixels across."""
+    from PIL import Image
+
+    factor = max(1, 600 // max(image.shape[:2]))
+    return Image.fromarray(image).resize(
+        (image.shape[1] * factor, image.shape[0] * factor), Image.NEAREST
+    )
+
+
 def iou(a: np.ndarray, b: np.ndarray) -> float:
     """Intersection over union of two masks, 1 when both are empty."""
     union = np.count_nonzero(a | b)

@@ -57,11 +57,11 @@ Does compression move the streams that flow routing draws on a DEM?
 
 ### Experiment
 
-The experiment takes 10 DEMs of the corpus `cop-dem-glo30`, two from each regime, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/cop-dem-glo30/npz) with the rest of the corpus. Every codec compresses the DEM, and flow routing draws the stream network of the original and of the decoded copy, where a stream is every cell with 1000 or more cells upstream. The result is `stream_f1`, how well the decoded network matches the original one within one cell.
+The experiment takes 10 DEMs of the corpus `cop-dem-glo30`, two from each regime, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/cop-dem-glo30/npz) with the rest of the corpus. Flow routing draws the stream network of the original DEM and then runs again on each compressed copy. The result is `stream_f1`, how well the compressed network matches the original one within one cell.
 
 ### Data
 
-Ten samples of `cop-dem-glo30` as stored in the corpus, the first two of each regime (mountain, hill, plain, coastal and desert).
+Ten samples of `cop-dem-glo30`, the first two of each regime (mountain, hill, plain, coastal and desert), each 512 × 512 cells of 1 arcsecond. The corpus stores heights as float32 metres, and `run.py` stores each DEM as uint16 decimetres above its lowest whole metre, which JPEG XL takes and which moves no height by more than 5 cm. The analysis runs on these decimetres, on the original and on every compressed copy.
 
 ### Analysis
 
@@ -69,27 +69,13 @@ Ten samples of `cop-dem-glo30` as stored in the corpus, the first two of each re
 2. The upstream count of a cell is the number of cells that drain through it.
 3. A cell with 1000 or more upstream cells, under 1 km², is a stream.
 
-### Budgets
+### Compression
 
-The levels of `cop-dem-glo30`, 0.25 m, 1 m and 4 m.
+GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the DEM. The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 0.1 to 6.4 m and double at each step. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches the largest distance within the bound, and stores the array losslessly when no distance keeps it. In flat terrain its largest distance already keeps the larger bounds, so it flattens the DEM and those bounds share one point.
 
 ### Metric
 
-`stream_f1` is the F1 score of the decoded stream network against the original one, where a stream cell matches when the other network passes within one cell. It is 1 when the two networks agree.
-
-### Results
-
-Median and worst `stream_f1` over the two samples of each regime and 17 configurations.
-
-| regime | conservative | matched | aggressive |
-| --- | ---: | ---: | ---: |
-| mountain | 0.97 (0.96) | 0.93 (0.90) | 0.79 (0.76) |
-| hill | 0.99 (0.98) | 0.96 (0.96) | 0.91 (0.86) |
-| plain | 0.86 (0.43) | 0.65 (0.24) | 0.27 (0.09) |
-| coastal | 0.76 (0.50) | 0.66 (0.34) | 0.50 (0.15) |
-| desert | 0.89 (0.79) | 0.64 (0.60) | 0.36 (0.32) |
-
-The network holds in relief and moves in flat terrain, where a bound of 0.25 m already brings the Pampas sample to 0.43.
+`stream_f1` is the F1 score of the compressed stream network against the original one. Its precision is the share of compressed stream cells within one cell of an original stream, its recall the share of original stream cells within one cell of a compressed stream. It is 1 when the two networks agree.
 
 ## Change detection
 
@@ -97,39 +83,24 @@ Does compression change where AlphaEarth embeddings show change between 2017 and
 
 ### Experiment
 
-The experiment takes 6 AlphaEarth windows where the land changed between 2017 and 2025. The 2025 embeddings are samples of the corpus `alphaearth-v1-64`, and the 2017 ones are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/change-detection/npz) next to them. Every codec compresses both years, and a pixel counts as changed when the cosine similarity of its two years is below 0.8, on the original and on the decoded copy. The result is `change_iou`, the overlap of the decoded change map with the original one.
+The experiment takes 6 AlphaEarth windows where the land changed between 2017 and 2025. The 2025 embeddings are samples of the corpus `alphaearth-v1-64`, and the 2017 ones are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/change-detection/npz) next to them. The change map of the original runs again on each compressed copy of both years. The result is `change_iou`, the overlap of the compressed change map with the original one.
 
 ### Data
 
-The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 with NoData at -128, and both years are compressed. The 2017 windows keep the CC BY 4.0 licence of the AlphaEarth Foundations Satellite Embedding dataset, produced by Google and Google DeepMind.
+The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 at 10 m with NoData at -128. `run.py` adds 128 to every code to store it as uint8, which JPEG XL takes, so no value changes and NoData becomes 0. The 2017 windows keep the CC BY 4.0 licence of the AlphaEarth Foundations Satellite Embedding dataset, produced by Google and Google DeepMind.
 
-The use case keeps the six samples whose original change map covers at least 0.5% of the sample. With less change, a single changed pixel on the decoded copy moves the IoU between 1 and 0.
+The use case keeps the six samples whose original change map covers at least 0.5% of the sample. With less change, a single changed pixel on the compressed copy moves the IoU between 1 and 0.
 
 ### Analysis
 
-1. Each year is dequantised as `(v / 127.5)² · sign(v)`.
+1. Each year is dequantised as `(v / 127.5)² · sign(v)`, with `v` the int8 code.
 2. The similarity of a pixel is the cosine between its two embeddings.
 3. A pixel has changed when its similarity is below 0.8. A pixel with NoData in either year has not changed.
 
-### Budgets
+### Compression
 
-`alphaearth-v1-64` has no budget in `TOLERANCE.md`. The use case runs bounds of 1, 4 and 16 int8 codes, so its result is what such a budget would rest on.
+GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the embeddings of both years. The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 1 to 16 codes of the quantised embedding and double at each step. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array, and stores the array losslessly when no distance keeps the bound.
 
 ### Metric
 
-`change_iou` is the intersection over union of the decoded change map and the original one. It is 1 when the two maps agree.
-
-### Results
-
-Median and worst `change_iou` over the 17 configurations of each bound.
-
-| site | changed area | 1 code | 4 codes | 16 codes |
-| --- | ---: | ---: | ---: | ---: |
-| tokyo | 1.1% | 0.98 (0.97) | 0.89 (0.87) | 0.30 (0.27) |
-| lagos | 2.6% | 0.97 (0.96) | 0.86 (0.82) | 0.15 (0.13) |
-| iowa | 8.3% | 0.99 (0.99) | 0.96 (0.95) | 0.51 (0.46) |
-| pampas | 5.8% | 0.95 (0.92) | 0.76 (0.74) | 0.13 (0.09) |
-| namib | 0.6% | 0.93 (0.91) | 0.71 (0.64) | 0.02 (0.02) |
-| wadden | 1.7% | 0.98 (0.97) | 0.92 (0.90) | 0.47 (0.43) |
-
-A bound of one code keeps every change map above 0.90. At 16 codes the result depends on the codec, from a median of 0.97 with `zfp-accuracy` to 0.20 with the shared quantiser.
+`change_iou` is the intersection over union of the compressed change map and the original one. It is 1 when the two maps agree.

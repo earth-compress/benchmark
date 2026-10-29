@@ -1,0 +1,11 @@
+id,site,regime,shape,dtype,base_m
+cop-dem-glo30-00,mont-blanc,mountain,512x512,uint16,944
+cop-dem-glo30-01,khumbu,mountain,512x512,uint16,3740
+cop-dem-glo30-10,smokies,hill,512x512,uint16,381
+cop-dem-glo30-11,schwarzwald,hill,512x512,uint16,234
+cop-dem-glo30-20,iowa,plain,512x512,uint16,306
+cop-dem-glo30-21,pampas,plain,512x512,uint16,87
+cop-dem-glo30-30,mekong,coastal,512x512,uint16,-4
+cop-dem-glo30-31,sundarbans,coastal,512x512,uint16,-1
+cop-dem-glo30-40,tademait,desert,512x512,uint16,452
+cop-dem-glo30-41,rub-al-khali,desert,512x512,uint16,215

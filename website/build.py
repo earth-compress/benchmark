@@ -503,302 +503,6 @@ def build() -> None:
 
 # Use cases
 
-USECASES = (
-    {
-        "title": "Methane plumes",
-        "folder": "methane",
-        "metric": "delta_iou",
-        "caption": "The enhancement of methane-s2-05, with its plume mask outlined.",
-    },
-    {
-        "title": "Drainage networks",
-        "folder": "drainage",
-        "metric": "stream_f1",
-        "caption": "The relief of cop-dem-glo30-00 with its stream network.",
-    },
-    {
-        "title": "Change detection",
-        "folder": "change-detection",
-        "metric": "change_iou",
-        "caption": "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
-    },
-)
-SENSORS = {"s2": "Sentinel-2", "l89": "Landsat 8/9"}
-LINES = {
-    "geozl-med-entropy-linear": "#2e8c8c",
-    "jpegls-near": "#d0892a",
-    "lerc": "#6d87a3",
-    "sz3-abs": "#7a68c2",
-    "zfp-accuracy": "#c4557a",
-    "sperr-pwe": "#5d9a3c",
-    "quantizer": "#143031",
-    "safeguards": "#8aa09f",
-}
-
-
-def linked(text: str, root: str) -> str:
-    """Links to other documents of the repository pointed at their pages."""
-    for other, slug in PAGES.items():
-        text = text.replace(f'href="{other}"', f'href="{root}{slug}/"')
-        text = text.replace(
-            f"<code>{other}</code>", f'<a href="{root}{slug}/"><code>{other}</code></a>'
-        )
-    return text
-
-
-def lines_of(rows: list[dict[str, str]], metric: str, level) -> dict[str, dict]:
-    """The metric of each line by sample and level.
-
-    The quantiser backends decode the same array and share one line. A
-    safeguarded configuration gets a line of its own only where it changes the
-    result by more than 0.001.
-    """
-    raw: dict[str, dict] = {}
-    for r in rows:
-        name = r["configuration"].rsplit("-", 1)[0]
-        raw.setdefault(name, {})[(r["id"], level(r))] = float(r[metric])
-    lines: dict[str, dict] = {}
-    for name, values in raw.items():
-        label = "quantizer" if name.startswith("quant-") else name
-        label = "safeguards" if name == "sg-zero" else label
-        base = raw.get(label[3:], {}) if label.startswith("sg-") else {}
-        if base.keys() == values.keys() and all(
-            abs(values[k] - base[k]) <= 1e-3 for k in values
-        ):
-            continue
-        if lines.get(label, values) != values:
-            label = name
-        lines.setdefault(label, values)
-    return lines
-
-
-def ticks(low: float, high: float) -> list[float]:
-    span = high - low
-    step = (
-        0.02 if span <= 0.12 else 0.05 if span <= 0.3 else 0.1 if span <= 0.6 else 0.2
-    )
-    count = round(span / step)
-    return [round(low + k * step, 6) for k in range(count + 1)]
-
-
-def panel(title: str, labels: list[str], series: dict[str, list], low, high) -> str:
-    """Medians of each line against the error bound, as an inline SVG."""
-    w, h, left, right, top, bottom = 360, 240, 46, 16, 34, 30
-
-    def x(i: int) -> float:
-        return left + (i + 0.5) * (w - left - right) / len(labels)
-
-    def y(v: float) -> float:
-        v = min(max(v, low), high)
-        return top + (high - v) / (high - low) * (h - top - bottom)
-
-    out = [f'<text class="title" x="{left}" y="18">{html.escape(title)}</text>']
-    for v in ticks(low, high):
-        out.append(
-            f'<line class="rule" x1="{left}" x2="{w - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
-            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.2f}</text>'
-        )
-    for i, label in enumerate(labels):
-        out.append(
-            f'<text class="tick" x="{x(i):.1f}" y="{h - 8}" text-anchor="middle">{html.escape(label)}</text>'
-        )
-    for name, values in series.items():
-        colour = LINES.get(name.removeprefix("sg-"), LINES["safeguards"])
-        dashed = ' class="dashed"' if name.startswith("sg-") else ""
-        points = [(i, v) for i, v in enumerate(values) if v is not None]
-        dots = "".join(
-            f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="3.5">'
-            f"<title>{html.escape(name)} · {html.escape(labels[i])} · {v:.3f}</title></circle>"
-            for i, v in points
-        )
-        path = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in points)
-        out.append(
-            f'<g style="--c:{colour}"><polyline{dashed} points="{path}"/>{dots}</g>'
-        )
-    return (
-        f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
-        f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
-    )
-
-
-def results_block(folder: str, metric: str, extra: str) -> tuple[str, int]:
-    """The panels of one use case followed by ``extra``, and its number of samples."""
-    with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
-        rows = list(csv.DictReader(stream))
-    regimes = {
-        s["id"]: s["regime"] for s in manifest(ROOT / "corpora" / "cop-dem-glo30")
-    }
-
-    def group(r: dict[str, str]) -> str:
-        if "sensor" in r:
-            return SENSORS[r["sensor"]]
-        return regimes.get(r["id"], "All samples")
-
-    def level(r: dict[str, str]) -> str:
-        if r.get("budget_level"):
-            return r["budget_level"]
-        codes = float(r["tau"])
-        return f"{codes:g} code" + ("" if codes == 1 else "s")
-
-    tau = {}
-    for r in rows:
-        tau[level(r)] = min(tau.get(level(r), float("inf")), float(r["tau"]))
-    labels = sorted(tau, key=tau.get)
-    lines = lines_of(rows, metric, level)
-    groups = list(dict.fromkeys(group(r) for r in rows))
-    members = {g: {r["id"] for r in rows if group(r) == g} for g in groups}
-
-    medians: dict[str, dict[str, list]] = {}
-    for g in groups:
-        for name, values in lines.items():
-            column = []
-            for label in labels:
-                found = [
-                    v
-                    for (i, lv), v in values.items()
-                    if lv == label and i in members[g]
-                ]
-                column.append(statistics.median(found) if found else None)
-            if any(v is not None for v in column):
-                medians.setdefault(g, {})[name] = column
-    found = [
-        v for g in medians.values() for c in g.values() for v in c if v is not None
-    ]
-    high = 0.0 if metric.startswith("delta") else 1.0
-    step = ticks(min(found), high)[1] - ticks(min(found), high)[0]
-    low = min(math.floor(min(found) / step) * step, high - step)
-    present = list(dict.fromkeys(n for g in medians.values() for n in g))
-    legend = "".join(
-        f'<span class="{"dashed" if n.startswith("sg-") else ""}" '
-        f'style="--c:{LINES.get(n.removeprefix("sg-"), LINES["safeguards"])}"><i></i>{html.escape(n)}</span>'
-        for n in present
-    )
-    panels = "".join(panel(g, labels, medians[g], low, high) for g in medians)
-    note = (
-        f"Median of <code>{metric}</code> over the samples of each panel. The quantiser "
-        "backends decode the same arrays and share one line, and a safeguarded "
-        "configuration has a dashed line of its own where it changes the result by "
-        "more than 0.001."
-    )
-    block = (
-        f'<section class="results"><h2>Results</h2><p class="note">{note}</p>'
-        f'<div class="legend uc-legend">{legend}</div><div class="uc-panels">{panels}</div>'
-        f"{extra}</section>"
-    )
-    return block, len({r["id"] for r in rows})
-
-
-def run_it(folder: str) -> str:
-    """How to run a use case."""
-    return f"""<div class="materials"><h3>Run it</h3>
-<pre><code>git clone {REPO}
-cd benchmark
-uv run python usecases/{folder}/run.py</code></pre>
-<p class="note"><code>run.py</code> downloads the samples it lacks, compresses them with every configuration and writes <code>results.csv</code>.</p>
-</div>"""
-
-
-RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200)
-CODECS = {
-    "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
-    "quant-geozl-planar-pfor-rms": ("GeoZL PFOR", "#7a68c2"),
-    "jpegxl-distance": ("JPEG XL", "#d0892a"),
-}
-
-
-def curve(rows: list[dict[str, str]]) -> list[dict]:
-    """The points of one codec, one per error bound, over the given samples.
-
-    The samples of one sensor have the same size, so the ratio over all of them
-    is the harmonic mean of their ratios.
-    """
-    by: dict[int, list] = {}
-    for r in rows:
-        by.setdefault(int(r["rms_bound"]), []).append(r)
-    return [
-        {
-            "bound": bound,
-            "ratio": len(found) / sum(1 / float(r["compression_ratio"]) for r in found),
-            "rmse": statistics.median(float(r["rmse"]) for r in found),
-            "delta": statistics.median(float(r["delta_iou"]) for r in found),
-        }
-        for bound, found in sorted(by.items())
-    ]
-
-
-def ratio_range(points: list[dict]) -> tuple[float, float]:
-    low = min(p["ratio"] for p in points) * 0.9
-    high = max(p["ratio"] for p in points) * 1.1
-    return (
-        max([t for t in RATIO_TICKS if t <= low], default=RATIO_TICKS[0]),
-        min([t for t in RATIO_TICKS if t >= high], default=RATIO_TICKS[-1]),
-    )
-
-
-def delta_range(points: list[dict]) -> tuple[float, float]:
-    worst = min(min(p["delta"] for p in points), -0.02)
-    step = ticks(worst, 0.0)[1] - ticks(worst, 0.0)[0]
-    return math.floor(worst / step - 1e-9) * step, 0.0
-
-
-def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
-    """Each codec at each error bound, its compression ratio against the change of
-    the metric, with the bound in 1e-4 of reflectance next to each point."""
-    w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
-    (x0, x1), (low, high) = xs, ys
-
-    def x(v: float) -> float:
-        span = math.log10(x1) - math.log10(x0)
-        return left + (math.log10(v) - math.log10(x0)) / span * (w - left - right)
-
-    def y(v: float) -> float:
-        v = min(max(v, low), high)
-        return top + (high - v) / (high - low) * (h - top - bottom)
-
-    out = [f'<text class="title" x="{left}" y="18">{html.escape(title)}</text>']
-    for v in ticks(low, high):
-        out.append(
-            f'<line class="rule" x1="{left}" x2="{w - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
-            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.2f}</text>'
-        )
-    for t in RATIO_TICKS:
-        if x0 <= t <= x1:
-            out.append(
-                f'<line class="rule" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{top}" y2="{h - bottom}"/>'
-                f'<text class="tick" x="{x(t):.1f}" y="{h - bottom + 16}" text-anchor="middle">{t:g}×</text>'
-            )
-    out.append(
-        f'<text class="axis" x="{w - right}" y="{h - 6}" text-anchor="end">compression ratio →</text>'
-        f'<text class="axis" x="{w - right}" y="18" text-anchor="end">↑ {metric}</text>'
-    )
-    for name, colour, points in series:
-        path = " ".join(f"{x(p['ratio']):.1f},{y(p['delta']):.1f}" for p in points)
-        # Bounds that land on the same point, as JPEG XL falling back to lossless,
-        # share one label.
-        spots: dict[tuple, list] = {}
-        for p in points:
-            spots.setdefault((round(x(p["ratio"])), round(y(p["delta"]))), []).append(p)
-        marks = "".join(
-            f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["delta"]):.1f}" r="4.5">'
-            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']} × 10⁻⁴, measured "
-            f"{p['rmse']:.1f} × 10⁻⁴ · {p['ratio']:.1f}× · {metric} {p['delta']:+.3f}</title></circle>"
-            for p in points
-        ) + "".join(
-            f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
-            f'y="{y(group[-1]["delta"]) - 7:.1f}">'
-            f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}"
-            f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
-            for group in spots.values()
-        )
-        out.append(
-            f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
-        )
-    return (
-        f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
-        f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
-    )
-
-
 IOU_FIGURE = """<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How delta_iou is computed from the detection and the plume mask">
 <g transform="translate(0 0)">
 <text class="h" x="0" y="16">Original</text>
@@ -837,139 +541,412 @@ IOU_FIGURE = """<svg class="explain" viewBox="0 0 760 236" role="img" aria-label
 </g>
 </svg>"""
 
+STREAM_FIGURE = """<svg class="explain" viewBox="0 0 860 236" role="img" aria-label="How stream_f1 compares the stream network of the compressed copy with the original one">
+<g transform="translate(0 0)" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+<text class="h" x="0" y="16" stroke="none">Original</text>
+<rect x="0" y="26" width="220" height="150" rx="6" fill="#3b3b3b" stroke="none"/>
+<path d="M200 70 L150 92 L104 104 L60 132 L18 160" stroke="#f59e0b"/>
+<path d="M150 92 L132 50" stroke="#f59e0b"/>
+<path d="M104 104 L82 66 L64 44" stroke="#f59e0b"/>
+<path d="M60 132 L96 156" stroke="#f59e0b"/>
+</g>
+<g transform="translate(244 0)">
+<text x="0" y="104">compress,</text><text x="0" y="122">decode,</text><text x="0" y="140">route</text>
+<path d="M2 154 H58 M50 148 L58 154 L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/>
+</g>
+<g transform="translate(316 0)" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+<text class="h" x="0" y="16" stroke="none">Compressed copy</text>
+<rect x="0" y="26" width="220" height="150" rx="6" fill="#3b3b3b" stroke="none"/>
+<path d="M104 104 L82 66 L64 44" stroke="#38bdf8"/>
+<path d="M104 104 L150 140 L196 150" stroke="#f43f5e"/>
+<path d="M200 70 L150 92 L104 104 L60 132 L18 160" stroke="#f59e0b"/>
+<path d="M150 92 L132 50" stroke="#f59e0b"/>
+<path d="M60 132 L96 156" stroke="#f59e0b"/>
+</g>
+<g transform="translate(566 0)">
+<text class="h" x="0" y="16">stream_f1</text>
+<text x="0" y="42">P, compressed stream cells within one</text>
+<text x="0" y="58">cell of an original stream</text>
+<text x="0" y="80">R, original stream cells within one</text>
+<text x="0" y="96">cell of a compressed stream</text>
+<text class="m" x="0" y="120">F1 = 2 P R / (P + R)</text>
+<text class="m" x="0" y="138">   = 2 · 0.85 · 0.80 / 1.65 = 0.82</text>
+<rect x="0" y="160" width="12" height="12" rx="2" fill="#f59e0b"/><text x="20" y="170">on both within one cell</text>
+<rect x="0" y="184" width="12" height="12" rx="2" fill="#38bdf8"/><text x="20" y="194">lost</text>
+<rect x="0" y="208" width="12" height="12" rx="2" fill="#f43f5e"/><text x="20" y="218">new</text>
+</g>
+</svg>"""
 
-def ratio_results(case: dict, lead: str, about: str) -> str:
-    """The results page of a use case that sweeps an error bound, and the page of
-    each of its samples."""
+
+def change_figure() -> str:
+    """How change_iou compares the change map of the compressed copy with the
+    original one, on a grid of pixels."""
+    original = {(3, 2), (4, 2), (5, 2), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3)}
+    original |= {(3, 4), (4, 4), (5, 4), (6, 4), (4, 5), (5, 5), (8, 1), (8, 2)}
+    lost = {(2, 3), (6, 4), (8, 1)}
+    new = {(1, 5), (7, 5), (9, 4), (6, 5)}
+
+    def grid(cells: dict) -> str:
+        out = []
+        for row in range(7):
+            for col in range(11):
+                colour = cells.get((col, row), "#4a4a4a")
+                out.append(
+                    f'<rect x="{col * 20}" y="{26 + row * 21}" width="18" height="19" '
+                    f'rx="2" fill="{colour}"/>'
+                )
+        return "".join(out)
+
+    before = grid(dict.fromkeys(original, "#f59e0b"))
+    after = grid(
+        {
+            **dict.fromkeys(original - lost, "#f59e0b"),
+            **dict.fromkeys(lost, "#38bdf8"),
+            **dict.fromkeys(new, "#f43f5e"),
+        }
+    )
+    kept = len(original - lost)
+    union = len(original | new)
+    return f"""<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How change_iou compares the change map of the compressed copy with the original one">
+<g><text class="h" x="0" y="16">Original change map</text>{before}
+<text x="0" y="200">changed where 2017 and 2025</text><text x="0" y="218">have a cosine below 0.8</text></g>
+<g transform="translate(244 0)">
+<text x="0" y="104">compress</text><text x="0" y="122">both years,</text><text x="0" y="140">map again</text>
+<path d="M2 154 H58 M50 148 L58 154 L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/>
+</g>
+<g transform="translate(316 0)"><text class="h" x="0" y="16">Compressed copy</text>{after}</g>
+<g transform="translate(566 0)">
+<text class="h" x="0" y="16">change_iou</text>
+<text class="m" x="0" y="44">= overlap / union</text>
+<text class="m" x="0" y="64">= {kept} / {union} = {kept / union:.2f}</text>
+<rect x="0" y="92" width="12" height="12" rx="2" fill="#f59e0b"/><text x="20" y="102">changed on both</text>
+<rect x="0" y="116" width="12" height="12" rx="2" fill="#38bdf8"/><text x="20" y="126">lost</text>
+<rect x="0" y="140" width="12" height="12" rx="2" fill="#f43f5e"/><text x="20" y="150">new</text>
+</g>
+</svg>"""
+
+
+USECASES = (
+    {
+        "title": "Methane plumes",
+        "folder": "methane",
+        "metric": "delta_iou",
+        "caption": "The enhancement of methane-s2-05, with its plume mask outlined.",
+        "figure": IOU_FIGURE,
+        "group": "sensor",
+        "groups": {"s2": "Sentinel-2", "l89": "Landsat 8/9"},
+        "unit": "10⁻⁴ of reflectance",
+        "short": "× 10⁻⁴",
+        "card": "{sensor} · {plume_pixels} plume pixels",
+        "original": "The original detection in orange over the enhancement, with the plume mask in white.",
+        "maps": "Decoded detections",
+        "keys": ("detected on both", "lost", "new"),
+    },
+    {
+        "title": "Drainage networks",
+        "folder": "drainage",
+        "metric": "stream_f1",
+        "caption": "The relief of cop-dem-glo30-00 with its stream network.",
+        "figure": STREAM_FIGURE,
+        "group": "regime",
+        "groups": {},
+        "unit": "metres",
+        "short": "m",
+        "card": "{site} · {regime}",
+        "original": "The original stream network in orange over the relief.",
+        "maps": "Decoded stream networks",
+        "keys": ("on both within one cell", "lost", "new"),
+    },
+    {
+        "title": "Change detection",
+        "folder": "change-detection",
+        "metric": "change_iou",
+        "caption": "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
+        "figure": change_figure(),
+        "group": None,
+        "groups": {},
+        "unit": "codes of the quantised embedding",
+        "short": "codes",
+        "card": "{site}",
+        "original": "The original change map in orange over the 2025 embedding.",
+        "maps": "Decoded change maps",
+        "keys": ("changed on both", "lost", "new"),
+    },
+)
+HIDDEN_META = {"id", "npz_path", "asset", "nodata"}
+
+
+def linked(text: str, root: str) -> str:
+    """Links to other documents of the repository pointed at their pages."""
+    for other, slug in PAGES.items():
+        text = text.replace(f'href="{other}"', f'href="{root}{slug}/"')
+        text = text.replace(
+            f"<code>{other}</code>", f'<a href="{root}{slug}/"><code>{other}</code></a>'
+        )
+    return text
+
+
+def ticks(low: float, high: float) -> list[float]:
+    span = high - low
+    step = (
+        0.02 if span <= 0.12 else 0.05 if span <= 0.3 else 0.1 if span <= 0.6 else 0.2
+    )
+    count = round(span / step)
+    return [round(low + k * step, 6) for k in range(count + 1)]
+
+
+def run_it(folder: str) -> str:
+    """How to run a use case."""
+    return f"""<div class="materials"><h3>Run it</h3>
+<pre><code>git clone {REPO}
+cd benchmark
+uv run python usecases/{folder}/run.py</code></pre>
+<p class="note"><code>run.py</code> downloads the samples it lacks, compresses them with every configuration and writes <code>results.csv</code>.</p>
+</div>"""
+
+
+RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000)
+CODECS = {
+    "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
+    "quant-geozl-planar-pfor-rms": ("GeoZL PFOR", "#7a68c2"),
+    "jpegxl-distance": ("JPEG XL", "#d0892a"),
+}
+
+
+def curve(rows: list[dict[str, str]], metric: str) -> list[dict]:
+    """The points of one codec, one per error bound, over the given samples.
+
+    The samples of one group have the same size, so the ratio over all of them
+    is the harmonic mean of their ratios.
+    """
+    by: dict[float, list] = {}
+    for r in rows:
+        by.setdefault(float(r["rms_bound"]), []).append(r)
+    return [
+        {
+            "bound": bound,
+            "ratio": len(found) / sum(1 / float(r["compression_ratio"]) for r in found),
+            "rmse": statistics.median(float(r["rmse"]) for r in found),
+            "value": statistics.median(float(r[metric]) for r in found),
+        }
+        for bound, found in sorted(by.items())
+    ]
+
+
+def ratio_range(points: list[dict]) -> tuple[float, float]:
+    low = min(p["ratio"] for p in points) * 0.9
+    high = max(p["ratio"] for p in points) * 1.1
+    return (
+        max([t for t in RATIO_TICKS if t <= low], default=RATIO_TICKS[0]),
+        min([t for t in RATIO_TICKS if t >= high], default=RATIO_TICKS[-1]),
+    )
+
+
+def metric_range(points: list[dict], top: float) -> tuple[float, float]:
+    """From a round value below the worst point up to ``top``, its best value."""
+    worst = min(min(p["value"] for p in points), top - 0.02)
+    found = ticks(worst, top)
+    step = found[1] - found[0]
+    return max(math.floor((worst - top) / step - 1e-9) * step + top, top - 1), top
+
+
+def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) -> str:
+    """Each codec at each error bound, its compression ratio against the metric,
+    with the bound next to each point."""
+    w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
+    (x0, x1), (low, high) = xs, ys
+
+    def x(v: float) -> float:
+        span = math.log10(x1) - math.log10(x0)
+        return left + (math.log10(v) - math.log10(x0)) / span * (w - left - right)
+
+    def y(v: float) -> float:
+        v = min(max(v, low), high)
+        return top + (high - v) / (high - low) * (h - top - bottom)
+
+    out = [f'<text class="title" x="{left}" y="18">{html.escape(title)}</text>']
+    for v in ticks(low, high):
+        out.append(
+            f'<line class="rule" x1="{left}" x2="{w - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
+            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.2f}</text>'
+        )
+    for t in RATIO_TICKS:
+        if x0 <= t <= x1:
+            out.append(
+                f'<line class="rule" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{top}" y2="{h - bottom}"/>'
+                f'<text class="tick" x="{x(t):.1f}" y="{h - bottom + 16}" text-anchor="middle">{t:g}×</text>'
+            )
+    out.append(
+        f'<text class="axis" x="{w - right}" y="{h - 6}" text-anchor="end">compression ratio →</text>'
+        f'<text class="axis" x="{w - right}" y="18" text-anchor="end">↑ {metric}</text>'
+    )
+    for name, colour, points in series:
+        path = " ".join(f"{x(p['ratio']):.1f},{y(p['value']):.1f}" for p in points)
+        # Bounds that land on the same point, as JPEG XL falling back to lossless,
+        # share one label.
+        spots: dict[tuple, list] = {}
+        for p in points:
+            spots.setdefault((round(x(p["ratio"])), round(y(p["value"]))), []).append(p)
+        marks = "".join(
+            f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["value"]):.1f}" r="4.5">'
+            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']:g} {short}, measured "
+            f"{p['rmse']:.3g} · {p['ratio']:.1f}× · {metric} {p['value']:+.3f}</title></circle>"
+            for p in points
+        ) + "".join(
+            f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
+            f'y="{y(group[-1]["value"]) - 7:.1f}">'
+            f"{group[0]['bound']:g}{'–' + format(group[-1]['bound'], 'g') if len(group) > 1 else ''}"
+            f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
+            for group in spots.values()
+        )
+        out.append(
+            f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
+        )
+    return (
+        f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
+        f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
+    )
+
+
+def results_pages(case: dict, lead: str, about: str) -> str:
+    """The results page of a use case, and the page of each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
+    group, short = case["group"], case["short"]
+    top = 0.0 if metric.startswith("delta") else 1.0
     with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
         rows = list(csv.DictReader(stream))
-    patches = manifest(ROOT / "usecases" / folder)
-    sensors = list(dict.fromkeys(p["sensor"] for p in patches))
+    measured = {r["id"] for r in rows}
+    samples = [s for s in manifest(ROOT / "usecases" / folder) if s["id"] in measured]
+
+    def label(row: dict[str, str]) -> str:
+        return case["groups"].get(row[group], row[group]) if group else "All samples"
 
     def panels(subset: list[dict[str, str]], name: str | None) -> str:
-        """One panel per sensor in ``subset`` with every codec, on shared axes."""
+        """One panel per group in ``subset`` with every codec, on shared axes."""
+        groups = list(dict.fromkeys(label(r) for r in subset))
         curves = {
-            sensor: [
-                (label, colour, curve([r for r in mine if r["codec"] == codec]))
-                for codec, (label, colour) in CODECS.items()
-                if any(r["codec"] == codec for r in mine)
+            g: [
+                (codec_name, colour, curve(found, metric))
+                for codec, (codec_name, colour) in CODECS.items()
+                if (
+                    found := [
+                        r for r in subset if label(r) == g and r["codec"] == codec
+                    ]
+                )
             ]
-            for sensor in sensors
-            if (mine := [r for r in subset if r["sensor"] == sensor])
+            for g in groups
         }
         every = [
             p for found in curves.values() for _, _, points in found for p in points
         ]
-        xs, ys = ratio_range(every), delta_range(every)
+        xs, ys = ratio_range(every), metric_range(every, top)
         return "".join(
-            scatter(name or SENSORS[sensor], found, xs, ys, metric)
-            for sensor, found in curves.items()
+            scatter(name or g, found, xs, ys, metric, short)
+            for g, found in curves.items()
         )
 
     legend = "".join(
-        f'<span style="--c:{colour}"><i></i>{html.escape(label)}</span>'
-        for label, colour in CODECS.values()
+        f'<span style="--c:{colour}"><i></i>{html.escape(name)}</span>'
+        for name, colour in CODECS.values()
     )
-    note = (
-        "Each point is a bound on the root-mean-square error, written next to it in 10⁻⁴ of reflectance, "
-        "at the compression ratio over all the patches of the sensor and the median "
-        f"<code>{metric}</code>. Where JPEG XL finds no distance within the bound it "
-        "stores the array losslessly, so those bounds share one point, marked lossless."
+    keys = "".join(
+        f'<span class="key k-{kind}">{html.escape(text)}</span>'
+        for kind, text in zip(("kept", "lost", "new"), case["keys"], strict=True)
     )
-
     root = "../../../../"
     cards = []
-    for k, p in enumerate(patches):
-        pid = p["id"]
-        figures = ROOT / "usecases" / folder / "png" / pid
+    for k, s in enumerate(samples):
+        sid = s["id"]
+        figures = ROOT / "usecases" / folder / "png" / sid
         original = figures / "original.png"
         source = original if original.exists() else None
-        thumb = resized(source, f"img/usecases/{folder}/{pid}.webp", THUMB, True)
-        large = resized(source, f"img/usecases/{folder}/{pid}-large.webp", LARGE, False)
+        thumb = resized(source, f"img/usecases/{folder}/{sid}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{folder}/{sid}-large.webp", LARGE, False)
+        fields = {**s, **({group: label(s)} if group else {})}
         cards.append(
             card(
                 "../../../",
-                f"usecases/{folder}/results/{pid}/",
+                f"usecases/{folder}/results/{sid}/",
                 thumb,
-                pid,
-                f"{SENSORS[p['sensor']]} · {p['plume_pixels']} plume pixels",
+                sid,
+                html.escape(case["card"].format(**fields)),
             )
         )
-        found = [r for r in rows if r["id"] == pid]
+        found = [r for r in rows if r["id"] == sid]
         maps = []
         for codec, (name, _) in CODECS.items():
             mine = sorted(
                 (r for r in found if r["codec"] == codec),
-                key=lambda r: int(r["rms_bound"]),
+                key=lambda r: float(r["rms_bound"]),
             )
-            if not mine:
-                continue
             figs = []
             for r in mine:
                 image = resized(
                     figures / f"{r['configuration']}.png",
-                    f"img/usecases/{folder}/{pid}/{r['configuration']}.webp",
+                    f"img/usecases/{folder}/{sid}/{r['configuration']}.webp",
                     LARGE,
                     False,
                 )
+                bound = f"{float(r['rms_bound']):g} {short}"
                 rmse = float(r["rmse"])
-                measured = "lossless" if rmse == 0 else f"measured {rmse:.1f}"
+                done = "lossless" if rmse == 0 else f"measured {rmse:.3g}"
                 figs.append(
-                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {r["rms_bound"]} × 10⁻⁴">'
-                    f"<figcaption><strong>RMSE ≤ {r['rms_bound']} × 10⁻⁴</strong>, {measured}<br>"
-                    f"{float(r['compression_ratio']):.1f}× · {metric} {float(r['delta_iou']):+.3f}</figcaption></figure>"
+                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {bound}">'
+                    f"<figcaption><strong>RMSE ≤ {bound}</strong>, {done}<br>"
+                    f"{float(r['compression_ratio']):.1f}× · {metric} "
+                    f"{float(r[metric]):+.3f}</figcaption></figure>"
                 )
-            maps.append(
-                f'<h3>{html.escape(name)}</h3><div class="maps">{"".join(figs)}</div>'
-            )
+            if figs:
+                maps.append(
+                    f'<h3>{html.escape(name)}</h3><div class="maps">{"".join(figs)}</div>'
+                )
         prev_link = (
-            f'<a href="../{patches[k - 1]["id"]}/">← {patches[k - 1]["id"]}</a>'
+            f'<a href="../{samples[k - 1]["id"]}/">← {samples[k - 1]["id"]}</a>'
             if k
             else "<span></span>"
         )
         next_link = (
-            f'<a href="../{patches[k + 1]["id"]}/">{patches[k + 1]["id"]} →</a>'
-            if k + 1 < len(patches)
+            f'<a href="../{samples[k + 1]["id"]}/">{samples[k + 1]["id"]} →</a>'
+            if k + 1 < len(samples)
             else "<span></span>"
         )
         meta = "".join(
-            f"<tr><th>{key}</th><td>{html.escape(value)}</td></tr>"
-            for key, value in (
-                ("sensor", SENSORS[p["sensor"]]),
-                ("MethaneSET id", p.get("methaneset_id", "")),
-                ("pixel", f"{p['pixel_m']} m"),
-                ("shape", p["shape"]),
-                ("plume pixels", p["plume_pixels"]),
-                ("dtype", p["dtype"]),
-            )
+            f"<tr><th>{html.escape(key)}</th><td>{html.escape(value)}</td></tr>"
+            for key, value in fields.items()
+            if key not in HIDDEN_META and value
         )
-        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", f"usecases/{folder}/results/"), (pid, None))}
-<h1>{html.escape(pid)}</h1>
+        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", f"usecases/{folder}/results/"), (sid, None))}
+<h1>{html.escape(sid)}</h1>
 <div class="sample">
-<div class="figure">{f'<img src="{root}{large}" alt="Original detection of {pid}">' if large else '<div class="noimg"></div>'}
-<p class="note">The original detection in orange over the enhancement, with the plume mask in white.</p></div>
-<div><h2>Patch</h2><table class="meta-table">{meta}</table></div>
+<div class="figure">{f'<img src="{root}{large}" alt="{html.escape(case["original"])}">' if large else '<div class="noimg"></div>'}
+<p class="note">{html.escape(case["original"])}</p></div>
+<div><h2>Sample</h2><table class="meta-table">{meta}</table></div>
 </div>
-<section class="results"><h2>Compression ratio and detection</h2>
-<p class="note">Each point is a bound on the root-mean-square error, written next to it in 10⁻⁴ of reflectance, on this patch.</p>
-<div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, pid)}</div></section>
-<section class="decoded"><h2>Decoded detections</h2>
-<p class="note">The detection on the decoded copy at each error bound, in 10⁻⁴ of reflectance.
-<span class="key k-kept">detected on both</span><span class="key k-lost">lost</span><span class="key k-new">new</span></p>
+<section class="results"><h2>Compression ratio and {metric}</h2>
+<p class="note">Each point is a bound on the root-mean-square error, written next to it in {case["unit"]}, on this sample.</p>
+<div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, sid)}</div></section>
+<section class="decoded"><h2>{case["maps"]}</h2>
+<p class="note">The result on the compressed copy at each error bound, in {case["unit"]}.{keys}</p>
 {"".join(maps)}</section>
 <p class="pager">{prev_link}{next_link}</p>"""
-        target = OUT / "usecases" / folder / "results" / pid / "index.html"
+        target = OUT / "usecases" / folder / "results" / sid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(layout(root, f"{pid} · Earth Compress benchmark", body))
+        target.write_text(layout(root, f"{sid} · Earth Compress benchmark", body))
 
+    note = (
+        f"Each point is a bound on the root-mean-square error, written next to it in "
+        f"{case['unit']}, at the compression ratio over all the samples of the panel "
+        f"and the median <code>{metric}</code>. Where JPEG XL finds no distance within "
+        "the bound it stores the array losslessly, so those bounds share one point, "
+        "marked lossless."
+    )
     return f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
-<section class="measure"><h2>How it is measured</h2>{IOU_FIGURE}<div class="doc">{about}</div></section>
-<section class="results"><h2>Compression ratio and detection</h2><p class="note">{note}</p>
+<section class="measure"><h2>How it is measured</h2>{case["figure"]}<div class="doc">{about}</div></section>
+<section class="results"><h2>Compression ratio and {metric}</h2><p class="note">{note}</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
-<section><h2>Scenes</h2><div class="grid">{"".join(cards)}</div></section>"""
+<section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
 
 
 def usecases() -> None:
@@ -980,17 +957,12 @@ def usecases() -> None:
         title, folder, metric = case["title"], case["folder"], case["metric"]
         lead, *blocks = sections[title].split("\n### ")
         blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
-        md = lambda s, root="../../": linked(  # noqa: E731
-            markdown.markdown(s, extensions=["tables"]), root
-        )
-        extra = (
-            f'<div class="doc">{md(blocks.get("Results", ""), "../../../")}'
-            f"<h3>Budgets</h3>{md(blocks.get('Budgets', ''), '../../../')}</div>"
-        )
+
+        def md(text: str, root: str = "../../") -> str:
+            return linked(markdown.markdown(text, extensions=["tables"]), root)
+
         with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
-            found = list(csv.DictReader(stream))
-        count = len({r["id"] for r in found})
-        swept = "rms_bound" in found[0]
+            count = len({r["id"] for r in csv.DictReader(stream)})
         source = ROOT / "usecases" / folder / "preview.png"
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
@@ -1015,20 +987,17 @@ def usecases() -> None:
         target = OUT / "usecases" / folder / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
-        if swept:
-            about = md(blocks["Metric"], "../../../") + (
-                f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
-            )
-            page = ratio_results(case, lead, about)
-        else:
-            page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
-<h1>{html.escape(title)}</h1>
-<p class="lead">{inline(lead.strip())}</p>
-{results_block(folder, metric, extra)[0]}"""
+        about = md(blocks["Metric"], "../../../") + (
+            f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
+        )
         target = OUT / "usecases" / folder / "results" / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
-            layout("../../../", f"{title} results · Earth Compress benchmark", page)
+            layout(
+                "../../../",
+                f"{title} results · Earth Compress benchmark",
+                results_pages(case, lead, about),
+            )
         )
         cards.append(
             card(
