@@ -661,19 +661,19 @@ USECASES = (
         "title": "Change detection",
         "folder": "change-detection",
         "metric": "change_iou",
-        "caption": "AlphaEarth over Iowa in 2025, with the pixels that changed since 2017 in red.",
+        "caption": "AlphaEarth over the GERD reservoir in Ethiopia in 2025, with the pixels that changed since 2017 in red.",
         "figure": change_figure(),
         "group": None,
         "groups": {},
         "unit": "codes of the quantised embedding",
         "short": "codes",
-        "card": "{site}",
+        "card": "{site} · {change}",
         "original": "The original change map in orange over the 2025 embedding.",
         "maps": "Decoded change maps",
         "keys": ("changed on both", "lost", "new"),
     },
 )
-HIDDEN_META = {"id", "npz_path", "asset", "nodata"}
+HIDDEN_META = {"id", "npz_path", "asset", "asset_2017", "asset_2025", "nodata"}
 
 
 def linked(text: str, root: str) -> str:

@@ -1,4 +1,4 @@
-"""The change detection use case, on alphaearth-v1-64 and the 2017 embeddings of build.py.
+"""The change detection use case, on the AlphaEarth windows of build.py in 2017 and 2025.
 
 uv run python usecases/change-detection/run.py
 """
@@ -10,7 +10,6 @@ from pathlib import Path
 import numpy as np
 
 from earthcompress.contract import Budget
-from earthcompress.corpus import Sample, load_samples
 from earthcompress.spec import ArraySpec
 from earthcompress.usecase import (
     compress,
@@ -23,18 +22,13 @@ from earthcompress.usecase import (
 )
 
 HERE = Path(__file__).resolve().parent
-CORPUS = HERE.parent.parent / "corpora" / "alphaearth-v1-64"
 RMS = (1, 2, 4, 8, 16)
 """Root-mean-square errors of the sweep, in codes of the quantised embedding."""
 SIMILARITY = 0.8
 """Cosine similarity of the two years below which a pixel has changed."""
-CHANGED = 0.005
-"""Smallest changed fraction of a sample on the original.
-
-With less change, a single changed pixel on the decoded copy moves the IoU
-between 1 and 0.
-"""
 PREVIEW = (0, 16, 9)
+SHOWN = "gerd"
+"""The site of the picture on the use case page."""
 
 
 def codes(embedding: np.ndarray) -> np.ndarray:
@@ -75,18 +69,18 @@ def maps(background: np.ndarray, original: np.ndarray, decoded=None):
     return Image.fromarray(image)
 
 
-def task(item: tuple[Sample, dict[str, str]]) -> list[dict]:
+def years(row: dict[str, str]) -> tuple[np.ndarray, np.ndarray]:
+    with np.load(HERE / row["npz_path"]) as archive:
+        return codes(archive["before"]), codes(archive["after"])
+
+
+def task(row: dict[str, str]) -> list[dict]:
     from earthcompress.build import rgb
 
-    sample, row = item
-    with np.load(HERE / row["npz_path"]) as archive:
-        before = codes(archive["data"])
-    after = codes(sample.data)
+    before, after = years(row)
     change = changed(before, after)
-    if change.mean() < CHANGED:
-        return []
     background = shade(rgb(embedding(after)[i] for i in PREVIEW).mean(axis=-1))
-    figures = HERE / "png" / sample.id
+    figures = HERE / "png" / row["id"]
     shutil.rmtree(figures, ignore_errors=True)
     figures.mkdir(parents=True)
     maps(background, change).save(figures / "original.png", optimize=True)
@@ -109,7 +103,7 @@ def task(item: tuple[Sample, dict[str, str]]) -> list[dict]:
             )
             rows.append(
                 {
-                    "id": sample.id,
+                    "id": row["id"],
                     "site": row["site"],
                     "configuration": config.id,
                     "codec": config.id.split("-tau")[0],
@@ -122,15 +116,13 @@ def task(item: tuple[Sample, dict[str, str]]) -> list[dict]:
     return rows
 
 
-def preview(path: Path) -> None:
-    """Iowa in 2025, with the pixels that changed since 2017."""
+def preview(row: dict[str, str], path: Path) -> None:
+    """The 2025 embedding of ``row``, with the pixels that changed since 2017."""
     from PIL import Image
 
     from earthcompress.build import rgb
 
-    after = codes(load_samples(CORPUS, limit=4)[3].data)
-    with np.load(HERE / "npz" / "alphaearth-v1-64-03.npz") as archive:
-        before = codes(archive["data"])
+    before, after = years(row)
     image = rgb(embedding(after)[i] for i in PREVIEW)
     image[changed(before, after)] = (230, 60, 90)
     Image.fromarray(image).save(path, optimize=True)
@@ -138,11 +130,10 @@ def preview(path: Path) -> None:
 
 def main() -> None:
     with (HERE / "manifest.csv").open(newline="") as stream:
-        rows = {row["id"]: row for row in csv.DictReader(stream)}
-    fetch(HERE, [row["npz_path"] for row in rows.values()])
-    samples = load_samples(CORPUS)
-    run(task, [(s, rows[s.id]) for s in samples], HERE / "results.csv")
-    preview(HERE / "preview.png")
+        rows = list(csv.DictReader(stream))
+    fetch(HERE, [row["npz_path"] for row in rows])
+    run(task, rows, HERE / "results.csv")
+    preview(next(r for r in rows if r["site"] == SHOWN), HERE / "preview.png")
 
 
 if __name__ == "__main__":

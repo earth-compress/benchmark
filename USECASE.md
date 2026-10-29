@@ -6,7 +6,7 @@ A use case runs one analysis on the original samples and on their decoded copies
 | --- | --- | ---: | --- |
 | [Methane plumes](#methane-plumes) | MethaneSET, Sentinel-2 and Landsat 8/9 | 20 | `delta_iou` |
 | [Drainage networks](#drainage-networks) | `cop-dem-glo30` | 10 | `stream_f1` |
-| [Change detection](#change-detection) | `alphaearth-v1-64`, 2017 and 2025 | 6 | `change_iou` |
+| [Change detection](#change-detection) | AlphaEarth, 2017 and 2025 | 13 | `change_iou` |
 
 Each use case keeps its code and results in `usecases/<use-case>/` and its samples on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases). `run.py` downloads the samples it lacks and writes `results.csv` with one row per sample and configuration. `build.py`, where there is one, rebuilds the samples from their source.
 
@@ -83,13 +83,11 @@ Does compression change where AlphaEarth embeddings show change between 2017 and
 
 ### Experiment
 
-The experiment takes 6 AlphaEarth windows where the land changed between 2017 and 2025. The 2025 embeddings are samples of the corpus `alphaearth-v1-64`, and the 2017 ones are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/change-detection/npz) next to them. The change map of the original runs again on each compressed copy of both years. The result is `change_iou`, the overlap of the compressed change map with the original one.
+The experiment takes 13 AlphaEarth windows where the land changed between 2017 and 2025, from cleared and burned forest to a filled reservoir, a drained one, new lava, new cities, airports and industry. Both years of each window are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/change-detection/npz). The change map of the original runs again on each compressed copy of both years. The result is `change_iou`, the overlap of the compressed change map with the original one.
 
 ### Data
 
-The 15 samples of `alphaearth-v1-64`, which are from 2025, and the same windows in 2017, read by `build.py` from the same AlphaEarth files. Each year is an int8 array of 64 × 512 × 512 at 10 m with NoData at -128. `run.py` adds 128 to every code to store it as uint8, which JPEG XL takes, so no value changes and NoData becomes 0. The 2017 windows keep the CC BY 4.0 licence of the AlphaEarth Foundations Satellite Embedding dataset, produced by Google and Google DeepMind.
-
-The use case keeps the six samples whose original change map covers at least 0.5% of the sample. With less change, a single changed pixel on the compressed copy moves the IoU between 1 and 0.
+`build.py` reads 13 windows of 5 km from the annual AlphaEarth files of 2017 and 2025, at places of known change. Each window was picked by eye within 10 km of the place, among those with about 40% of their pixels changed, so it holds both land that changed and land that did not. Each year is an int8 array of 64 × 512 × 512 at 10 m with NoData at -128. `run.py` adds 128 to every code to store it as uint8, which JPEG XL takes, so no value changes and NoData becomes 0. The windows keep the CC BY 4.0 licence of the AlphaEarth Foundations Satellite Embedding dataset, produced by Google and Google DeepMind.
 
 ### Analysis
 
