@@ -1,33 +1,6 @@
 # Codecs
 
-A configuration is one way of running a codec, named by its id. The table lists them by codec and by the fidelity modes of `PROTOCOL.md`.
-
-| codec | lossless | near-lossless | lossy |
-| --- | --- | --- | --- |
-| Zstandard | `zstd-c3`, `hdiff-zstd9` | `quant-zstd-c3`, `quant-hdiff-zstd9` | |
-| Blosc | `blosc-zstd3-bitshuffle` | `quant-blosc-zstd3-bitshuffle` | |
-| PCO | `pco` | `quant-pco` | `quant-pco-rms` |
-| DEFLATE | `deflate-c6` | | |
-| LZW | `lzw` | | |
-| OpenZL | `openzl-generic`, `openzl-delta-fieldlz`, `openzl-delta-pivco` | `quant-openzl-generic` | |
-| GeoZL | seven recipes | `geozl-med-entropy-linear`, `quant-geozl-med-entropy` | |
-| LERC | | `lerc` | |
-| JPEG-LS | | `jpegls-near` | |
-| SZ3 | | `sz3-abs` | `sz3-l2norm` |
-| ZFP | | `zfp-accuracy` | |
-| SPERR | | `sperr-pwe` | `sperr-psnr` |
-| JPEG 2000 | `jpeg2000`, as a reference | | `jpeg2000-psnr` |
-| JPEG XL | | | `jpegxl-distance` |
-| Compression Safeguards | | `sg-` before each native configuration, and `sg-zero` | |
-
-Near-lossless and lossy configurations run at each level that `TOLERANCE.md` gives the corpus, and their ids end with the level, as in `lerc-matched`. The `family` column of `results.csv` says how they reach `tau`.
-
-| family | how `tau` is reached | modes |
-| --- | --- | --- |
-| `native` | the codec's own bounded mode, run as published | near-lossless, lossy |
-| `quantized` | the quantiser of this benchmark, then a lossless configuration | near-lossless, lossy |
-| `safeguarded` | a native configuration wrapped in Compression Safeguards | near-lossless |
-| `searched` | one codec setting, searched on each sample | lossy |
+The tables list the configurations the benchmark can run, grouped by fidelity mode. `results.csv` shows which ones have been measured. `PROTOCOL.md` defines the fidelity checks and `TOLERANCE.md` the error budgets.
 
 ## Lossless
 
@@ -49,16 +22,13 @@ Near-lossless and lossy configurations run at each level that `TOLERANCE.md` giv
 | `geozl-med-entropy` | GeoZL | `med>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
 | `geozl-average-entropy` | GeoZL | `average>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
 | `geozl-id-pfor` | GeoZL | `id>pfor` | geozl 0.19.0 on openzl 0.3.0 |
+| `jpeg2000` | Reference | JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components | imagecodecs (OpenJPEG 2.5.4) |
 
-### Reference
-
-`jpeg2000` is measured once, as a reference line, rather than in every run.
-
-| id | definition | software |
-| --- | --- | --- |
-| `jpeg2000` | JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components | imagecodecs (OpenJPEG 2.5.4) |
+`jpeg2000` is a separate reference, measured only when requested, on integer corpora of up to 16 bits.
 
 ## Near-lossless
+
+Near-lossless and lossy ids end with the budget level, as in `lerc-matched`. The `family` column describes how they use `tau`. `native` uses the codec's own error or quality setting, `quantized` uses the shared quantiser, `safeguarded` adds corrections, and `searched` tries settings on each sample. An empty NoData cell means no mask or sentinel is passed to the codec.
 
 | id | family | definition | NoData | software |
 | --- | --- | --- | --- | --- |
@@ -72,7 +42,7 @@ Near-lossless and lossy configurations run at each level that `TOLERANCE.md` giv
 | `sg-<id>` | safeguarded | The native configuration `<id>` inside Compression Safeguards | kept | compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5 |
 | `sg-zero` | safeguarded | Compression Safeguards around a codec that decodes to zeros | kept | compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5 |
 
-The quantised configurations follow `zstd-c3`, `pco`, and the best ratio of each group in the lossless run, `blosc-zstd3-bitshuffle`, `hdiff-zstd9`, `openzl-generic` and `geozl-med-entropy`.
+The quantiser can feed `zstd-c3`, `pco`, `blosc-zstd3-bitshuffle`, `hdiff-zstd9`, `openzl-generic` or `geozl-med-entropy`.
 
 ## Lossy
 
@@ -84,7 +54,7 @@ The quantised configurations follow `zstd-c3`, `pco`, and the best ratio of each
 | `jpegxl-distance` | searched | JPEG XL at effort 7, one grayscale frame per plane, the distance searched | | imagecodecs (libjxl 0.12.0) |
 | `quant-pco-rms` | quantized | The quantiser with its lossy grid, then `pco` | bottom of the type | imagecodecs (pcodec 1.0.4) |
 
-LERC, JPEG-LS, ZFP and GeoZL bound every element and have no lossy configuration. Their near-lossless rows already meet the lossy bound at the same `tau`.
+LERC, JPEG-LS, ZFP and GeoZL have no separate lossy configuration. A near-lossless row that meets its pointwise bound also meets the lossy bound at the same `tau`.
 
 ## The quantiser
 

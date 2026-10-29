@@ -83,13 +83,14 @@ def test_the_official_run_has_the_configurations_of_codecs_md():
     from pathlib import Path
 
     text = (Path(__file__).resolve().parent.parent / "CODECS.md").read_text()
-    official = text.split("## Lossless", 1)[1].split("### Reference", 1)[0]
+    official = text.split("## Lossless", 1)[1].split("## Near-lossless", 1)[0]
     listed = {
         line.split("|")[1].strip().strip("`")
         for line in official.splitlines()
-        if line.startswith("| `")
+        if line.startswith("| `") and "| Reference |" not in line
     }
     assert listed == {config.id for config in fixed()}
+    assert "| `jpeg2000` | Reference |" in official
     assert [config.id for config in reference()] == ["jpeg2000"]
 
 
@@ -187,5 +188,3 @@ def test_codecs_md_lists_the_lossy_configurations():
     }
     budget = Budget(1.0)
     assert listed == {make(budget).id.removesuffix("-tau1") for make in lossy()}
-    matrix = text.split("## Lossless", 1)[0]
-    assert all(f"`{name}`" in matrix for name in listed)

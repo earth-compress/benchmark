@@ -371,12 +371,15 @@ def build() -> None:
         )
 
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
-    official = table((ROOT / "CODECS.md").read_text(), "## Lossless")
+    lossless = table((ROOT / "CODECS.md").read_text(), "## Lossless")
+    official = [row for row in lossless if row["group"] != "Reference"]
     codecs = [plain(r["id"]) for r in official]
-    reference = table((ROOT / "CODECS.md").read_text(), "### Reference")
+    reference = next(
+        (plain(row["id"]) for row in lossless if row["group"] == "Reference"), None
+    )
     style = {
         "groups": {plain(r["id"]): r["group"] for r in official},
-        "reference": plain(reference[0]["id"]) if reference else None,
+        "reference": reference,
     }
 
     corpus_totals: dict[str, dict] = {}

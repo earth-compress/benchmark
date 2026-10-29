@@ -123,7 +123,7 @@ A rebuild runs `build` only.
 
 ## 5. Measurement
 
-Each run measures its selected configurations under the same rules. `CODECS.md` documents the configurations used for published results and identifies any separate reference.
+Each run measures its selected configurations under the same rules. `CODECS.md` describes the configurations the benchmark can run and identifies the separate reference. Published measurements are in each corpus's `results.csv`.
 
 - Each codec receives `data` as an in-memory array; corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
