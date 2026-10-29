@@ -144,6 +144,10 @@ table.numbers td:first-child { white-space: nowrap; }
 .uc-panel circle { fill: var(--c); }
 .uc-panel .axis { font: 12px var(--sans); fill: var(--muted); }
 .uc-panels.wide { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+.uc-panel .label { font: 11px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 3px; }
+.decoded h3 { margin: 24px 0 10px; font-size: 16px; }
+.decoded .maps { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.decoded .maps figcaption { font-size: 12px; line-height: 1.45; }
 .uc-panel .series polyline { stroke-width: 1.2; stroke-opacity: 0.55; }
 .uc-panel .series circle { stroke: var(--page); stroke-width: 1; }
 .uc-panel .series:hover polyline { stroke-width: 2.4; stroke-opacity: 1; }

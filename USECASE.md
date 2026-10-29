@@ -1,6 +1,6 @@
 # Use cases
 
-A use case runs one analysis on the original samples and on their decoded copies, and reports one metric of how its result changes. The analysis is fitted once on the original and reused on the decoded copy. Every array the analysis reads passes through the codec, and labels never do. The configurations are the near-lossless configurations of [CODECS.md](CODECS.md) at the budgets of [TOLERANCE.md](TOLERANCE.md), or at the bounds a use case states where its corpus has none.
+A use case runs one analysis on the original samples and on their decoded copies, and reports one metric of how its result changes. The analysis is fitted once on the original and reused on the decoded copy. Every array the analysis reads passes through the codec, and labels never do. Each use case states the configurations of [CODECS.md](CODECS.md) it runs and the error bounds it runs them at.
 
 | use case | data | samples | metric |
 | --- | --- | ---: | --- |
@@ -22,7 +22,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. Every codec compresses the two shortwave infrared bands of the target and of each background, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. GeoZL with PIVCO and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
@@ -43,14 +43,9 @@ The target and each background are compressed as separate arrays of 2 × 200 × 
 
 The sign and `t` of the original are kept for the decoded copy.
 
-### Budgets
+### Errors
 
-Sentinel-2 uses the budgets of `s2-l1c-20m-6`, which holds B11 and B12. Landsat uses those of `l8-oli-8` converted to reflectance at 2e-5 per DN.
-
-| sensor | conservative | matched | aggressive |
-| --- | ---: | ---: | ---: |
-| Sentinel-2 | 1 DN | 7 DN | 28 DN |
-| Landsat 8/9 | 4e-5 | 2e-4 | 8e-4 |
+The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 1 to 64 DN and double at each step, and Landsat converts them to reflectance at 2e-5 per DN. GeoZL with PIVCO (`geozl-med-pivco`) runs behind the lossy quantiser of the benchmark, and JPEG XL searches its distance on each array. JPEG XL takes integers only, so it runs on Sentinel-2.
 
 ### Metric
 
@@ -58,7 +53,7 @@ Sentinel-2 uses the budgets of `s2-l1c-20m-6`, which holds B11 and B12. Landsat 
 
 ### Results
 
-In Sentinel-2 the configuration that compresses most at `matched`, the shared quantiser in front of GeoZL, reduces the patches 11 times and moves the IoU by -0.004 at the median and -0.022 in the worst patch. At `aggressive` it reaches 20 times, but the median falls to -0.092 and the worst patch to -0.289, mostly through false alarms around the plume. Landsat reaches 30 times at `matched` with a median of -0.001, and 41 times at `aggressive` with -0.018. `zfp-accuracy` barely changes the detection because it barely compresses, 0.8 to 1.2 times in Sentinel-2. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
+Both codecs leave the detection almost unchanged up to an error of 4 DN in Sentinel-2, below the 7 DN noise of its bands. GeoZL with PIVCO then reaches 14 times at 8 DN with a median change of -0.010, and 20 times at 16 DN, where the median falls to -0.083 and the worst patch to -0.305. JPEG XL holds the detection better at the same error, -0.021 at 16 DN with 18 times and -0.093 at 32 DN with 41 times. Below 8 DN it finds no distance within the bound and stores the patches losslessly, at 8 times. In Landsat, GeoZL with PIVCO reaches 27 times at 8 DN with a median of -0.002, and 32 times at 16 DN with -0.010. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
 
 ## Drainage networks
 

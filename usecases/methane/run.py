@@ -9,22 +9,23 @@ from pathlib import Path
 
 import numpy as np
 
-from earthcompress.budgets import budgets_for
+from earthcompress.codecs import fixed, jpegxl, quantize
 from earthcompress.contract import Budget
 from earthcompress.spec import ArraySpec
-from earthcompress.usecase import compress, configurations, fetch, iou, run
+from earthcompress.usecase import compress, fetch, iou, run
 
 HERE = Path(__file__).resolve().parent
-CORPUS = {"s2": "s2-l1c-20m-6", "l89": "l8-oli-8"}
 UNIT = {"s2": 1.0, "l89": 2e-5}
-"""Value of one DN of the corpus in the stored unit of the patches."""
+"""Value of one DN of Sentinel-2 L1C or Landsat Collection 2 in the stored unit."""
+RMS = (1, 2, 4, 8, 16, 32, 64)
+"""Root-mean-square errors of the sweep, in DN."""
 
 
-def budgets(sensor: str) -> list[Budget]:
-    return [
-        Budget(tau=budget.tau * UNIT[sensor], level=budget.level)
-        for budget in budgets_for(CORPUS[sensor]).values()
-    ]
+def makers():
+    """GeoZL with PIVCO behind the lossy quantiser, and JPEG XL with its distance
+    searched, both holding the root-mean-square error of each array within tau."""
+    pivco = {c.id: c for c in fixed()}["geozl-med-pivco"]
+    return (quantize.rms_family(pivco), jpegxl.distance)
 
 
 def enhancement(target: np.ndarray, bg: np.ndarray, sign: float = 1.0) -> np.ndarray:
@@ -98,37 +99,36 @@ def task(row: dict[str, str]) -> list[dict]:
     detections(e, plume, original).save(figures / "original.png", optimize=True)
 
     spec = ArraySpec(target.shape, target.dtype)
-    rows, best = [], {}
-    for config in configurations(budgets(row["sensor"]), spec):
-        decoded, size = compress(config, target, spec)
-        decoded_bg = []
-        for x in bg:
-            values, n = compress(config, np.ascontiguousarray(x), spec)
-            decoded_bg.append(values)
-            size += n
-        detection = enhancement(decoded, np.stack(decoded_bg), sign) > threshold
-        ratio = (target.nbytes + bg.nbytes) / size
-        level = config.budget.level
-        if level not in best or ratio > best[level][0]:
-            best[level] = (ratio, config.id, detection)
-        rows.append(
-            {
-                "id": row["id"],
-                "sensor": row["sensor"],
-                "configuration": config.id,
-                "family": config.family,
-                "budget_level": level,
-                "tau": config.budget.tau,
-                "compression_ratio": ratio,
-                "delta_iou": iou(detection, plume) - before,
-            }
-        )
-
-    # The decoded detection of the configuration that compresses the patch most
-    # at each level.
-    for _, name, detection in best.values():
-        image = detections(e, plume, original, detection)
-        image.save(figures / f"{name}.png", optimize=True)
+    unit = UNIT[row["sensor"]]
+    rows = []
+    for make in makers():
+        for dn in RMS:
+            config = make(Budget(tau=dn * unit))
+            if not config.supports(spec):
+                continue
+            decoded, size = compress(config, target, spec)
+            squared = np.sum(np.square(decoded - target.astype(np.float64)))
+            decoded_bg = []
+            for x in bg:
+                values, n = compress(config, np.ascontiguousarray(x), spec)
+                decoded_bg.append(values)
+                size += n
+                squared += np.sum(np.square(values - x.astype(np.float64)))
+            detection = enhancement(decoded, np.stack(decoded_bg), sign) > threshold
+            image = detections(e, plume, original, detection)
+            image.save(figures / f"{config.id}.png", optimize=True)
+            rows.append(
+                {
+                    "id": row["id"],
+                    "sensor": row["sensor"],
+                    "configuration": config.id,
+                    "codec": config.id.split("-tau")[0],
+                    "rms_bound_dn": dn,
+                    "rmse_dn": np.sqrt(squared / (target.size + bg.size)) / unit,
+                    "compression_ratio": (target.nbytes + bg.nbytes) / size,
+                    "delta_iou": iou(detection, plume) - before,
+                }
+            )
     return rows
 
 

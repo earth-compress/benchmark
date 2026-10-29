@@ -516,9 +516,11 @@ USECASES = (
             "https://huggingface.co/datasets/tacofoundation/methaneset",
         ),
         "licence": "CC BY-NC-SA 4.0, as MethaneSET",
-        "levels": (
-            "Conservative, matched and aggressive bound the error at 1, 7 and 28 DN "
-            "in Sentinel-2 and at 4e-5, 2e-4 and 8e-4 of reflectance in Landsat."
+        "codecs": (
+            "GeoZL with PIVCO runs behind the lossy quantiser of the benchmark, and "
+            "JPEG XL searches its distance on each array. JPEG XL takes integers only, "
+            "so it runs on Sentinel-2, and where no distance keeps the bound it falls "
+            "back to lossless."
         ),
     },
     {
@@ -741,71 +743,51 @@ uv run python usecases/{folder}/run.py</code></pre>
 </section>"""
 
 
-LEVELS = ("conservative", "matched", "aggressive")
-RADIUS = {"conservative": 3.0, "matched": 4.5, "aggressive": 6.0}
-RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100)
+RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200)
+CODECS = {
+    "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
+    "jpegxl-distance": ("JPEG XL", "#d0892a"),
+}
 
 
-def colour_of(configuration: str) -> str:
-    base = configuration.rsplit("-", 1)[0].removeprefix("sg-")
-    if base.startswith("quant-"):
-        return LINES["quantizer"]
-    return LINES.get(base, LINES["safeguards"])
-
-
-def distinct(items: list[dict]) -> list[dict]:
-    """The items without the safeguarded ones that match their codec within 0.001."""
-    by_name = {i["configuration"]: i for i in items}
-    kept = []
-    for item in items:
-        name = item["configuration"]
-        twin = by_name.get(name[3:]) if name.startswith("sg-") else None
-        if twin and abs(twin["delta"] - item["delta"]) <= 1e-3:
-            continue
-        kept.append(item)
-    return kept
-
-
-def pooled(rows: list[dict[str, str]]) -> list[dict]:
-    """Each configuration with its ratio over all the samples and its median delta.
+def curve(rows: list[dict[str, str]]) -> list[dict]:
+    """The points of one codec, one per error bound, over the given samples.
 
     The samples of one sensor have the same size, so the ratio over all of them
     is the harmonic mean of their ratios.
     """
-    by: dict[str, list] = {}
+    by: dict[int, list] = {}
     for r in rows:
-        by.setdefault(r["configuration"], []).append(r)
-    return distinct(
-        [
-            {
-                "configuration": name,
-                "level": found[0]["budget_level"],
-                "ratio": len(found)
-                / sum(1 / float(r["compression_ratio"]) for r in found),
-                "delta": statistics.median(float(r["delta_iou"]) for r in found),
-            }
-            for name, found in by.items()
-        ]
-    )
+        by.setdefault(int(r["rms_bound_dn"]), []).append(r)
+    return [
+        {
+            "bound": bound,
+            "ratio": len(found) / sum(1 / float(r["compression_ratio"]) for r in found),
+            "rmse": statistics.median(float(r["rmse_dn"]) for r in found),
+            "delta": statistics.median(float(r["delta_iou"]) for r in found),
+        }
+        for bound, found in sorted(by.items())
+    ]
 
 
-def ratio_range(items: list[dict]) -> tuple[float, float]:
-    low = min(i["ratio"] for i in items) * 0.9
-    high = max(i["ratio"] for i in items) * 1.1
+def ratio_range(points: list[dict]) -> tuple[float, float]:
+    low = min(p["ratio"] for p in points) * 0.9
+    high = max(p["ratio"] for p in points) * 1.1
     return (
         max([t for t in RATIO_TICKS if t <= low], default=RATIO_TICKS[0]),
         min([t for t in RATIO_TICKS if t >= high], default=RATIO_TICKS[-1]),
     )
 
 
-def delta_range(items: list[dict]) -> tuple[float, float]:
-    worst = min(min(i["delta"] for i in items), -0.02)
+def delta_range(points: list[dict]) -> tuple[float, float]:
+    worst = min(min(p["delta"] for p in points), -0.02)
     step = ticks(worst, 0.0)[1] - ticks(worst, 0.0)[0]
     return math.floor(worst / step - 1e-9) * step, 0.0
 
 
-def scatter(title: str, items: list[dict], xs, ys, metric: str) -> str:
-    """Each configuration at its compression ratio and its change of the metric."""
+def scatter(title: str, points: list[dict], colour: str, xs, ys, metric: str) -> str:
+    """One codec at each error bound, its compression ratio against the change of
+    the metric, with the bound in DN next to each point."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
     (x0, x1), (low, high) = xs, ys
 
@@ -833,60 +815,69 @@ def scatter(title: str, items: list[dict], xs, ys, metric: str) -> str:
         f'<text class="axis" x="{w - right}" y="{h - 6}" text-anchor="end">compression ratio →</text>'
         f'<text class="axis" x="{w - right}" y="18" text-anchor="end">↑ {metric}</text>'
     )
-    series: dict[str, list] = {}
-    for item in items:
-        series.setdefault(item["configuration"].rsplit("-", 1)[0], []).append(item)
-    for found in series.values():
-        found.sort(key=lambda i: LEVELS.index(i["level"]))
-        path = " ".join(f"{x(i['ratio']):.1f},{y(i['delta']):.1f}" for i in found)
-        dots = "".join(
-            f'<circle cx="{x(i["ratio"]):.1f}" cy="{y(i["delta"]):.1f}" r="{RADIUS[i["level"]]}">'
-            f"<title>{html.escape(i['configuration'])} · {i['ratio']:.1f}× · "
-            f"{metric} {i['delta']:+.3f}</title></circle>"
-            for i in found
-        )
-        out.append(
-            f'<g class="series" style="--c:{colour_of(found[0]["configuration"])}">'
-            f'<polyline points="{path}"/>{dots}</g>'
-        )
+    path = " ".join(f"{x(p['ratio']):.1f},{y(p['delta']):.1f}" for p in points)
+    # Bounds that land on the same point, as JPEG XL falling back to lossless,
+    # share one label.
+    spots: dict[tuple, list] = {}
+    for p in points:
+        spots.setdefault((round(x(p["ratio"])), round(y(p["delta"]))), []).append(p)
+    marks = "".join(
+        f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["delta"]):.1f}" r="4.5">'
+        f"<title>RMSE ≤ {p['bound']} DN, measured {p['rmse']:.1f} DN · {p['ratio']:.1f}× · "
+        f"{metric} {p['delta']:+.3f}</title></circle>"
+        for p in points
+    ) + "".join(
+        f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
+        f'y="{y(group[-1]["delta"]) - 7:.1f}">'
+        f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}</text>"
+        for group in spots.values()
+    )
+    out.append(
+        f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
+    )
     return (
         f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
         f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
     )
 
 
-def ratio_legend(items: list[dict]) -> str:
-    names = {}
-    for i in items:
-        base = i["configuration"].rsplit("-", 1)[0]
-        label = "quantizer" if base.startswith("quant-") else base
-        label = "safeguards" if base == "sg-zero" else label
-        names.setdefault(label, colour_of(i["configuration"]))
-    return "".join(
-        f'<span style="--c:{c}"><i></i>{html.escape(n)}</span>'
-        for n, c in names.items()
-    )
-
-
 def ratio_results(case: dict, lead: str, summary: str) -> str:
-    """The results page of a use case that records compression ratios, and the
-    page of each of its samples."""
+    """The results page of a use case that sweeps an error bound, and the page of
+    each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
     with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
         rows = list(csv.DictReader(stream))
     patches = manifest(ROOT / "usecases" / folder)
     sensors = list(dict.fromkeys(p["sensor"] for p in patches))
-    summary_items = {s: pooled([r for r in rows if r["sensor"] == s]) for s in sensors}
-    every = [i for items in summary_items.values() for i in items]
-    xs, ys = ratio_range(every), delta_range(every)
-    panels = "".join(
-        scatter(SENSORS[s], items, xs, ys, metric) for s, items in summary_items.items()
-    )
+
+    def panels(subset: list[dict[str, str]], name: str | None) -> str:
+        """One panel per codec and sensor in ``subset``, on shared axes."""
+        curves = {
+            (codec, sensor): curve(
+                [r for r in subset if r["codec"] == codec and r["sensor"] == sensor]
+            )
+            for sensor in sensors
+            for codec in CODECS
+            if any(r["codec"] == codec and r["sensor"] == sensor for r in subset)
+        }
+        every = [p for points in curves.values() for p in points]
+        xs, ys = ratio_range(every), delta_range(every)
+        return "".join(
+            scatter(
+                f"{CODECS[codec][0]} · {name or SENSORS[sensor]}",
+                points,
+                CODECS[codec][1],
+                xs,
+                ys,
+                metric,
+            )
+            for (codec, sensor), points in curves.items()
+        )
+
     note = (
-        "Each point is a configuration, at its compression ratio over all the patches "
-        f"of the sensor and its median <code>{metric}</code>. Points grow from "
-        "conservative to aggressive, and a line joins the levels of one configuration. "
-        f"{case['levels']}"
+        "Each panel is one codec. Each point is a bound on the root-mean-square error, "
+        "written next to it in DN, at the compression ratio over all the patches of the "
+        f"sensor and the median <code>{metric}</code>. {case['codecs']}"
     )
 
     root = "../../../../"
@@ -895,12 +886,9 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
         pid = p["id"]
         figures = ROOT / "usecases" / folder / "png" / pid
         original = figures / "original.png"
-        thumb = resized(
-            original if original.exists() else None,
-            f"img/usecases/{folder}/{pid}.webp",
-            THUMB,
-            True,
-        )
+        source = original if original.exists() else None
+        thumb = resized(source, f"img/usecases/{folder}/{pid}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{folder}/{pid}-large.webp", LARGE, False)
         cards.append(
             card(
                 "../../../",
@@ -911,38 +899,31 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
             )
         )
         found = [r for r in rows if r["id"] == pid]
-        items = distinct(
-            [
-                {
-                    "configuration": r["configuration"],
-                    "level": r["budget_level"],
-                    "ratio": float(r["compression_ratio"]),
-                    "delta": float(r["delta_iou"]),
-                }
-                for r in found
-            ]
-        )
-        large = resized(
-            original if original.exists() else None,
-            f"img/usecases/{folder}/{pid}-large.webp",
-            LARGE,
-            False,
-        )
         maps = []
-        by_name = {r["configuration"]: r for r in found}
-        decoded = sorted(
-            (f for f in figures.glob("*.png") if f.stem in by_name),
-            key=lambda f: LEVELS.index(by_name[f.stem]["budget_level"]),
-        )
-        for f in decoded:
-            r = by_name[f.stem]
-            image = resized(
-                f, f"img/usecases/{folder}/{pid}/{f.stem}.webp", LARGE, False
+        for codec, (name, _) in CODECS.items():
+            mine = sorted(
+                (r for r in found if r["codec"] == codec),
+                key=lambda r: int(r["rms_bound_dn"]),
             )
+            if not mine:
+                continue
+            figs = []
+            for r in mine:
+                image = resized(
+                    figures / f"{r['configuration']}.png",
+                    f"img/usecases/{folder}/{pid}/{r['configuration']}.webp",
+                    LARGE,
+                    False,
+                )
+                rmse = float(r["rmse_dn"])
+                measured = "lossless" if rmse == 0 else f"measured {rmse:.1f} DN"
+                figs.append(
+                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {r["rms_bound_dn"]} DN">'
+                    f"<figcaption><strong>RMSE ≤ {r['rms_bound_dn']} DN</strong>, {measured}<br>"
+                    f"{float(r['compression_ratio']):.1f}× · {metric} {float(r['delta_iou']):+.3f}</figcaption></figure>"
+                )
             maps.append(
-                f'<figure><img src="{root}{image}" alt="Decoded detection of {html.escape(f.stem)}">'
-                f"<figcaption><strong>{r['budget_level']}</strong> · {html.escape(f.stem.rsplit('-', 1)[0])}"
-                f" · {float(r['compression_ratio']):.1f}× · {metric} {float(r['delta_iou']):+.3f}</figcaption></figure>"
+                f'<h3>{html.escape(name)}</h3><div class="maps">{"".join(figs)}</div>'
             )
         prev_link = (
             f'<a href="../{patches[k - 1]["id"]}/">← {patches[k - 1]["id"]}</a>'
@@ -971,13 +952,12 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
 <div><h2>Patch</h2><table class="meta-table">{meta}</table></div>
 </div>
 <section class="results"><h2>Compression ratio and detection</h2>
-<p class="note">Each point is a configuration on this patch. Points grow from conservative to aggressive.</p>
-<div class="legend uc-legend">{ratio_legend(items)}</div>
-<div class="uc-panels wide">{scatter(pid, items, ratio_range(items), delta_range(items), metric)}</div></section>
-<section><h2>Decoded detections</h2>
-<p class="note">At each level, the configuration that compresses this patch most.
+<p class="note">Each point is a bound on the root-mean-square error, written next to it in DN, on this patch.</p>
+<div class="uc-panels wide">{panels(found, pid)}</div></section>
+<section class="decoded"><h2>Decoded detections</h2>
+<p class="note">The detection on the decoded copy at each error bound.
 <span class="key k-kept">detected on both</span><span class="key k-lost">lost</span><span class="key k-new">new</span></p>
-<div class="maps">{"".join(maps)}</div></section>
+{"".join(maps)}</section>
 <p class="pager">{prev_link}{next_link}</p>"""
         target = OUT / "usecases" / folder / "results" / pid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -988,7 +968,7 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
 <p class="lead">{inline(lead.strip())}</p>
 <section class="summary"><h2>Summary</h2><div class="doc">{summary}</div></section>
 <section class="results"><h2>Compression ratio and detection</h2><p class="note">{note}</p>
-<div class="legend uc-legend">{ratio_legend(every)}</div><div class="uc-panels wide">{panels}</div></section>
+<div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Scenes</h2><div class="grid">{"".join(cards)}</div></section>"""
 
 
@@ -1005,9 +985,12 @@ def usecases() -> None:
         )
         extra = (
             f'<div class="doc">{md(blocks["Results"], "../../../")}'
-            f"<h3>Budgets</h3>{md(blocks['Budgets'], '../../../')}</div>"
+            f"<h3>Budgets</h3>{md(blocks.get('Budgets', ''), '../../../')}</div>"
         )
-        results, count = results_block(folder, metric, extra)
+        with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
+            found = list(csv.DictReader(stream))
+        count = len({r["id"] for r in found})
+        swept = "rms_bound_dn" in found[0]
         source = ROOT / "usecases" / folder / "preview.png"
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
@@ -1029,13 +1012,13 @@ def usecases() -> None:
         target = OUT / "usecases" / folder / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
-        page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
+        if swept:
+            page = ratio_results(case, lead, md(blocks["Results"], "../../../"))
+        else:
+            page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
-{results}"""
-        with (ROOT / "usecases" / folder / "results.csv").open() as stream:
-            if "compression_ratio" in stream.readline():
-                page = ratio_results(case, lead, md(blocks["Results"], "../../../"))
+{results_block(folder, metric, extra)[0]}"""
         target = OUT / "usecases" / folder / "results" / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
