@@ -718,7 +718,7 @@ def run_it(folder: str) -> str:
     return f"""<div class="materials"><h3>Run it</h3>
 <pre><code>git clone {REPO}
 cd benchmark
-uv run python usecases/{folder}/run.py</code></pre>
+uv run --extra corpus python usecases/{folder}/run.py</code></pre>
 <p class="note"><code>run.py</code> reads the samples, tries to fetch any missing files and writes <code>results.csv</code>.</p>
 </div>"""
 

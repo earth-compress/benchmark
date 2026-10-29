@@ -1,6 +1,6 @@
 """The drainage network use case, on ten samples of cop-dem-glo30.
 
-uv run python usecases/drainage/run.py
+uv run --extra corpus python usecases/drainage/run.py
 """
 
 import csv

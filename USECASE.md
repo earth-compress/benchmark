@@ -11,9 +11,9 @@ These use cases check whether compression changes methane plume detection, drain
 Code, manifests and results live in `usecases/<use-case>/`. `run.py` reads the samples and writes one row per sample and configuration to `results.csv`. Where provided, `build.py` rebuilds samples from their source.
 
 ```bash
-uv run python usecases/methane/run.py
-uv run python usecases/drainage/run.py
-uv run python usecases/change-detection/run.py
+uv run --extra corpus python usecases/methane/run.py
+uv run --extra corpus python usecases/drainage/run.py
+uv run --extra corpus python usecases/change-detection/run.py
 ```
 
 ## Methane plumes

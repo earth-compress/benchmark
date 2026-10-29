@@ -1,6 +1,6 @@
 """The change detection use case, on the AlphaEarth windows of build.py in 2017 and 2025.
 
-uv run python usecases/change-detection/run.py
+uv run --extra corpus python usecases/change-detection/run.py
 """
 
 import csv

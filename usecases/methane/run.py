@@ -1,6 +1,6 @@
 """The methane use case, on the patches of build.py.
 
-uv run python usecases/methane/run.py
+uv run --extra corpus python usecases/methane/run.py
 """
 
 import csv
