@@ -121,25 +121,43 @@ def summary(data: dict[str, dict]) -> dict[str, dict]:
 # Images
 
 
-def source_png(corpus: str, row: dict[str, str]) -> Path | None:
-    """The preview of a sample: built locally, or fetched from Hugging Face."""
-    if not row.get("png_path"):
-        return None
-    local = ROOT / "corpora" / corpus / row["png_path"]
+def fetched(local: Path, path: str, key: str | None = None) -> Path | None:
+    """``local`` when it was built here, or ``path`` fetched from Hugging Face
+    and kept in the cache under ``key``."""
     if local.exists():
         return local
-    cached = CACHE / corpus / row["png_path"]
+    cached = CACHE / (key or path)
     if not cached.exists():
         try:
-            with urllib.request.urlopen(
-                f"{HF}/{corpus}/{row['png_path']}", timeout=60
-            ) as r:
+            with urllib.request.urlopen(f"{HF}/{path}", timeout=60) as r:
                 data = r.read()
         except (urllib.error.URLError, TimeoutError):
             return None
         cached.parent.mkdir(parents=True, exist_ok=True)
         cached.write_bytes(data)
     return cached
+
+
+def source_png(corpus: str, row: dict[str, str]) -> Path | None:
+    """The preview of a sample: built locally, or fetched from Hugging Face."""
+    if not row.get("png_path"):
+        return None
+    return fetched(
+        ROOT / "corpora" / corpus / row["png_path"], f"{corpus}/{row['png_path']}"
+    )
+
+
+def usecase_png(folder: str, sample: str, name: str) -> Path | None:
+    """A map of a use case sample: made locally by its ``run.py``, or fetched
+    from Hugging Face.
+
+    A new run of the use case writes new maps under the same names, so the
+    cache keeps them by the digest of its ``results.csv``.
+    """
+    path = f"usecases/{folder}/png/{sample}/{name}.png"
+    results = (ROOT / "usecases" / folder / "results.csv").read_bytes()
+    run = hashlib.sha256(results).hexdigest()[:10]
+    return fetched(ROOT / path, path, f"usecases/{folder}/{run}/{sample}/{name}.png")
 
 
 def resized(source: Path | None, target: str, side: int, square: bool) -> str | None:
@@ -857,9 +875,7 @@ def results_pages(case: dict, lead: str, about: str) -> str:
     cards = []
     for k, s in enumerate(samples):
         sid = s["id"]
-        figures = ROOT / "usecases" / folder / "png" / sid
-        original = figures / "original.png"
-        source = original if original.exists() else None
+        source = usecase_png(folder, sid, "original")
         thumb = resized(source, f"img/usecases/{folder}/{sid}.webp", THUMB, True)
         large = resized(source, f"img/usecases/{folder}/{sid}-large.webp", LARGE, False)
         fields = {**s, **({group: label(s)} if group else {})}
@@ -882,11 +898,13 @@ def results_pages(case: dict, lead: str, about: str) -> str:
             figs = []
             for r in mine:
                 image = resized(
-                    figures / f"{r['configuration']}.png",
+                    usecase_png(folder, sid, r["configuration"]),
                     f"img/usecases/{folder}/{sid}/{r['configuration']}.webp",
                     LARGE,
                     False,
                 )
+                if image is None:
+                    continue
                 bound = f"{float(r['rms_bound']):g} {short}"
                 rmse = float(r["rmse"])
                 done = "lossless" if rmse == 0 else f"measured {rmse:.3g}"

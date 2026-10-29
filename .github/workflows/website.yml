@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "corpora/**"
+      - "usecases/**"
       - "website/**"
       - "earthcompress/**"
       - "*.md"
@@ -26,11 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Reuse the previews fetched from Hugging Face
+      - name: Reuse the previews and maps fetched from Hugging Face
         uses: actions/cache@v4
         with:
           path: .cache/site
-          key: previews-${{ hashFiles('corpora/*/manifest.csv') }}
+          key: previews-${{ hashFiles('corpora/*/manifest.csv', 'usecases/*/results.csv') }}
           restore-keys: previews-
       - name: Build the site from the repository
         run: uv run --extra site python website/build.py

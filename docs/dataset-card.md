@@ -154,9 +154,25 @@ Each corpus can also be rebuilt from its manifest with the `build.py` of its
 folder in the benchmark repository, which checks every sample against its
 SHA-256.
 
+## Use cases
+
+`usecases/` holds the samples and maps of the use cases in
+[USECASE.md](https://github.com/earth-compress/benchmark/blob/main/USECASE.md).
+
+```
+usecases/{use-case}/npz/{sample}.npz
+usecases/{use-case}/png/{sample}/{configuration}.png
+```
+
+`methane` holds 20 MethaneSET patches and `change-detection` 13 AlphaEarth
+windows in 2017 and 2025. The drainage use case reads `cop-dem-glo30`, so its
+folder holds only maps. Each PNG shows the result of the analysis on the
+original sample or on its copy decoded by one configuration. The `run.py` of
+each use case in the benchmark repository downloads the samples it needs.
+
 ## Licence and attribution
 
-Each corpus keeps the licence of its source.
+Each corpus and use case keeps the licence of its source.
 
 | source | corpora | licence and attribution |
 | --- | --- | --- |
@@ -168,9 +184,10 @@ Each corpus keeps the licence of its source.
 | ERA5 | `era5-*` | Copernicus licence. Contains modified Copernicus Climate Change Service information 2023. Neither the European Commission nor ECMWF is responsible for any use of this data. |
 | Copernicus DEM | `cop-dem-glo30` | Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, provided under COPERNICUS by the European Union and ESA; all rights reserved. |
 | ESA WorldCover | `esa-wc-v200` | CC BY 4.0. © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium. |
-| AlphaEarth Foundations | `alphaearth-v1-64` | CC BY 4.0. The AlphaEarth Foundations Satellite Embedding dataset is produced by Google and Google DeepMind. |
+| AlphaEarth Foundations | `alphaearth-v1-64`, `usecases/change-detection` | CC BY 4.0. The AlphaEarth Foundations Satellite Embedding dataset is produced by Google and Google DeepMind. |
 | TESSERA | `tessera-v2-*` | CC0 1.0. |
 | Clay | `clay-embeddings` | CC BY 4.0. Clay v1.5 embeddings produced by LGND with the Clay Foundation Model. |
+| MethaneSET | `usecases/methane` | CC BY-NC-SA 4.0. Patches of [MethaneSET](https://huggingface.co/datasets/tacofoundation/methaneset). |
 
 ## Development
 
