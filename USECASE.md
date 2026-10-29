@@ -22,7 +22,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. GeoZL with PIVCO and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
@@ -45,7 +45,7 @@ The sign and `t` of the original are kept for the decoded copy.
 
 ### Errors
 
-The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 1 to 64 DN and double at each step, and Landsat converts them to reflectance at 2e-5 per DN. GeoZL with PIVCO (`geozl-med-pivco`) runs behind the lossy quantiser of the benchmark, and JPEG XL searches its distance on each array. JPEG XL takes integers only, so it runs on Sentinel-2.
+The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 1 to 64 DN and double at each step, and Landsat converts them to reflectance at 2e-5 per DN. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array. JPEG XL takes integers only, so it runs on Sentinel-2.
 
 ### Metric
 
@@ -53,7 +53,7 @@ The use case runs the lossy mode of the benchmark, which holds the root-mean-squ
 
 ### Results
 
-Both codecs leave the detection almost unchanged up to an error of 4 DN in Sentinel-2, below the 7 DN noise of its bands. GeoZL with PIVCO then reaches 14 times at 8 DN with a median change of -0.010, and 20 times at 16 DN, where the median falls to -0.083 and the worst patch to -0.305. JPEG XL holds the detection better at the same error, -0.021 at 16 DN with 18 times and -0.093 at 32 DN with 41 times. Below 8 DN it finds no distance within the bound and stores the patches losslessly, at 8 times. In Landsat, GeoZL with PIVCO reaches 27 times at 8 DN with a median of -0.002, and 32 times at 16 DN with -0.010. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
+All three codecs leave the detection almost unchanged up to an error of 4 DN in Sentinel-2, below the 7 DN noise of its bands. GeoZL with PIVCO then reaches 14 times at 8 DN with a median change of -0.010, and 20 times at 16 DN, where the median falls to -0.083 and the worst patch to -0.305. GeoZL with PFOR decodes the same arrays, so it moves the detection as much, but compresses less, 8 times at 8 DN and 10 times at 16 DN. JPEG XL holds the detection better at the same error, -0.021 at 16 DN with 18 times and -0.093 at 32 DN with 41 times. Below 8 DN it finds no distance within the bound and stores the patches losslessly, at 8 times. In Landsat, GeoZL with PIVCO reaches 27 times at 8 DN with a median of -0.002, and 32 times at 16 DN with -0.010, against 22 and 24 times with PFOR. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
 
 ## Drainage networks
 

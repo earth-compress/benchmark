@@ -22,10 +22,15 @@ RMS = (1, 2, 4, 8, 16, 32, 64)
 
 
 def makers():
-    """GeoZL with PIVCO behind the lossy quantiser, and JPEG XL with its distance
-    searched, both holding the root-mean-square error of each array within tau."""
-    pivco = {c.id: c for c in fixed()}["geozl-med-pivco"]
-    return (quantize.rms_family(pivco), jpegxl.distance)
+    """GeoZL with PIVCO and with PFOR behind the lossy quantiser, and JPEG XL with
+    its distance searched, all holding the root-mean-square error of each array
+    within tau."""
+    lossless = {c.id: c for c in fixed()}
+    return (
+        quantize.rms_family(lossless["geozl-med-pivco"]),
+        quantize.rms_family(lossless["geozl-planar-pfor"]),
+        jpegxl.distance,
+    )
 
 
 def enhancement(target: np.ndarray, bg: np.ndarray, sign: float = 1.0) -> np.ndarray:

@@ -517,10 +517,10 @@ USECASES = (
         ),
         "licence": "CC BY-NC-SA 4.0, as MethaneSET",
         "codecs": (
-            "GeoZL with PIVCO runs behind the lossy quantiser of the benchmark, and "
-            "JPEG XL searches its distance on each array. JPEG XL takes integers only, "
-            "so it runs on Sentinel-2, and where no distance keeps the bound it falls "
-            "back to lossless."
+            "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
+            "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
+            "searches its distance on each array. It takes integers only, so it runs on "
+            "Sentinel-2, and where no distance keeps the bound it falls back to lossless."
         ),
     },
     {
@@ -746,6 +746,7 @@ uv run python usecases/{folder}/run.py</code></pre>
 RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200)
 CODECS = {
     "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
+    "quant-geozl-planar-pfor-rms": ("GeoZL PFOR", "#7a68c2"),
     "jpegxl-distance": ("JPEG XL", "#d0892a"),
 }
 
@@ -785,8 +786,8 @@ def delta_range(points: list[dict]) -> tuple[float, float]:
     return math.floor(worst / step - 1e-9) * step, 0.0
 
 
-def scatter(title: str, points: list[dict], colour: str, xs, ys, metric: str) -> str:
-    """One codec at each error bound, its compression ratio against the change of
+def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
+    """Each codec at each error bound, its compression ratio against the change of
     the metric, with the bound in DN next to each point."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
     (x0, x1), (low, high) = xs, ys
@@ -815,26 +816,27 @@ def scatter(title: str, points: list[dict], colour: str, xs, ys, metric: str) ->
         f'<text class="axis" x="{w - right}" y="{h - 6}" text-anchor="end">compression ratio →</text>'
         f'<text class="axis" x="{w - right}" y="18" text-anchor="end">↑ {metric}</text>'
     )
-    path = " ".join(f"{x(p['ratio']):.1f},{y(p['delta']):.1f}" for p in points)
-    # Bounds that land on the same point, as JPEG XL falling back to lossless,
-    # share one label.
-    spots: dict[tuple, list] = {}
-    for p in points:
-        spots.setdefault((round(x(p["ratio"])), round(y(p["delta"]))), []).append(p)
-    marks = "".join(
-        f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["delta"]):.1f}" r="4.5">'
-        f"<title>RMSE ≤ {p['bound']} DN, measured {p['rmse']:.1f} DN · {p['ratio']:.1f}× · "
-        f"{metric} {p['delta']:+.3f}</title></circle>"
-        for p in points
-    ) + "".join(
-        f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
-        f'y="{y(group[-1]["delta"]) - 7:.1f}">'
-        f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}</text>"
-        for group in spots.values()
-    )
-    out.append(
-        f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
-    )
+    for name, colour, points in series:
+        path = " ".join(f"{x(p['ratio']):.1f},{y(p['delta']):.1f}" for p in points)
+        # Bounds that land on the same point, as JPEG XL falling back to lossless,
+        # share one label.
+        spots: dict[tuple, list] = {}
+        for p in points:
+            spots.setdefault((round(x(p["ratio"])), round(y(p["delta"]))), []).append(p)
+        marks = "".join(
+            f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["delta"]):.1f}" r="4.5">'
+            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']} DN, measured "
+            f"{p['rmse']:.1f} DN · {p['ratio']:.1f}× · {metric} {p['delta']:+.3f}</title></circle>"
+            for p in points
+        ) + "".join(
+            f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
+            f'y="{y(group[-1]["delta"]) - 7:.1f}">'
+            f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}</text>"
+            for group in spots.values()
+        )
+        out.append(
+            f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
+        )
     return (
         f'<div class="uc-panel"><svg viewBox="0 0 {w} {h}" role="img" '
         f'aria-label="{html.escape(title)}">{"".join(out)}</svg></div>'
@@ -851,33 +853,33 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
     sensors = list(dict.fromkeys(p["sensor"] for p in patches))
 
     def panels(subset: list[dict[str, str]], name: str | None) -> str:
-        """One panel per codec and sensor in ``subset``, on shared axes."""
+        """One panel per sensor in ``subset`` with every codec, on shared axes."""
         curves = {
-            (codec, sensor): curve(
-                [r for r in subset if r["codec"] == codec and r["sensor"] == sensor]
-            )
+            sensor: [
+                (label, colour, curve([r for r in mine if r["codec"] == codec]))
+                for codec, (label, colour) in CODECS.items()
+                if any(r["codec"] == codec for r in mine)
+            ]
             for sensor in sensors
-            for codec in CODECS
-            if any(r["codec"] == codec and r["sensor"] == sensor for r in subset)
+            if (mine := [r for r in subset if r["sensor"] == sensor])
         }
-        every = [p for points in curves.values() for p in points]
+        every = [
+            p for found in curves.values() for _, _, points in found for p in points
+        ]
         xs, ys = ratio_range(every), delta_range(every)
         return "".join(
-            scatter(
-                f"{CODECS[codec][0]} · {name or SENSORS[sensor]}",
-                points,
-                CODECS[codec][1],
-                xs,
-                ys,
-                metric,
-            )
-            for (codec, sensor), points in curves.items()
+            scatter(name or SENSORS[sensor], found, xs, ys, metric)
+            for sensor, found in curves.items()
         )
 
+    legend = "".join(
+        f'<span style="--c:{colour}"><i></i>{html.escape(label)}</span>'
+        for label, colour in CODECS.values()
+    )
     note = (
-        "Each panel is one codec. Each point is a bound on the root-mean-square error, "
-        "written next to it in DN, at the compression ratio over all the patches of the "
-        f"sensor and the median <code>{metric}</code>. {case['codecs']}"
+        "Each point is a bound on the root-mean-square error, written next to it in DN, "
+        "at the compression ratio over all the patches of the sensor and the median "
+        f"<code>{metric}</code>. {case['codecs']}"
     )
 
     root = "../../../../"
@@ -953,7 +955,7 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
 </div>
 <section class="results"><h2>Compression ratio and detection</h2>
 <p class="note">Each point is a bound on the root-mean-square error, written next to it in DN, on this patch.</p>
-<div class="uc-panels wide">{panels(found, pid)}</div></section>
+<div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, pid)}</div></section>
 <section class="decoded"><h2>Decoded detections</h2>
 <p class="note">The detection on the decoded copy at each error bound.
 <span class="key k-kept">detected on both</span><span class="key k-lost">lost</span><span class="key k-new">new</span></p>
@@ -968,7 +970,7 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
 <p class="lead">{inline(lead.strip())}</p>
 <section class="summary"><h2>Summary</h2><div class="doc">{summary}</div></section>
 <section class="results"><h2>Compression ratio and detection</h2><p class="note">{note}</p>
-<div class="uc-panels wide">{panels(rows, None)}</div></section>
+<div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Scenes</h2><div class="grid">{"".join(cards)}</div></section>"""
 
 
