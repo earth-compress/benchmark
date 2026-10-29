@@ -596,9 +596,15 @@ STREAM_FIGURE = """<svg class="explain" viewBox="0 0 860 236" role="img" aria-la
 </svg>"""
 
 
-def change_figure() -> str:
-    """How change_iou compares the change map of the compressed copy with the
-    original one, on a grid of pixels."""
+def change_figure(
+    metric: str = "change_iou",
+    name: str = "change map",
+    found: tuple[str, str] = ("changed where 2017 and 2025", "have a cosine below 0.8"),
+    again: tuple[str, str, str] = ("compress", "both years,", "map again"),
+    both: str = "changed on both",
+) -> str:
+    """How ``metric`` compares the map of the compressed copy with the original
+    one, on a grid of pixels."""
     original = {(3, 2), (4, 2), (5, 2), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3)}
     original |= {(3, 4), (4, 4), (5, 4), (6, 4), (4, 5), (5, 5), (8, 1), (8, 2)}
     lost = {(2, 3), (6, 4), (8, 1)}
@@ -625,19 +631,19 @@ def change_figure() -> str:
     )
     kept = len(original - lost)
     union = len(original | new)
-    return f"""<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How change_iou compares the change map of the compressed copy with the original one">
-<g><text class="h" x="0" y="16">Original change map</text>{before}
-<text x="0" y="200">changed where 2017 and 2025</text><text x="0" y="218">have a cosine below 0.8</text></g>
+    return f"""<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How {metric} compares the {name} of the compressed copy with the original one">
+<g><text class="h" x="0" y="16">Original {name}</text>{before}
+<text x="0" y="200">{found[0]}</text><text x="0" y="218">{found[1]}</text></g>
 <g transform="translate(244 0)">
-<text x="0" y="104">compress</text><text x="0" y="122">both years,</text><text x="0" y="140">map again</text>
+<text x="0" y="104">{again[0]}</text><text x="0" y="122">{again[1]}</text><text x="0" y="140">{again[2]}</text>
 <path d="M2 154 H58 M50 148 L58 154 L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/>
 </g>
 <g transform="translate(316 0)"><text class="h" x="0" y="16">Compressed copy</text>{after}</g>
 <g transform="translate(566 0)">
-<text class="h" x="0" y="16">change_iou</text>
+<text class="h" x="0" y="16">{metric}</text>
 <text class="m" x="0" y="44">= overlap / union</text>
 <text class="m" x="0" y="64">= {kept} / {union} = {kept / union:.2f}</text>
-<rect x="0" y="92" width="12" height="12" rx="2" fill="#f59e0b"/><text x="20" y="102">changed on both</text>
+<rect x="0" y="92" width="12" height="12" rx="2" fill="#f59e0b"/><text x="20" y="102">{both}</text>
 <rect x="0" y="116" width="12" height="12" rx="2" fill="#38bdf8"/><text x="20" y="126">lost</text>
 <rect x="0" y="140" width="12" height="12" rx="2" fill="#f43f5e"/><text x="20" y="150">new</text>
 </g>
@@ -690,6 +696,27 @@ USECASES = (
         "maps": "Decoded change maps",
         "keys": ("changed on both", "lost", "new"),
     },
+    {
+        "title": "Clouds Decoded",
+        "folder": "clouds-decoded",
+        "metric": "cloud_iou",
+        "caption": "Sentinel-2 over the Bay of Bengal on 21 November 2021, decoded from JPEG XL at distance 0.094.",
+        "figure": change_figure(
+            "cloud_iou",
+            "cloud mask",
+            ("cloud where Clouds Decoded", "finds it on the original"),
+            ("compress", "the bands,", "mask again"),
+            "cloud on both",
+        ),
+        "samples": 100,
+        "run": (
+            "git clone -b compressed-readers https://github.com/asterisk-labs/clouds-decoded\n"
+            "pip install -e clouds-decoded imagecodecs\n"
+            "clouds-decoded full-workflow jpegxl/&lt;product&gt;.SAFE \\\n"
+            "    --compression-level d-0.33 --output-dir out/",
+            "Clouds Decoded reads a compressed product at the level given by <code>--compression-level</code>.",
+        ),
+    },
 )
 HIDDEN_META = {"id", "npz_path", "asset", "asset_2017", "asset_2025", "nodata"}
 
@@ -713,13 +740,17 @@ def ticks(low: float, high: float) -> list[float]:
     return [round(low + k * step, 6) for k in range(count + 1)]
 
 
-def run_it(folder: str) -> str:
-    """How to run a use case."""
+def run_it(folder: str, commands: tuple[str, str] | None = None) -> str:
+    """How to run a use case, by its ``run.py`` unless ``commands`` and their
+    note say otherwise."""
+    code, note = commands or (
+        f"git clone {REPO}\ncd benchmark\nuv run --extra corpus python usecases/{folder}/run.py",
+        "<code>run.py</code> reads the samples, tries to fetch any missing files "
+        "and writes <code>results.csv</code>.",
+    )
     return f"""<div class="materials"><h3>Run it</h3>
-<pre><code>git clone {REPO}
-cd benchmark
-uv run --extra corpus python usecases/{folder}/run.py</code></pre>
-<p class="note"><code>run.py</code> reads the samples, tries to fetch any missing files and writes <code>results.csv</code>.</p>
+<pre><code>{code}</code></pre>
+<p class="note">{note}</p>
 </div>"""
 
 
@@ -829,9 +860,17 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) ->
 def results_pages(case: dict, lead: str, about: str) -> str:
     """The results page of a use case, and the page of each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
+    header = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
+<h1>{html.escape(title)}</h1>
+<p class="lead">{inline(lead.strip())}</p>
+<section class="measure"><h2>How it is measured</h2>{case["figure"]}<div class="doc">{about}</div></section>"""
+    path = ROOT / "usecases" / folder / "results.csv"
+    if not path.exists():
+        return f"""{header}
+<section class="results"><h2>Results</h2><p class="note">There are no results yet.</p></section>"""
     group, short = case["group"], case["short"]
     top = 0.0 if metric.startswith("delta") else 1.0
-    with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
+    with path.open(newline="") as stream:
         rows = list(csv.DictReader(stream))
     measured = {r["id"] for r in rows}
     samples = [s for s in manifest(ROOT / "usecases" / folder) if s["id"] in measured]
@@ -958,10 +997,7 @@ def results_pages(case: dict, lead: str, about: str) -> str:
         "the bound it stores the array losslessly, so those bounds share one point, "
         "marked lossless."
     )
-    return f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
-<h1>{html.escape(title)}</h1>
-<p class="lead">{inline(lead.strip())}</p>
-<section class="measure"><h2>How it is measured</h2>{case["figure"]}<div class="doc">{about}</div></section>
+    return f"""{header}
 <section class="results"><h2>Compression ratio and {metric}</h2><p class="note">{note}</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
@@ -979,8 +1015,12 @@ def usecases() -> None:
         def md(text: str, root: str = "../../") -> str:
             return linked(markdown.markdown(text, extensions=["tables"]), root)
 
-        with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
-            count = len({r["id"] for r in csv.DictReader(stream)})
+        path = ROOT / "usecases" / folder / "results.csv"
+        if path.exists():
+            with path.open(newline="") as stream:
+                count = len({r["id"] for r in csv.DictReader(stream)})
+        else:
+            count = case["samples"]
         source = ROOT / "usecases" / folder / "preview.png"
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
@@ -999,7 +1039,7 @@ def usecases() -> None:
 <div class="sample usecase">
 <div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
-{run_it(folder)}
+{run_it(folder, case.get("run"))}
 <p><a class="button primary" href="results/">Results</a></p></div>
 </div>"""
         target = OUT / "usecases" / folder / "index.html"
