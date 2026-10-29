@@ -210,3 +210,8 @@ footer p { margin: 0 0 8px; }
 .usecase .materials pre { margin: 0 0 6px; }
 .usecase .materials .note { margin: 0; }
 .usecase .button.primary { margin-top: 8px; }
+.explain { display: block; width: 100%; max-width: 760px; height: auto; margin: 12px 0 18px; }
+.explain text { font: 13px var(--sans); fill: var(--ink); }
+.explain .h { font-weight: 600; font-size: 14px; }
+.explain .m { font: 12px var(--mono); white-space: pre; }
+.measure .doc { padding: 0; max-width: 780px; }

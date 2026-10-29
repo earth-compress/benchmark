@@ -22,7 +22,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask, on its native grid of 20 m for Sentinel-2 and 30 m for Landsat. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 0.0001 to 0.0064 of reflectance, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask, on its native grid of 20 m for Sentinel-2 and 30 m for Landsat. A band ratio detector, fitted once on the original, then runs again on each compressed copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
@@ -43,13 +43,13 @@ The target and each background are compressed as separate arrays, all uint16. Th
 
 The sign and `t` of the original are kept for the decoded copy.
 
-### Errors
+### Compression
 
-The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds are the same reflectance in both sensors, from 1 to 64 × 10⁻⁴, doubling at each step. One DN is 10⁻⁴ of reflectance in Sentinel-2 L1C and 2 × 10⁻⁵ in Landsat, so the bounds are 1 to 64 DN in Sentinel-2 and 5 to 320 DN in Landsat. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array, and stores the array losslessly when no distance keeps the bound.
+GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background, and the plume mask stays as it is. The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds are the same reflectance in both sensors, from 1 to 64 × 10⁻⁴, doubling at each step. One DN is 10⁻⁴ of reflectance in Sentinel-2 L1C and 2 × 10⁻⁵ in Landsat, so the bounds are 1 to 64 DN in Sentinel-2 and 5 to 320 DN in Landsat. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array, and stores the array losslessly when no distance keeps the bound.
 
 ### Metric
 
-`delta_iou` is the intersection over union of `D` and the plume mask on the decoded copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
+`delta_iou` is the intersection over union of the detection and the plume mask on the compressed copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
 
 ## Drainage networks
 

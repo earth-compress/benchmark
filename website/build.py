@@ -509,13 +509,6 @@ USECASES = (
         "folder": "methane",
         "metric": "delta_iou",
         "caption": "The enhancement of methane-s2-05, with its plume mask outlined.",
-        "codecs": (
-            "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
-            "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
-            "searches its distance on each array, and where no distance keeps the bound "
-            "it stores the array losslessly, so those bounds share one point, marked "
-            "lossless."
-        ),
     },
     {
         "title": "Drainage networks",
@@ -806,7 +799,46 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
     )
 
 
-def ratio_results(case: dict, lead: str) -> str:
+IOU_FIGURE = """<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How delta_iou is computed from the detection and the plume mask">
+<g transform="translate(0 0)">
+<text class="h" x="0" y="16">Original</text>
+<rect x="0" y="26" width="220" height="150" rx="6" fill="#3b3b3b"/>
+<ellipse cx="104" cy="102" rx="70" ry="33" transform="rotate(-18 104 102)" fill="#f59e0b"/>
+<rect x="34" y="146" width="6" height="6" fill="#f59e0b"/><rect x="186" y="50" width="6" height="6" fill="#f59e0b"/>
+<ellipse cx="112" cy="100" rx="84" ry="40" transform="rotate(-18 112 100)" fill="none" stroke="#fff" stroke-width="2"/>
+<text class="m" x="0" y="200">IoU = overlap / union</text>
+<text class="m" x="0" y="220">    = 0.59</text>
+</g>
+<g transform="translate(244 0)">
+<text x="0" y="104">compress,</text><text x="0" y="122">decode,</text><text x="0" y="140">detect</text>
+<path d="M2 154 H58 M50 148 L58 154 L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/>
+</g>
+<g transform="translate(316 0)">
+<text class="h" x="0" y="16">Compressed copy</text>
+<rect x="0" y="26" width="220" height="150" rx="6" fill="#3b3b3b"/>
+<ellipse cx="104" cy="102" rx="70" ry="33" transform="rotate(-18 104 102)" fill="#38bdf8"/>
+<ellipse cx="110" cy="104" rx="54" ry="24" transform="rotate(-18 110 104)" fill="#f59e0b"/>
+<rect x="28" y="50" width="6" height="6" fill="#f43f5e"/><rect x="60" y="150" width="6" height="6" fill="#f43f5e"/>
+<rect x="150" y="44" width="6" height="6" fill="#f43f5e"/><rect x="196" y="140" width="6" height="6" fill="#f43f5e"/>
+<rect x="176" y="70" width="6" height="6" fill="#f43f5e"/><rect x="20" y="118" width="6" height="6" fill="#f43f5e"/>
+<rect x="118" y="160" width="6" height="6" fill="#f43f5e"/><rect x="92" y="36" width="6" height="6" fill="#f43f5e"/>
+<ellipse cx="112" cy="100" rx="84" ry="40" transform="rotate(-18 112 100)" fill="none" stroke="#fff" stroke-width="2"/>
+<text class="m" x="0" y="200">IoU = overlap / union</text>
+<text class="m" x="0" y="220">    = 0.45</text>
+</g>
+<g transform="translate(566 0)">
+<text class="h" x="0" y="16">delta_iou</text>
+<text class="m" x="0" y="44">= IoU copy - IoU original</text>
+<text class="m" x="0" y="64">= 0.45 - 0.59 = -0.14</text>
+<rect x="0" y="92" width="12" height="12" rx="2" fill="#f59e0b"/><text x="20" y="102">detected on both</text>
+<rect x="0" y="116" width="12" height="12" rx="2" fill="#38bdf8"/><text x="20" y="126">lost</text>
+<rect x="0" y="140" width="12" height="12" rx="2" fill="#f43f5e"/><text x="20" y="150">new false alarm</text>
+<rect x="0" y="164" width="12" height="12" rx="2" fill="none" stroke="#8aa09f" stroke-width="2"/><text x="20" y="174">plume mask</text>
+</g>
+</svg>"""
+
+
+def ratio_results(case: dict, lead: str, about: str) -> str:
     """The results page of a use case that sweeps an error bound, and the page of
     each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
@@ -842,7 +874,8 @@ def ratio_results(case: dict, lead: str) -> str:
     note = (
         "Each point is a bound on the root-mean-square error, written next to it in 10⁻⁴ of reflectance, "
         "at the compression ratio over all the patches of the sensor and the median "
-        f"<code>{metric}</code>. {case['codecs']}"
+        f"<code>{metric}</code>. Where JPEG XL finds no distance within the bound it "
+        "stores the array losslessly, so those bounds share one point, marked lossless."
     )
 
     root = "../../../../"
@@ -933,6 +966,7 @@ def ratio_results(case: dict, lead: str) -> str:
     return f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
+<section class="measure"><h2>How it is measured</h2>{IOU_FIGURE}<div class="doc">{about}</div></section>
 <section class="results"><h2>Compression ratio and detection</h2><p class="note">{note}</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Scenes</h2><div class="grid">{"".join(cards)}</div></section>"""
@@ -982,7 +1016,10 @@ def usecases() -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
         if swept:
-            page = ratio_results(case, lead)
+            about = md(blocks["Metric"], "../../../") + (
+                f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
+            )
+            page = ratio_results(case, lead, about)
         else:
             page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
