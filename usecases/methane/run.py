@@ -58,6 +58,16 @@ def outline(mask: np.ndarray) -> np.ndarray:
     return mask & ~inside
 
 
+def enlarged(image: np.ndarray):
+    """``image`` with every pixel repeated to about 600 pixels across."""
+    from PIL import Image
+
+    factor = max(1, 600 // max(image.shape[:2]))
+    return Image.fromarray(image).resize(
+        (image.shape[1] * factor, image.shape[0] * factor), Image.NEAREST
+    )
+
+
 KEPT, LOST, NEW = (245, 158, 11), (56, 189, 248), (244, 63, 94)
 
 
@@ -72,7 +82,6 @@ def detections(
     With a decoded detection, pixels detected on both are orange, pixels the
     decoded copy loses are blue, and pixels it adds are red.
     """
-    from PIL import Image
 
     low, high = np.nanpercentile(e, (2, 99.5))
     grey = np.nan_to_num(np.clip((e - low) / (high - low), 0, 1))
@@ -84,7 +93,7 @@ def detections(
         image[original & ~decoded] = LOST
         image[~original & decoded] = NEW
     image[outline(plume)] = 255
-    return Image.fromarray(image).resize((600, 600), Image.NEAREST)
+    return enlarged(image)
 
 
 def task(row: dict[str, str]) -> list[dict]:
@@ -136,7 +145,6 @@ def task(row: dict[str, str]) -> list[dict]:
 
 def preview(path: Path) -> None:
     """The enhancement of the patch the detector finds best, its mask outlined."""
-    from PIL import Image
 
     from earthcompress.build import colour
 
@@ -146,7 +154,7 @@ def preview(path: Path) -> None:
     low, high = np.nanpercentile(e, (2, 99.5))
     image = colour(np.nan_to_num(np.clip((e - low) / (high - low), 0, 1)), "magma")
     image[outline(plume)] = 255
-    Image.fromarray(image).resize((600, 600), Image.NEAREST).save(path, optimize=True)
+    enlarged(image).save(path, optimize=True)
 
 
 def main() -> None:

@@ -519,9 +519,9 @@ USECASES = (
         "codecs": (
             "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
             "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
-            "searches its distance on each array. Its smallest distance leaves about 11 DN "
-            "in Landsat and 5 DN in Sentinel-2, so at the smaller bounds it stores the "
-            "array losslessly and those bounds share one point, marked lossless."
+            "searches its distance on each array, and where no distance keeps the bound "
+            "it stores the array losslessly, so those bounds share one point, marked "
+            "lossless."
         ),
     },
     {
@@ -944,6 +944,8 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
             for key, value in (
                 ("sensor", SENSORS[p["sensor"]]),
                 ("MethaneSET id", p.get("methaneset_id", "")),
+                ("pixel", f"{p['pixel_m']} m"),
+                ("shape", p["shape"]),
                 ("plume pixels", p["plume_pixels"]),
                 ("dtype", p["dtype"]),
             )

@@ -22,18 +22,18 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask, on its native grid of 20 m for Sentinel-2 and 30 m for Landsat. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
-Twenty patches from [MethaneSET](https://huggingface.co/datasets/tacofoundation/methaneset), ten per sensor, the ones chosen in [lossy-plume-test](https://github.com/JulioContrerasH/lossy-plume-test). Each patch is 200 × 200 pixels at 10 m and holds a target, four backgrounds and a plume mask. `build.py` keeps the two shortwave infrared bands.
+Twenty patches from [MethaneSET](https://huggingface.co/datasets/tacofoundation/methaneset), ten per sensor, the ones chosen in [lossy-plume-test](https://github.com/JulioContrerasH/lossy-plume-test). Each patch holds a target, four backgrounds and a plume mask. MethaneSET puts every band on a 10 m grid of 200 × 200 pixels by repeating each pixel, over 2 × 2 cells for the 20 m shortwave infrared bands of Sentinel-2 and over 3 × 3 cells for the 30 m bands of Landsat. `build.py` keeps the two shortwave infrared bands and one value per repeated block, so every patch is compressed and evaluated on its native grid. The plume mask, drawn at 10 m, becomes plume where it covers most of a native pixel.
 
-| sensor | collection | bands | dtype | patches |
-| --- | --- | --- | --- | ---: |
-| Sentinel-2 | `methaneset-s2-finetune` | B11, B12 | uint16 | 10 |
-| Landsat 8/9 | `methaneset-l89-finetune` | B6, B7 | uint16 | 10 |
+| sensor | collection | bands | pixel | shape | patches |
+| --- | --- | --- | ---: | --- | ---: |
+| Sentinel-2 | `methaneset-s2-finetune` | B11, B12 | 20 m | 2 × 100 × 100 or one row or column less | 10 |
+| Landsat 8/9 | `methaneset-l89-finetune` | B6, B7 | 30 m | 2 × 66 × 66 | 10 |
 
-The target and each background are compressed as separate arrays of 2 × 200 × 200. The plume mask is never compressed. Landsat uses only `bg0` as background, because `bg1` to `bg3` are stored in DN and the target in reflectance. `build.py` stores the Landsat reflectance as uint16 DN of 2e-5, as `l8-oli-8` does, which moves no value by more than half a DN, so every patch is uint16 and every error is in DN. The patches keep the CC BY-NC-SA 4.0 licence of MethaneSET.
+The target and each background are compressed as separate arrays, all uint16. The plume mask is never compressed. Landsat uses only `bg0` as background, because `bg1` to `bg3` are stored in DN and the target in reflectance, and `build.py` stores its reflectance as uint16 DN of 2e-5, as `l8-oli-8` does, which moves no value by more than half a DN. In `methane-s2-08` the background `bg0` is not repeated in MethaneSET, so its native grid keeps one of every 2 × 2 values. The patches keep the CC BY-NC-SA 4.0 licence of MethaneSET.
 
 ### Detector
 
@@ -49,11 +49,11 @@ The use case runs the lossy mode of the benchmark, which holds the root-mean-squ
 
 ### Metric
 
-`delta_iou` is the intersection over union of `D` and the plume mask on the decoded copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.57 in Sentinel-2 and 0.55 in Landsat.
+`delta_iou` is the intersection over union of `D` and the plume mask on the decoded copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
 
 ### Results
 
-All three codecs leave the detection almost unchanged up to an error of 4 DN in Sentinel-2, below the 7 DN noise of its bands. GeoZL with PIVCO then reaches 14 times at 8 DN with a median change of -0.010, and 20 times at 16 DN, where the median falls to -0.083 and the worst patch to -0.305. GeoZL with PFOR decodes the same arrays, so it moves the detection as much, but compresses less, 8 times at 8 DN and 10 times at 16 DN. JPEG XL holds the detection better at the same error, -0.021 at 16 DN with 18 times and -0.093 at 32 DN with 41 times. Below 8 DN it finds no distance within the bound and stores the patches losslessly, at 8 times. In Landsat, GeoZL with PIVCO reaches 14 times at 8 DN with a median of -0.006, and 16 times at 16 DN with -0.017, against 11 and 12 times with PFOR. JPEG XL cannot go below an error of about 11 DN in Landsat and 5 DN in Sentinel-2, because its smallest distance stops there, so at the smaller bounds it stores the patches losslessly and every one of those bounds lands on the same point. In Landsat that lossless point compresses 12 times, more than the lossy mode, 6 times at 16 DN and 11 times at 64 DN, because the lossless mode finds the 3 × 3 repeated pixels that the lossy one breaks. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
+Up to an error of 8 DN no codec moves the median detection by more than 0.01, in either sensor. In Sentinel-2, GeoZL with PIVCO compresses 5.6 times at 8 DN and 7.9 times at 16 DN, where the median falls to -0.091 and the worst patch to -0.315. GeoZL with PFOR decodes the same arrays, so it moves the detection as much, but compresses less, 4.4 and 5.6 times. JPEG XL compresses as much as PIVCO at 16 DN, 7.8 times, with a median of only -0.023, and 14.6 times at 32 DN with -0.086, so at the same size it keeps the detection best. In Landsat the order turns. GeoZL with PIVCO compresses 2.6 times at 8 DN and 3.2 times at 16 DN with a median of -0.017, while JPEG XL finds no distance within 16 DN, stores the patches losslessly at 1.5 times, and reaches 2.9 times at 32 DN with -0.042. At the smaller bounds JPEG XL stores the patch losslessly, which puts those bounds on one point in the charts, marked lossless.
 
 ## Drainage networks
 

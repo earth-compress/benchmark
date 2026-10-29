@@ -1,4 +1,4 @@
-"""The twenty patches of the methane use case, from MethaneSET as published.
+"""The twenty patches of the methane use case, from MethaneSET on their native grid.
 
 uv run --with tacoreader --with pandas --with "duckdb<1.5" python usecases/methane/build.py
 """
@@ -21,11 +21,15 @@ SENSORS = {
         collection="methaneset-s2-finetune",
         bands=[11, 12],
         backgrounds=["bg0", "bg1", "bg2", "bg3"],
+        block=2,
+        pixel=20,
     ),
     "l89": dict(
         collection="methaneset-l89-finetune",
         bands=[5, 6],
         backgrounds=["bg0"],
+        block=3,
+        pixel=30,
     ),
 }
 PATCHES = {
@@ -70,6 +74,26 @@ def dn(reflectance: np.ndarray) -> np.ndarray:
     return np.clip(codes, 0, np.iinfo(np.uint16).max).astype(np.uint16)
 
 
+def blocks(array: np.ndarray, block: int, oy: int, ox: int) -> np.ndarray:
+    """The whole ``block`` × ``block`` cells of the last two axes, from (oy, ox)."""
+    h = (array.shape[-2] - oy) // block * block
+    w = (array.shape[-1] - ox) // block * block
+    cut = array[..., oy : oy + h, ox : ox + w]
+    return cut.reshape(*cut.shape[:-2], h // block, block, w // block, block)
+
+
+def origin(target: np.ndarray, block: int) -> tuple[int, int]:
+    """Where the blocks MethaneSET repeats each native pixel over start."""
+    for oy in range(block):
+        for ox in range(block):
+            cells = blocks(target, block, oy, ox)
+            if np.array_equal(
+                cells, np.broadcast_to(cells[..., :1, :, :1], cells.shape)
+            ):
+                return oy, ox
+    raise ValueError(f"the target is not repeated over {block} × {block} blocks")
+
+
 def main() -> None:
     tacoreader.use("pandas")
     (HERE / "npz").mkdir(exist_ok=True)
@@ -93,6 +117,13 @@ def main() -> None:
                 # than half a DN.
                 target, bg, nodata = dn(target), dn(bg), None
             plume = read(scene, "plume")[0][0] > 0
+
+            # Back to the native grid, one value per repeated block. The mask is
+            # drawn at 10 m, so a native pixel is plume where most of it is.
+            oy, ox = origin(target, s["block"])
+            target = blocks(target, s["block"], oy, ox)[..., 0, :, 0]
+            bg = blocks(bg, s["block"], oy, ox)[..., 0, :, 0]
+            plume = blocks(plume, s["block"], oy, ox).mean(axis=(-3, -1)) > 0.5
             name = f"methane-{sensor}-{k:02d}"
             np.savez_compressed(
                 HERE / "npz" / f"{name}.npz", target=target, bg=bg, plume=plume
@@ -102,13 +133,15 @@ def main() -> None:
                     "id": name,
                     "sensor": sensor,
                     "methaneset_id": patch,
+                    "pixel_m": s["pixel"],
+                    "shape": "x".join(str(n) for n in target.shape),
                     "dtype": str(target.dtype),
                     "nodata": "" if nodata is None else nodata,
                     "plume_pixels": int(plume.sum()),
                     "npz_path": f"npz/{name}.npz",
                 }
             )
-            print(name, target.dtype, nodata, int(plume.sum()), flush=True)
+            print(name, target.shape, target.dtype, int(plume.sum()), flush=True)
     with (HERE / "manifest.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
