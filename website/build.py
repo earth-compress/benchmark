@@ -519,8 +519,9 @@ USECASES = (
         "codecs": (
             "GeoZL with PIVCO and with PFOR runs behind the lossy quantiser of the "
             "benchmark, so both decode the same arrays and differ only in size. JPEG XL "
-            "searches its distance on each array, and where no distance keeps the bound "
-            "it falls back to lossless."
+            "searches its distance on each array. Its smallest distance leaves about 11 DN "
+            "in Landsat and 5 DN in Sentinel-2, so at the smaller bounds it stores the "
+            "array losslessly and those bounds share one point, marked lossless."
         ),
     },
     {
@@ -831,7 +832,8 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
         ) + "".join(
             f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
             f'y="{y(group[-1]["delta"]) - 7:.1f}">'
-            f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}</text>"
+            f"{group[0]['bound']}{'–' + str(group[-1]['bound']) if len(group) > 1 else ''}"
+            f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
             for group in spots.values()
         )
         out.append(
