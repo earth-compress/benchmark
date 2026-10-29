@@ -661,7 +661,7 @@ USECASES = (
         "title": "Change detection",
         "folder": "change-detection",
         "metric": "change_iou",
-        "caption": "AlphaEarth over the GERD reservoir in Ethiopia in 2025, with the pixels that changed since 2017 in red.",
+        "caption": "AlphaEarth over Ethiopia's GERD reservoir in 2025. Red marks pixels the detector flags as changed since 2017.",
         "figure": change_figure(),
         "group": None,
         "groups": {},
@@ -701,7 +701,7 @@ def run_it(folder: str) -> str:
 <pre><code>git clone {REPO}
 cd benchmark
 uv run python usecases/{folder}/run.py</code></pre>
-<p class="note"><code>run.py</code> downloads the samples it lacks, compresses them with every configuration and writes <code>results.csv</code>.</p>
+<p class="note"><code>run.py</code> reads the samples, tries to fetch any missing files and writes <code>results.csv</code>.</p>
 </div>"""
 
 
