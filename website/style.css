@@ -142,6 +142,20 @@ table.numbers td:first-child { white-space: nowrap; }
 .uc-panel polyline { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; }
 .uc-panel polyline.dashed { stroke-dasharray: 5 4; }
 .uc-panel circle { fill: var(--c); }
+.uc-panel .axis { font: 12px var(--sans); fill: var(--muted); }
+.uc-panels.wide { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+.uc-panel .series polyline { stroke-width: 1.2; stroke-opacity: 0.55; }
+.uc-panel .series circle { stroke: var(--page); stroke-width: 1; }
+.uc-panel .series:hover polyline { stroke-width: 2.4; stroke-opacity: 1; }
+.summary .doc { padding: 0; max-width: 780px; }
+.maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.maps figure { margin: 0; }
+.maps img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--tint); }
+.maps figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.key::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--k); margin: 0 6px 0 14px; vertical-align: -1px; }
+.k-kept { --k: #f59e0b; }
+.k-lost { --k: #38bdf8; }
+.k-new { --k: #f43f5e; }
 .sample .doc { padding: 0; }
 .sample .experiment h2 { font-size: 21px; margin: 0 0 6px; }
 .button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; padding: 9px 22px; }

@@ -58,14 +58,7 @@ Sentinel-2 uses the budgets of `s2-l1c-20m-6`, which holds B11 and B12. Landsat 
 
 ### Results
 
-Median and worst `delta_iou` over the patches and the configurations of each level, 19 in Sentinel-2 and 17 in Landsat.
-
-| sensor | conservative | matched | aggressive |
-| --- | ---: | ---: | ---: |
-| Sentinel-2 | 0.000 (-0.009) | -0.002 (-0.022) | -0.053 (-0.301) |
-| Landsat 8/9 | -0.001 (-0.005) | -0.002 (-0.019) | -0.018 (-0.123) |
-
-Up to `matched` no patch loses more than 0.022 of IoU. At `aggressive` the loss depends on the codec, from none with `zfp-accuracy` to a median of 0.092 with the shared quantiser in Sentinel-2.
+In Sentinel-2 the configuration that compresses most at `matched`, the shared quantiser in front of GeoZL, reduces the patches 11 times and moves the IoU by -0.004 at the median and -0.022 in the worst patch. At `aggressive` it reaches 20 times, but the median falls to -0.092 and the worst patch to -0.289, mostly through false alarms around the plume. Landsat reaches 30 times at `matched` with a median of -0.001, and 41 times at `aggressive` with -0.018. `zfp-accuracy` barely changes the detection because it barely compresses, 0.8 to 1.2 times in Sentinel-2. MethaneSET repeats each 20 m pixel of Sentinel-2 over 2 × 2 cells and each 30 m pixel of Landsat over 3 × 3, so every ratio here is higher than it would be on the native grid.
 
 ## Drainage networks
 

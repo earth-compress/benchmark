@@ -47,12 +47,20 @@ def configurations(
     return found
 
 
+def compress(
+    config: CodecConfiguration, array: np.ndarray, spec: ArraySpec
+) -> tuple[np.ndarray, int]:
+    """``array`` as ``config`` decodes it, and the size of its encoding in bytes."""
+    codec = config.factory(spec)
+    encoded = codec.encode(array)
+    return codec.decode(encoded), len(encoded)
+
+
 def roundtrip(
     config: CodecConfiguration, array: np.ndarray, spec: ArraySpec
 ) -> np.ndarray:
     """``array`` as ``config`` decodes it."""
-    codec = config.factory(spec)
-    return codec.decode(codec.encode(array))
+    return compress(config, array, spec)[0]
 
 
 def iou(a: np.ndarray, b: np.ndarray) -> float:

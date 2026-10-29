@@ -4,6 +4,7 @@ uv run python usecases/methane/run.py
 """
 
 import csv
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,7 @@ import numpy as np
 from earthcompress.budgets import budgets_for
 from earthcompress.contract import Budget
 from earthcompress.spec import ArraySpec
-from earthcompress.usecase import configurations, fetch, iou, roundtrip, run
+from earthcompress.usecase import compress, configurations, fetch, iou, run
 
 HERE = Path(__file__).resolve().parent
 CORPUS = {"s2": "s2-l1c-20m-6", "l89": "l8-oli-8"}
@@ -40,33 +41,94 @@ def fit(target: np.ndarray, bg: np.ndarray, plume: np.ndarray) -> tuple[float, f
     return sign, float(np.nanpercentile(sign * e[~plume], 99.5))
 
 
+def outline(mask: np.ndarray) -> np.ndarray:
+    """The cells of ``mask`` that touch a cell outside it."""
+    inside = np.pad(
+        mask[1:-1, 1:-1]
+        & mask[:-2, 1:-1]
+        & mask[2:, 1:-1]
+        & mask[1:-1, :-2]
+        & mask[1:-1, 2:],
+        1,
+    )
+    return mask & ~inside
+
+
+KEPT, LOST, NEW = (245, 158, 11), (56, 189, 248), (244, 63, 94)
+
+
+def detections(
+    e: np.ndarray,
+    plume: np.ndarray,
+    original: np.ndarray,
+    decoded: np.ndarray | None = None,
+):
+    """The detection over the enhancement in grey, with the plume mask outlined.
+
+    With a decoded detection, pixels detected on both are orange, pixels the
+    decoded copy loses are blue, and pixels it adds are red.
+    """
+    from PIL import Image
+
+    low, high = np.nanpercentile(e, (2, 99.5))
+    grey = np.nan_to_num(np.clip((e - low) / (high - low), 0, 1))
+    image = np.repeat((40 + 150 * grey).astype(np.uint8)[..., None], 3, axis=2)
+    if decoded is None:
+        image[original] = KEPT
+    else:
+        image[original & decoded] = KEPT
+        image[original & ~decoded] = LOST
+        image[~original & decoded] = NEW
+    image[outline(plume)] = 255
+    return Image.fromarray(image).resize((600, 600), Image.NEAREST)
+
+
 def task(row: dict[str, str]) -> list[dict]:
     with np.load(HERE / row["npz_path"]) as patch:
         target, bg, plume = patch["target"], patch["bg"], patch["plume"]
 
     # The sign and the threshold are fitted on the original and kept.
     sign, threshold = fit(target, bg, plume)
-    before = iou(enhancement(target, bg, sign) > threshold, plume)
+    e = enhancement(target, bg, sign)
+    original = e > threshold
+    before = iou(original, plume)
+    figures = HERE / "png" / row["id"]
+    shutil.rmtree(figures, ignore_errors=True)
+    figures.mkdir(parents=True)
+    detections(e, plume, original).save(figures / "original.png", optimize=True)
 
     spec = ArraySpec(target.shape, target.dtype)
-    rows = []
+    rows, best = [], {}
     for config in configurations(budgets(row["sensor"]), spec):
-        decoded = roundtrip(config, target, spec)
-        decoded_bg = np.stack(
-            [roundtrip(config, np.ascontiguousarray(x), spec) for x in bg]
-        )
-        after = iou(enhancement(decoded, decoded_bg, sign) > threshold, plume)
+        decoded, size = compress(config, target, spec)
+        decoded_bg = []
+        for x in bg:
+            values, n = compress(config, np.ascontiguousarray(x), spec)
+            decoded_bg.append(values)
+            size += n
+        detection = enhancement(decoded, np.stack(decoded_bg), sign) > threshold
+        ratio = (target.nbytes + bg.nbytes) / size
+        level = config.budget.level
+        if level not in best or ratio > best[level][0]:
+            best[level] = (ratio, config.id, detection)
         rows.append(
             {
                 "id": row["id"],
                 "sensor": row["sensor"],
                 "configuration": config.id,
                 "family": config.family,
-                "budget_level": config.budget.level,
+                "budget_level": level,
                 "tau": config.budget.tau,
-                "delta_iou": after - before,
+                "compression_ratio": ratio,
+                "delta_iou": iou(detection, plume) - before,
             }
         )
+
+    # The decoded detection of the configuration that compresses the patch most
+    # at each level.
+    for _, name, detection in best.values():
+        image = detections(e, plume, original, detection)
+        image.save(figures / f"{name}.png", optimize=True)
     return rows
 
 
@@ -81,15 +143,7 @@ def preview(path: Path) -> None:
     e = enhancement(target, bg, fit(target, bg, plume)[0])
     low, high = np.nanpercentile(e, (2, 99.5))
     image = colour(np.nan_to_num(np.clip((e - low) / (high - low), 0, 1)), "magma")
-    inside = np.pad(
-        plume[1:-1, 1:-1]
-        & plume[:-2, 1:-1]
-        & plume[2:, 1:-1]
-        & plume[1:-1, :-2]
-        & plume[1:-1, 2:],
-        1,
-    )
-    image[plume & ~inside] = 255
+    image[outline(plume)] = 255
     Image.fromarray(image).resize((600, 600), Image.NEAREST).save(path, optimize=True)
 
 
