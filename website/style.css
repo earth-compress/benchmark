@@ -168,6 +168,7 @@ table.numbers td:first-child { white-space: nowrap; }
 .experiment li { margin: 8px 0; }
 .materials .meta-table { max-width: 780px; }
 .materials h3 { margin: 24px 0 8px; }
+.sample .materials h2 { font-size: 21px; margin: 32px 0 6px; }
 .materials pre { max-width: 780px; background: var(--tint); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
 .results .doc { padding: 16px 0 0; }
 

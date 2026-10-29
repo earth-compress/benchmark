@@ -734,14 +734,14 @@ def materials(case: dict, root: str) -> str:
     if "licence" in case:
         rows.append(("licence", html.escape(case["licence"])))
     table = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
-    return f"""<section class="materials"><h2>Materials</h2>
+    return f"""<div class="materials"><h2>Materials</h2>
 <table class="meta-table">{table}</table>
 <h3>Run it</h3>
 <pre><code>git clone {REPO}
 cd benchmark
 uv run python usecases/{folder}/run.py</code></pre>
 <p class="note"><code>run.py</code> downloads the samples it lacks, compresses them with every configuration and writes <code>results.csv</code>.</p>
-</section>"""
+</div>"""
 
 
 RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200)
@@ -1011,9 +1011,9 @@ def usecases() -> None:
 <div class="sample">
 <div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
+{materials(case, "../../")}
 <p><a class="button primary" href="results/">Results</a></p></div>
-</div>
-{materials(case, "../../")}"""
+</div>"""
         target = OUT / "usecases" / folder / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
