@@ -760,12 +760,12 @@ def curve(rows: list[dict[str, str]]) -> list[dict]:
     """
     by: dict[int, list] = {}
     for r in rows:
-        by.setdefault(int(r["rms_bound_dn"]), []).append(r)
+        by.setdefault(int(r["rms_bound"]), []).append(r)
     return [
         {
             "bound": bound,
             "ratio": len(found) / sum(1 / float(r["compression_ratio"]) for r in found),
-            "rmse": statistics.median(float(r["rmse_dn"]) for r in found),
+            "rmse": statistics.median(float(r["rmse"]) for r in found),
             "delta": statistics.median(float(r["delta_iou"]) for r in found),
         }
         for bound, found in sorted(by.items())
@@ -789,7 +789,7 @@ def delta_range(points: list[dict]) -> tuple[float, float]:
 
 def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
     """Each codec at each error bound, its compression ratio against the change of
-    the metric, with the bound in DN next to each point."""
+    the metric, with the bound in 1e-4 of reflectance next to each point."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
     (x0, x1), (low, high) = xs, ys
 
@@ -826,8 +826,8 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
             spots.setdefault((round(x(p["ratio"])), round(y(p["delta"]))), []).append(p)
         marks = "".join(
             f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["delta"]):.1f}" r="4.5">'
-            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']} DN, measured "
-            f"{p['rmse']:.1f} DN · {p['ratio']:.1f}× · {metric} {p['delta']:+.3f}</title></circle>"
+            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']} × 10⁻⁴, measured "
+            f"{p['rmse']:.1f} × 10⁻⁴ · {p['ratio']:.1f}× · {metric} {p['delta']:+.3f}</title></circle>"
             for p in points
         ) + "".join(
             f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
@@ -845,7 +845,7 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str) -> str:
     )
 
 
-def ratio_results(case: dict, lead: str, summary: str) -> str:
+def ratio_results(case: dict, lead: str) -> str:
     """The results page of a use case that sweeps an error bound, and the page of
     each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
@@ -879,7 +879,7 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
         for label, colour in CODECS.values()
     )
     note = (
-        "Each point is a bound on the root-mean-square error, written next to it in DN, "
+        "Each point is a bound on the root-mean-square error, written next to it in 10⁻⁴ of reflectance, "
         "at the compression ratio over all the patches of the sensor and the median "
         f"<code>{metric}</code>. {case['codecs']}"
     )
@@ -907,7 +907,7 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
         for codec, (name, _) in CODECS.items():
             mine = sorted(
                 (r for r in found if r["codec"] == codec),
-                key=lambda r: int(r["rms_bound_dn"]),
+                key=lambda r: int(r["rms_bound"]),
             )
             if not mine:
                 continue
@@ -919,11 +919,11 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
                     LARGE,
                     False,
                 )
-                rmse = float(r["rmse_dn"])
-                measured = "lossless" if rmse == 0 else f"measured {rmse:.1f} DN"
+                rmse = float(r["rmse"])
+                measured = "lossless" if rmse == 0 else f"measured {rmse:.1f}"
                 figs.append(
-                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {r["rms_bound_dn"]} DN">'
-                    f"<figcaption><strong>RMSE ≤ {r['rms_bound_dn']} DN</strong>, {measured}<br>"
+                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {r["rms_bound"]} × 10⁻⁴">'
+                    f"<figcaption><strong>RMSE ≤ {r['rms_bound']} × 10⁻⁴</strong>, {measured}<br>"
                     f"{float(r['compression_ratio']):.1f}× · {metric} {float(r['delta_iou']):+.3f}</figcaption></figure>"
                 )
             maps.append(
@@ -958,10 +958,10 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
 <div><h2>Patch</h2><table class="meta-table">{meta}</table></div>
 </div>
 <section class="results"><h2>Compression ratio and detection</h2>
-<p class="note">Each point is a bound on the root-mean-square error, written next to it in DN, on this patch.</p>
+<p class="note">Each point is a bound on the root-mean-square error, written next to it in 10⁻⁴ of reflectance, on this patch.</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, pid)}</div></section>
 <section class="decoded"><h2>Decoded detections</h2>
-<p class="note">The detection on the decoded copy at each error bound.
+<p class="note">The detection on the decoded copy at each error bound, in 10⁻⁴ of reflectance.
 <span class="key k-kept">detected on both</span><span class="key k-lost">lost</span><span class="key k-new">new</span></p>
 {"".join(maps)}</section>
 <p class="pager">{prev_link}{next_link}</p>"""
@@ -972,7 +972,6 @@ def ratio_results(case: dict, lead: str, summary: str) -> str:
     return f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
-<section class="summary"><h2>Summary</h2><div class="doc">{summary}</div></section>
 <section class="results"><h2>Compression ratio and detection</h2><p class="note">{note}</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Scenes</h2><div class="grid">{"".join(cards)}</div></section>"""
@@ -990,13 +989,13 @@ def usecases() -> None:
             markdown.markdown(s, extensions=["tables"]), root
         )
         extra = (
-            f'<div class="doc">{md(blocks["Results"], "../../../")}'
+            f'<div class="doc">{md(blocks.get("Results", ""), "../../../")}'
             f"<h3>Budgets</h3>{md(blocks.get('Budgets', ''), '../../../')}</div>"
         )
         with (ROOT / "usecases" / folder / "results.csv").open(newline="") as stream:
             found = list(csv.DictReader(stream))
         count = len({r["id"] for r in found})
-        swept = "rms_bound_dn" in found[0]
+        swept = "rms_bound" in found[0]
         source = ROOT / "usecases" / folder / "preview.png"
         source = source if source.exists() else None
         thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
@@ -1019,7 +1018,7 @@ def usecases() -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
         if swept:
-            page = ratio_results(case, lead, md(blocks["Results"], "../../../"))
+            page = ratio_results(case, lead)
         else:
             page = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>

@@ -22,7 +22,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask, on its native grid of 20 m for Sentinel-2 and 30 m for Landsat. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 1 to 64 DN, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
+The experiment takes 20 patches of MethaneSET, 10 from Sentinel-2 and 10 from Landsat 8/9, which are on [Hugging Face](https://huggingface.co/datasets/earth-compress/benchmark/tree/main/usecases/methane/npz). Each patch holds a target, its backgrounds and a plume mask, on its native grid of 20 m for Sentinel-2 and 30 m for Landsat. GeoZL with PIVCO, GeoZL with PFOR and JPEG XL compress the two shortwave infrared bands of the target and of each background in lossy mode, at root-mean-square errors from 0.0001 to 0.0064 of reflectance, while the mask stays as it is. A band ratio detector, fitted once on the original, then runs again on the decoded copy. The result is `delta_iou`, how much the overlap between the detection and the plume mask changes.
 
 ### Data
 
@@ -45,15 +45,11 @@ The sign and `t` of the original are kept for the decoded copy.
 
 ### Errors
 
-The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds go from 1 to 64 DN and double at each step. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array, and stores the array losslessly when no distance keeps the bound.
+The use case runs the lossy mode of the benchmark, which holds the root-mean-square error of each array within a bound. The bounds are the same reflectance in both sensors, from 1 to 64 × 10⁻⁴, doubling at each step. One DN is 10⁻⁴ of reflectance in Sentinel-2 L1C and 2 × 10⁻⁵ in Landsat, so the bounds are 1 to 64 DN in Sentinel-2 and 5 to 320 DN in Landsat. GeoZL with PIVCO (`geozl-med-pivco`) and with PFOR (`geozl-planar-pfor`) runs behind the lossy quantiser of the benchmark, so both decode the same arrays and differ only in size. JPEG XL searches its distance on each array, and stores the array losslessly when no distance keeps the bound.
 
 ### Metric
 
 `delta_iou` is the intersection over union of `D` and the plume mask on the decoded copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
-
-### Results
-
-Up to an error of 8 DN no codec moves the median detection by more than 0.01, in either sensor. In Sentinel-2, GeoZL with PIVCO compresses 5.6 times at 8 DN and 7.9 times at 16 DN, where the median falls to -0.091 and the worst patch to -0.315. GeoZL with PFOR decodes the same arrays, so it moves the detection as much, but compresses less, 4.4 and 5.6 times. JPEG XL compresses as much as PIVCO at 16 DN, 7.8 times, with a median of only -0.023, and 14.6 times at 32 DN with -0.086, so at the same size it keeps the detection best. In Landsat the order turns. GeoZL with PIVCO compresses 2.6 times at 8 DN and 3.2 times at 16 DN with a median of -0.017, while JPEG XL finds no distance within 16 DN, stores the patches losslessly at 1.5 times, and reaches 2.9 times at 32 DN with -0.042. At the smaller bounds JPEG XL stores the patch losslessly, which puts those bounds on one point in the charts, marked lossless.
 
 ## Drainage networks
 

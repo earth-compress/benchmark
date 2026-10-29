@@ -16,7 +16,9 @@ from earthcompress.usecase import compress, fetch, iou, run
 
 HERE = Path(__file__).resolve().parent
 RMS = (1, 2, 4, 8, 16, 32, 64)
-"""Root-mean-square errors of the sweep, in DN, the stored unit of every patch."""
+"""Root-mean-square errors of the sweep, in 1e-4 of reflectance in both sensors."""
+REFLECTANCE = {"s2": 1e-4, "l89": 2e-5}
+"""Reflectance of one stored DN, in Sentinel-2 L1C and in Landsat Collection 2."""
 
 
 def makers():
@@ -111,10 +113,11 @@ def task(row: dict[str, str]) -> list[dict]:
     detections(e, plume, original).save(figures / "original.png", optimize=True)
 
     spec = ArraySpec(target.shape, target.dtype)
+    per_dn = REFLECTANCE[row["sensor"]] / 1e-4
     rows = []
     for make in makers():
-        for dn in RMS:
-            config = make(Budget(tau=dn))
+        for bound in RMS:
+            config = make(Budget(tau=bound / per_dn))
             if not config.supports(spec):
                 continue
             decoded, size = compress(config, target, spec)
@@ -134,8 +137,8 @@ def task(row: dict[str, str]) -> list[dict]:
                     "sensor": row["sensor"],
                     "configuration": config.id,
                     "codec": config.id.split("-tau")[0],
-                    "rms_bound_dn": dn,
-                    "rmse_dn": np.sqrt(squared / (target.size + bg.size)),
+                    "rms_bound": bound,
+                    "rmse": np.sqrt(squared / (target.size + bg.size)) * per_dn,
                     "compression_ratio": (target.nbytes + bg.nbytes) / size,
                     "delta_iou": iou(detection, plume) - before,
                 }
