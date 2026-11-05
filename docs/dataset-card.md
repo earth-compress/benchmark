@@ -162,11 +162,14 @@ SHA-256.
 ```
 usecases/{use-case}/npz/{sample}.npz
 usecases/{use-case}/png/{sample}/{configuration}.png
+usecases/clouds-decoded/tif/{sample}/{level}/{output}.tif
 ```
 
 `methane` holds 20 MethaneSET patches and `change-detection` 13 AlphaEarth
 windows in 2017 and 2025. The drainage use case reads `cop-dem-glo30`, so its
-folder holds only maps. Each PNG shows the result of the analysis on the
+folder holds only maps. `clouds-decoded` holds the outputs of Clouds Decoded on
+100 Sentinel-2 products, at the original and at each compression level, with its
+maps and an image of each product. Each PNG shows the result of the analysis on the
 original sample or on its copy decoded by one configuration. The `run.py` of
 each use case in the benchmark repository downloads the samples it needs.
 
@@ -176,7 +179,7 @@ Each corpus and use case keeps the licence of its source.
 
 | source | corpora | licence and attribution |
 | --- | --- | --- |
-| Sentinel-1, Sentinel-2 | `s1-grd-iw-2`, `s2-l1c-*` | Copernicus data policy. Contains modified Copernicus Sentinel data 2023. |
+| Sentinel-1, Sentinel-2 | `s1-grd-iw-2`, `s2-l1c-*`, `usecases/clouds-decoded` | Copernicus data policy. Contains modified Copernicus Sentinel data 2017–2026. |
 | Landsat | `lm-mss-4`, `l5-*`, `l7-*`, `l8-*` | Public domain. Landsat data courtesy of the U.S. Geological Survey. |
 | GOES-16 ABI | `goes-abi-16` | Public domain. GOES-16 imagery courtesy of NOAA/NESDIS. |
 | GPM IMERG | `imerg-pcp-12` | No restrictions. Global Precipitation Measurement (GPM) IMERG data provided by the NASA/GSFC Precipitation Processing System. |
