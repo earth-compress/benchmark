@@ -1,13 +1,13 @@
 # Use cases
 
-These use cases check whether compression changes methane plume detection, drainage mapping, land change detection or cloud masks. Each analysis runs on original data and decoded copies, then compares the outputs. Settings fitted on the original are reused. Labels are never compressed. Each case lists its codec configurations and error bounds.
+These use cases check whether compression changes methane plume detection, drainage mapping, land change detection, cloud masking or cloud properties. Each analysis runs on original data and decoded copies, then compares the outputs. Settings fitted on the original are reused. Labels are never compressed. Each case lists its codec configurations and error bounds.
 
 | use case | data | samples | metric |
 | --- | --- | ---: | --- |
 | [Methane plumes](#methane-plumes) | MethaneSET, Sentinel-2 and Landsat 8/9 | 20 | `delta_iou` |
 | [Drainage networks](#drainage-networks) | `cop-dem-glo30` | 10 | `stream_f1` |
 | [Change detection](#change-detection) | AlphaEarth, 2017 and 2025 | 13 | `change_iou` |
-| [Clouds Decoded](#clouds-decoded) | `EC-prototype-S2L1C`, Sentinel-2 L1C | 100 | `cloud_iou` |
+| [Clouds Decoded](#clouds-decoded) | `EC-prototype-S2L1C`, Sentinel-2 L1C | 100 | `cloud_iou` and five others |
 
 Code, manifests and results live in `usecases/<use-case>/`. `run.py` reads the samples and writes one row per sample and configuration to `results.csv`. Where provided, `build.py` rebuilds samples from their source.
 
@@ -15,6 +15,7 @@ Code, manifests and results live in `usecases/<use-case>/`. `run.py` reads the s
 uv run --extra corpus python usecases/methane/run.py
 uv run --extra corpus python usecases/drainage/run.py
 uv run --extra corpus python usecases/change-detection/run.py
+uv run --extra corpus python usecases/clouds-decoded/run.py
 ```
 
 ## Methane plumes
@@ -106,25 +107,35 @@ Both years are compressed separately with GeoZL PIVCO, GeoZL PFOR and JPEG XL. T
 
 ## Clouds Decoded
 
-Does compression change the clouds that Clouds Decoded finds in Sentinel-2?
+Does compression affect the cloud mask and cloud properties retrieved by Clouds Decoded from Sentinel-2 data?
 
 ### Experiment
 
-We use 100 Sentinel-2 Level-1C products of one Bay of Bengal tile, sensed between 2017 and 2026. The products were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. Results are coming soon.
+We use 100 Sentinel-2 Level-1C products of one Bay of Bengal tile, sensed between 2017 and 2026. The products were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and each compressed copy. We then compare the two sets of outputs on cloud mask, cloud top height, optical thickness and ice effective radius.
 
 ### Data
 
-All products are of tile T44PNB, with the 13 bands at their native 10, 20 and 60 m as uint16 DN. They show one stretch of tropical sea and its clouds over ten years. Each product is a `.SAFE` directory with the original metadata and the compressed bands at every level of one codec. The `compressed-readers` branch of [Clouds Decoded](https://github.com/asterisk-labs/clouds-decoded) reads them like ESA products. The products follow the Copernicus Sentinel data terms.
+All products are of tile T44PNB, with the 13 bands at their native resolution (10, 20 and 60 m) as uint16 DN. Each product is a `.SAFE` directory with the original metadata and the compressed bands at every level of one codec. The `compressed-readers` branch of [Clouds Decoded](https://github.com/asterisk-labs/clouds-decoded) reads them like ESA products. The products follow the Copernicus Sentinel data terms.
 
 ### Analysis
 
-1. Clouds Decoded makes the cloud mask of the original product, cloud or clear for each pixel.
-2. It makes the mask again for each compressed copy, with the same settings.
+1. Clouds Decoded (CD) runs its full workflow on the original product.
+2. It runs again on the data from each compression level, with the same settings.
+3. `run.py` compares the CD outputs and writes `results.csv`. Since running CD takes a long time, `run.py` downloads the outputs of these runs (about 48 GB): the cloud mask, cloud top height and cloud properties as GeoTIFFs, with local paths removed from their metadata.
+
+`levels.csv` holds the compression ratio and root-mean-square error of each product and level. `run.py` reads them from it because measuring them again needs the original products and decoding every level. The compression ratio is the bytes of the 13 bands as uint16 over the bytes of their compressed image data, leaving out metadata. The root-mean-square error compares the decoded bands with the original ones in DN, over all pixels of the 13 bands except where the original is 0.
 
 ### Compression
 
-georvq, SZ3 and JPEG XL compress all 13 bands. georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at levels 8-8, 8-4 and 8-0. SZ3 codes each band separately with an absolute error limit of 45, 63, 90, 125 or 180 DN. JPEG XL codes each band separately as a 16-bit image at distances 0.094, 0.17, 0.33, 0.63 and 1.2, with effort 7. The SZ3 and JPEG XL settings were tuned on 4 products to match the georvq rates. Both cut each band into 10 × 10 tiles and store the zero mask of each tile losslessly. Rates are in bits per 10 m pixel. The 13 original bands take about 52 in lossless JPEG 2000.
+georvq, SZ3 and JPEG XL compress all 13 bands. georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at levels 8-8, 8-4 and 8-0. SZ3 codes each band separately with an absolute error limit of 45, 90, 125 or 180 DN. JPEG XL codes each band separately as a 16-bit image at distances 0.094, 0.33 and 1.2, with effort 7. The SZ3 and JPEG XL settings were tuned on 4 products to match the georvq rates. Both cut each band into 10 × 10 tiles and store the zero mask of each tile losslessly. Rates are in bits per 10 m pixel. The 13 original bands take about 52 in lossless JPEG 2000.
 
 ### Metric
 
-`cloud_iou` is the intersection over union of the cloud masks from the compressed copy and the original. It is 1 when they agree.
+| | metric | meaning | no change |
+| ---: | --- | --- | ---: |
+| 1 | `cloud_iou` | Intersection over union of the two cloud masks | 1 |
+| 2 | `cth_mae` | Mean absolute change in cloud top height, in metres | 0 |
+| 3 | `cth_bias` | Mean change in cloud top height, in metres | 0 |
+| 4 | `tau_median_rel_error` | Median of the absolute relative change in optical thickness, in % | 0 |
+| 5 | `re_ice_mae` | Mean absolute change in ice effective radius, in µm | 0 |
+| 6 | `re_ice_texture` | Mean difference between neighbouring pixels of ice effective radius, compressed over original | 1 |

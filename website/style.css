@@ -350,3 +350,20 @@ footer p { margin: 0 0 8px; }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+.metric-table { margin: 12px 0 18px; border-top: 1px solid var(--line); }
+.metric-line { display: grid; grid-template-columns: 34px minmax(150px, 190px) 1fr 76px; gap: 12px; padding: 8px; align-items: baseline; }
+.metric-head { font-size: 13px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+.metric-row { border-bottom: 1px solid var(--line); }
+.metric-row summary { cursor: pointer; list-style: none; font-size: 14px; }
+.metric-row summary::-webkit-details-marker { display: none; }
+.metric-row summary:hover { background: var(--tint); }
+.metric-row summary { position: relative; }
+.metric-row summary::before { content: "▸"; position: absolute; left: 8px; top: 8px; color: var(--faint); }
+.metric-row[open] summary::before { content: "▾"; }
+.metric-line > span:first-child { padding-left: 16px; }
+.metric-row .explain { padding: 0 8px; box-sizing: border-box; }
+@media (max-width: 640px) { .metric-line { grid-template-columns: 34px 1fr; } .metric-line > span:nth-child(n+3) { grid-column: 2; } }
+.map-section { border-top: 1px solid var(--line); padding: 10px 0; }
+.map-section summary { cursor: pointer; }
+.map-section summary h2 { display: inline; margin: 0; }
