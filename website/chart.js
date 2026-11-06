@@ -48,7 +48,7 @@ function legend(groups, present) {
   }
   return div;
 }
-function draw(box, totals, CODECS, groups, reference) {
+function draw(box, totals, CODECS, groups, reference, empty = "No results yet") {
   const points = CODECS.filter(c => totals[c]).map(c => ({ id: c, group: groups[c], broken: totals[c].broken || [], ...rate(totals[c]) }));
   const ref = reference && totals[reference] ? rate(totals[reference]) : null;
   const W = Math.max(320, box.clientWidth || 960);
@@ -120,7 +120,7 @@ function draw(box, totals, CODECS, groups, reference) {
     g.append(el("text", { x: spot[0], y: spot[1], "text-anchor": spot[2], class: "label" }, name));
     svg.append(g);
   });
-  if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, "No results yet"));
+  if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, empty));
   const broken = points.filter(p => p.broken.length).sort((a, b) => a.id.localeCompare(b.id));
   const notes = [];
   if (broken.length) {
@@ -148,7 +148,8 @@ function draw(box, totals, CODECS, groups, reference) {
 function mountChart(box, read) {
   const payload = JSON.parse(document.getElementById("chart-data").textContent);
   const { data, codecs, groups, reference } = payload[box.dataset.set] || payload;
-  const render = () => draw(box, data[read()] || {}, codecs, groups, reference);
+  const empty = box.dataset.set === "near" ? "No budget at this level" : undefined;
+  const render = () => draw(box, data[read()] || {}, codecs, groups, reference, data[read()] ? undefined : empty);
   // Draw once now, and again only when the width changes enough to matter.
   let lastWidth = box.clientWidth;
   render();

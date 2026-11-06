@@ -339,12 +339,14 @@ def chart_block(
     near: str = "",
     budget: bool = True,
     root: str = "",
+    levels: tuple[str, ...] = LEVELS,
 ) -> str:
     pick = f'<label class="pick">{select}</label>' if select else ""
     note = f'<p class="chart-note">{caption}</p>' if caption else ""
+    chosen = "matched" if "matched" in levels else (levels or ("",))[0]
     levels = "".join(
-        f'<option value="{level}"{" selected" if level == "matched" else ""}>{level}</option>'
-        for level in LEVELS
+        f'<option value="{level}"{" selected" if level == chosen else ""}>{level}</option>'
+        for level in levels
     )
     corpus = (
         near.replace('id="corpus"', 'id="near-corpus"') if near else
@@ -495,7 +497,12 @@ def build() -> None:
         found = totals(rows)
         by_sample = per_sample(rows)
         corpus_totals[cid] = found
-        near = near_totals(near_rows(folder))
+        mine = near_rows(folder)
+        near = near_totals(mine)
+        near_by_sample = {
+            sid: near_totals([r for r in mine if r["sample_id"] == sid])
+            for sid in {r["sample_id"] for r in mine}
+        }
         near_totals_by[cid] = near
         meta = f"{inline(row['shape'])} · {inline(row['dtype'])}"
 
@@ -529,7 +536,7 @@ def build() -> None:
             download = f"{HF}/{cid}/{s['npz_path']}" if s.get("npz_path") else ""
             body = f"""{crumbs("../../../", ("Datasets", "datasets/"), (cid, f"datasets/{cid}/"), (s["id"], None))}
 <h1>{html.escape(s["id"])}</h1>
-<div class="chart" data-chart="{s["id"]}"></div>
+{chart_block(key=s["id"], budget=bool(near), root="../../../", levels=tuple(l for l in LEVELS if l in near))}
 <div class="sample">
 <div class="figure">{f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">' if large else '<div class="noimg"></div>'}
 {f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
@@ -543,6 +550,9 @@ def build() -> None:
                 "data": {s["id"]: by_sample.get(s["id"], {})},
                 "codecs": codecs,
                 **style,
+                "near": near_chart(
+                    {s["id"]: near_by_sample.get(s["id"], {})}, near_families
+                ),
             }
             target.write_text(
                 layout(
@@ -562,7 +572,7 @@ def build() -> None:
 <p class="lead">{inline(row["contents"])}.</p>
 <section class="spec">{spec_html}</section>
 <p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
-{chart_block(key=cid, budget=bool(near), root="../../")}
+{chart_block(key=cid, budget=bool(near), root="../../", levels=tuple(l for l in LEVELS if l in near))}
 <section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>"""
         target = OUT / "datasets" / cid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
