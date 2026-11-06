@@ -362,13 +362,11 @@ def chart_block(
 <div class="tabs" role="tablist" aria-label="Fidelity mode">
 <button type="button" role="tab" aria-controls="panel-lossless" aria-selected="true">Lossless</button>
 <button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless</button>
-<button type="button" role="tab" aria-controls="panel-lossy" aria-selected="false">Lossy <span class="soon">soon</span></button>
 </div>
 {pick}
 </div>
 <div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div>{note}</div>
 {near_panel}
-<div class="panel soonpanel" role="tabpanel" id="panel-lossy" hidden><p>Coming soon.</p></div>
 </section>"""
 
 
