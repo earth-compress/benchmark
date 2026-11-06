@@ -325,8 +325,20 @@ NEAR_NOTE = (
 )
 
 
+NO_BUDGET = (
+    '<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>This corpus '
+    'has no error budget, so it runs in lossless mode only. See '
+    '<a href="{root}tolerance/">Tolerance</a>.</p></div>'
+)
+
+
 def chart_block(
-    select: str = "", key: str = "all", caption: str = "", near: str = ""
+    select: str = "",
+    key: str = "all",
+    caption: str = "",
+    near: str = "",
+    budget: bool = True,
+    root: str = "",
 ) -> str:
     pick = f'<label class="pick">{select}</label>' if select else ""
     note = f'<p class="chart-note">{caption}</p>' if caption else ""
@@ -341,6 +353,8 @@ def chart_block(
     near_panel = f"""<div class="panel" role="tabpanel" id="panel-near" hidden>
 <div class="pick near-pick">{corpus}<select id="near-level" aria-label="Budget level">{levels}</select></div>
 <div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></div>"""
+    if not budget:
+        near_panel = NO_BUDGET.format(root=root)
     return f"""<section class="results">
 <div class="controls">
 <div class="tabs" role="tablist" aria-label="Fidelity mode">
@@ -548,7 +562,7 @@ def build() -> None:
 <p class="lead">{inline(row["contents"])}.</p>
 <section class="spec">{spec_html}</section>
 <p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
-{chart_block(key=cid)}
+{chart_block(key=cid, budget=bool(near), root="../../")}
 <section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>"""
         target = OUT / "datasets" / cid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -570,6 +584,10 @@ def build() -> None:
     measured = [cid for cid, found in corpus_totals.items() if found]
     options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{options}</select>'
+    budgeted = "".join(
+        f'<option value="{cid}">{cid}</option>' for cid in measured if near_totals_by.get(cid)
+    )
+    near_select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{budgeted}</select>'
     chart = {
         "data": {
             "all": summary(corpus_totals),
@@ -596,7 +614,7 @@ def build() -> None:
         layout(
             "",
             "Earth Compress benchmark",
-            f'{intro}{chart_block(select, caption=caption, near=select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            f'{intro}{chart_block(select, caption=caption, near=near_select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
             chart,
         )
     )
