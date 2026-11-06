@@ -49,7 +49,7 @@ function legend(groups, present) {
   return div;
 }
 function draw(box, totals, CODECS, groups, reference) {
-  const points = CODECS.filter(c => totals[c]).map(c => ({ id: c, group: groups[c], ...rate(totals[c]) }));
+  const points = CODECS.filter(c => totals[c]).map(c => ({ id: c, group: groups[c], broken: totals[c].broken || [], ...rate(totals[c]) }));
   const ref = reference && totals[reference] ? rate(totals[reference]) : null;
   const W = Math.max(320, box.clientWidth || 960);
   const H = Math.round(Math.max(300, Math.min(520, W * 0.56)));
@@ -89,7 +89,7 @@ function draw(box, totals, CODECS, groups, reference) {
     const w = text.length * (SMALL_TEXT ? 5.6 : 6.6);
     placed.push({ x: L + 6, y: y - 18, w, h: 15 });
   }
-  const front = frontier(points);
+  const front = frontier(points.filter(p => !p.broken.length));
   if (front.length > 1) {
     const path = el("path", { class: "pareto", d: front.map((p, i) => `${i ? "L" : "M"}${X(p.speed)},${Y(p.ratio)}`).join(" ") });
     svg.append(path);
@@ -99,13 +99,14 @@ function draw(box, totals, CODECS, groups, reference) {
   const free = box => !placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h);
   points.forEach(p => placed.push({ x: X(p.speed) - 7, y: Y(p.ratio) - 7, w: 14, h: 14 }));
   order.forEach((p, i) => {
-    const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : ""), style: `--i:${i}` });
+    const name = p.broken.length ? `${p.id} ✕ ${p.broken.join(", ")}` : p.id;
+    const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : "") + (p.broken.length ? " broken" : ""), style: `--i:${i}` });
     g.setAttribute("tabindex", 0);
-    g.setAttribute("aria-label", `${p.id}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`);
+    g.setAttribute("aria-label", `${name}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`);
     g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 5 }));
     g.append(el("circle", { class: "hit", cx: X(p.speed), cy: Y(p.ratio), r: 14 }));
     if (narrow && !onFront.has(p.id)) { svg.append(g); return; }
-    const w = p.id.length * (SMALL_TEXT ? 6.7 : 7.3), cx = X(p.speed), cy = Y(p.ratio);
+    const w = name.length * (SMALL_TEXT ? 6.7 : 7.3), cx = X(p.speed), cy = Y(p.ratio);
     const offsets = [[10, 4], [-10, 4], [8, -10], [8, 20], [-8, -10], [-8, 20], [8, -24], [8, 34], [-8, -24], [-8, 34]];
     const spots = offsets.map(([dx, dy]) => [cx + dx, cy + dy, dx > 0 ? "start" : "end"]);
     const fits = s => {
@@ -116,7 +117,7 @@ function draw(box, totals, CODECS, groups, reference) {
     const overlap = b => placed.reduce((sum, o) => sum + Math.max(0, Math.min(b.x + b.w, o.x + o.w) - Math.max(b.x, o.x)) * Math.max(0, Math.min(b.y + b.h, o.y + o.h) - Math.max(b.y, o.y)), 0);
     const spot = spots.find(s => fits(s) && free(fits(s))) || spots.filter(fits).sort((a, b) => overlap(fits(a)) - overlap(fits(b)))[0] || spots[0];
     if (fits(spot)) placed.push(fits(spot));
-    g.append(el("text", { x: spot[0], y: spot[1], "text-anchor": spot[2], class: "label" }, p.id));
+    g.append(el("text", { x: spot[0], y: spot[1], "text-anchor": spot[2], class: "label" }, name));
     svg.append(g);
   });
   if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, "No results yet"));
@@ -166,6 +167,6 @@ tabs.forEach(tab => tab.addEventListener("click", () => {
   // A chart drawn while its panel was hidden had no width, so draw it again.
   window.dispatchEvent(new Event("resize"));
   document.getElementById(tab.getAttribute("aria-controls")).querySelectorAll("select").forEach(s => s.dispatchEvent(new Event("change")));
-  const pick = document.querySelector(".pick");
+  const pick = document.querySelector(".controls .pick");
   if (pick) pick.style.visibility = tab === tabs[0] ? "visible" : "hidden";
 }));

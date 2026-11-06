@@ -92,16 +92,22 @@ def base(configuration: str) -> str:
 
 
 def near_totals(rows: list[dict]) -> dict[str, dict[str, dict]]:
-    """Totals per budget level of each configuration that kept every promise on
-    every sample at that level."""
+    """Totals per budget level of each configuration that completed every sample,
+    with the promises it broke on any of them."""
     count = len({row["sample_id"] for row in rows})
     out: dict[str, dict[str, dict]] = {}
     for level in LEVELS:
         chosen = [r for r in rows if r["budget_level"] == level]
         for config in sorted({r["configuration"] for r in chosen}):
             mine = [r for r in chosen if r["configuration"] == config]
-            if len(mine) == count and all(r["status"] == "ok" for r in mine):
-                out.setdefault(level, {})[base(config)] = entry(mine)
+            if len(mine) != count or any(r["status"] == "crash" for r in mine):
+                continue
+            broken = [
+                promise
+                for promise in ("bound", "sentinel", "zero")
+                if any(float(r[f"{promise}_violations"] or 0) > 0 for r in mine)
+            ]
+            out.setdefault(level, {})[base(config)] = {**entry(mine), "broken": broken}
     return out
 
 
@@ -312,9 +318,10 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
 
 
 NEAR_NOTE = (
-    "Each point is a configuration at one budget level. Configurations that broke a "
-    "promise on any sample at that level, the bound, the sentinel or exact zeros, are "
-    "left out."
+    "Each point is a configuration at one budget level. A hollow point broke a promise "
+    "on at least one sample, the bound, the sentinel or exact zeros, and its label says "
+    "which. The line marks the best trade-offs among the configurations that kept every "
+    "promise. All corpora pools only configurations that kept every promise everywhere."
 )
 
 
@@ -369,7 +376,12 @@ def near_chart(
     if pooled:
         for level in LEVELS:
             data[f"all|{level}"] = summary(
-                {cid: levels.get(level, {}) for cid, levels in by_corpus.items()}
+                {
+                    cid: {
+                        c: t for c, t in levels.get(level, {}).items() if not t["broken"]
+                    }
+                    for cid, levels in by_corpus.items()
+                }
             )
     return {"data": data, "codecs": sorted(groups), "groups": groups, "reference": None}
 
