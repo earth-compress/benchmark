@@ -45,6 +45,10 @@ corpus = [
     "pyarrow>=15",
 ]
 site = ["markdown>=3.5", "Pillow>=10", "pygments>=2.17"]
+learned = [
+    "georvq @ git+https://github.com/earth-compress/georvq@1eb0340b8ab27b6250a7acd2ef8895d6267a48e1 ; python_version >= '3.12'",
+    "Pillow>=10",
+]
 
 [project.scripts]
 earthcompress = "earthcompress.__main__:main"
@@ -72,3 +76,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["B", "BLE", "E4", "E7", "E9", "F", "I", "SIM", "UP"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
