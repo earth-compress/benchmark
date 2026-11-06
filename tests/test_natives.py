@@ -44,6 +44,8 @@ def test_every_native_codec_is_registered():
         "zfp-accuracy",
         "sperr-pwe",
         "geozl-med-entropy-linear",
+        "geozl-planar-pfor-linear",
+        "geozl-planar-pivco-linear",
     }
 
 

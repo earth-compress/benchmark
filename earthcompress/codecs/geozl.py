@@ -88,24 +88,29 @@ CONFIGURATIONS = tuple(
 )
 
 
-NEAR_RECIPE = "geozl-med-entropy"
-"""The recipe of the best lossless ratio on the corpora with a budget."""
+NEAR_RECIPES = ("geozl-med-entropy", "geozl-planar-pfor", "geozl-planar-pivco")
+"""The recipe of the best lossless ratio on the corpora with a budget, and the
+two whose lossless frames GeoZL also decodes on a GPU."""
 
 
-def linear(budget: Budget):
-    recipe = RECIPES[NEAR_RECIPE]
-    return near_lossless(
-        f"{NEAR_RECIPE}-linear",
-        "geozl",
-        VERSION,
-        partial(GeoZLLinear, budget=budget, recipe=recipe),
-        budget,
-        Family.NATIVE,
-        supports=rasters,
-        graph=recipe,
-        quantizer="LINEAR",
-        nodata="sentinel",
-    )
+def _linear(name: str):
+    recipe = RECIPES[name]
+
+    def make(budget: Budget):
+        return near_lossless(
+            f"{name}-linear",
+            "geozl",
+            VERSION,
+            partial(GeoZLLinear, budget=budget, recipe=recipe),
+            budget,
+            Family.NATIVE,
+            supports=rasters,
+            graph=recipe,
+            quantizer="LINEAR",
+            nodata="sentinel",
+        )
+
+    return make
 
 
-FAMILIES = (linear,)
+FAMILIES = tuple(_linear(name) for name in NEAR_RECIPES)

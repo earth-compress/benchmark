@@ -15,13 +15,13 @@ The tables list the configurations the benchmark can run, grouped by fidelity mo
 | `openzl-generic` | OpenZL | `compress_generic` at level 7 | openzl 0.3.0 |
 | `openzl-delta-fieldlz` | OpenZL | `delta>field_lz` | openzl 0.3.0 |
 | `openzl-delta-pivco` | OpenZL | `delta>zigzag>transpose>huffman_pivco` | openzl 0.3.0 |
-| `geozl-planar-pfor` | GeoZL | `planar>zigzag>pfor` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-planar-pivco` | GeoZL | `planar>zigzag>transpose>pivco` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-med-pivco` | GeoZL | `med>zigzag>transpose>pivco` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-planar-entropy` | GeoZL | `planar>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-med-entropy` | GeoZL | `med>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-average-entropy` | GeoZL | `average>zigzag>transpose>entropy` | geozl 0.19.0 on openzl 0.3.0 |
-| `geozl-id-pfor` | GeoZL | `id>pfor` | geozl 0.19.0 on openzl 0.3.0 |
+| `geozl-planar-pfor` | GeoZL | `planar>zigzag>pfor` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-planar-pivco` | GeoZL | `planar>zigzag>transpose>pivco` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-med-pivco` | GeoZL | `med>zigzag>transpose>pivco` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-planar-entropy` | GeoZL | `planar>zigzag>transpose>entropy` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-med-entropy` | GeoZL | `med>zigzag>transpose>entropy` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-average-entropy` | GeoZL | `average>zigzag>transpose>entropy` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-id-pfor` | GeoZL | `id>pfor` | geozl 0.31.0 on openzl 0.3.0 |
 | `jpeg2000` | Reference | JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components | imagecodecs (OpenJPEG 2.5.4) |
 
 `jpeg2000` is a separate reference, measured only when requested, on integer corpora of up to 16 bits.
@@ -32,7 +32,9 @@ Near-lossless and lossy ids end with the budget level, as in `lerc-matched`. The
 
 | id | family | definition | NoData | software |
 | --- | --- | --- | --- | --- |
-| `geozl-med-entropy-linear` | native | GeoZL `med>zigzag>transpose>entropy` with its `LINEAR` quantiser, `tau` as `error` | `nodata` | geozl 0.19.0 on openzl 0.3.0 |
+| `geozl-med-entropy-linear` | native | GeoZL `med>zigzag>transpose>entropy` with its `LINEAR` quantiser, `tau` as `error` | `nodata` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-planar-pfor-linear` | native | GeoZL `planar>zigzag>pfor` with its `LINEAR` quantiser, `tau` as `error` | `nodata` | geozl 0.31.0 on openzl 0.3.0 |
+| `geozl-planar-pivco-linear` | native | GeoZL `planar>zigzag>transpose>pivco` with its `LINEAR` quantiser, `tau` as `error` | `nodata` | geozl 0.31.0 on openzl 0.3.0 |
 | `lerc` | native | LERC with `tau` as `maxZError`, as GDAL writes it | valid mask | imagecodecs (LERC 4.2.0) |
 | `jpegls-near` | native | JPEG-LS with `tau` as `NEAR`, one stream per plane | | imagecodecs (CharLS 2.4.4) |
 | `sz3-abs` | native | SZ3 with `tau` as its absolute bound | | imagecodecs (SZ3 3.4.0) |
@@ -81,7 +83,7 @@ In lossy mode, a sample whose error is still above `tau` gets a narrower grid un
 ## Notes by codec
 
 - `hdiff-zstd9` reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, bands are pixel-interleaved before differencing, and floating-point values are differenced as integers of the same width.
-- GeoZL recipes drop `transpose` for one-byte elements. GeoZL takes its lossy domain from the raster a graph is built from, so `geozl-med-entropy-linear` builds the graph from each sample while encoding it. Its integer grid is `2k` codes wide where `2k + 1` would fit.
+- GeoZL recipes drop `transpose` for one-byte elements. GeoZL takes its lossy domain from the raster a graph is built from, so the `-linear` configurations build the graph from each sample while encoding it. Their integer grid is `2k` codes wide where `2k + 1` would fit. GeoZL decodes lossless `planar>zigzag>pfor` and `planar>zigzag>transpose>pivco` frames of one- and two-byte elements on a GPU, while quantized frames still decode on the host. The two planar `-linear` configurations measure the ratio of those graphs at each budget.
 - LERC floors the bound for integers and reads 777 as a request for another mode, so a budget of 777 codes is passed as 777.5.
 - CharLS accepts `NEAR` up to 127 for 8-bit and 255 for 16-bit data. Above that, `jpegls-near` does not run.
 - SZ3 runs its L2-norm mode as an absolute bound of `sqrt(3 / n)` times the norm, which for a root-mean-square error of `tau` is `sqrt(3) tau`. imagecodecs exposes only the absolute mode, so `sz3-l2norm` passes that bound.

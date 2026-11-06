@@ -675,7 +675,7 @@ requires-dist = [
     { name = "earthengine-api", marker = "extra == 'corpus'", specifier = ">=1.5" },
     { name = "eccodes", marker = "extra == 'corpus'", specifier = ">=2.42" },
     { name = "eccodeslib", marker = "extra == 'corpus'", specifier = ">=2.42" },
-    { name = "geozl", specifier = "==0.19.0" },
+    { name = "geozl", specifier = "==0.31.0" },
     { name = "huggingface-hub", specifier = ">=0.34" },
     { name = "imagecodecs", specifier = ">=2024.6.1" },
     { name = "markdown", marker = "extra == 'site'", specifier = ">=3.5" },
@@ -895,7 +895,7 @@ wheels = [
 
 [[package]]
 name = "geozl"
-version = "0.19.0"
+version = "0.31.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
@@ -904,8 +904,8 @@ dependencies = [
     { name = "openzl", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/48/d77e519e0ebd83dd3a168e1f80496d9f69806c64bdef4e3c538f2ce97007/geozl-0.19.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e97b18fffc7117bee3ff8be3c811f3137df730e9f13a97c477556f8aed201b04", size = 1378363, upload-time = "2026-10-09T02:55:54.797Z" },
-    { url = "https://files.pythonhosted.org/packages/48/4d/75309e265587081702aa31658e50ffdc11ad3f8d14afcb569074a611267b/geozl-0.19.0-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8516d329be24b0b790d77f00e6847f5eb8ccff8de14c5c934482350a6a824fa4", size = 9219120, upload-time = "2026-10-09T02:55:56.653Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/b1/3e5c777d6a1c1120bb2020f185d969654bc873e806b39ddc869a42488267/geozl-0.31.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:0690620a5fa6f0fff4deb63e2651c3763e786899683b151638d1a5ab8c4a2ea6", size = 1447831, upload-time = "2026-11-06T00:40:08.38Z" },
+    { url = "https://files.pythonhosted.org/packages/26/cc/4d013c0de2352e8bfefbf21c44ccc110a14efc400ca4a0679cf6d9a349cd/geozl-0.31.0-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:685005118bca4d37317615e9d8d5c9bbe442223f3573649673bf4b39022bf0b8", size = 9456692, upload-time = "2026-11-06T00:40:10.629Z" },
 ]
 
 [[package]]
