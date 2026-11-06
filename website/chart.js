@@ -89,7 +89,7 @@ function draw(box, totals, CODECS, groups, reference) {
     const w = text.length * (SMALL_TEXT ? 5.6 : 6.6);
     placed.push({ x: L + 6, y: y - 18, w, h: 15 });
   }
-  const front = frontier(points.filter(p => !p.broken.length));
+  const front = frontier(points);
   if (front.length > 1) {
     const path = el("path", { class: "pareto", d: front.map((p, i) => `${i ? "L" : "M"}${X(p.speed)},${Y(p.ratio)}`).join(" ") });
     svg.append(path);
@@ -99,8 +99,8 @@ function draw(box, totals, CODECS, groups, reference) {
   const free = box => !placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h);
   points.forEach(p => placed.push({ x: X(p.speed) - 7, y: Y(p.ratio) - 7, w: 14, h: 14 }));
   order.forEach((p, i) => {
-    const name = p.broken.length ? `${p.id} ✕ ${p.broken.join(", ")}` : p.id;
-    const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : "") + (p.broken.length ? " broken" : ""), style: `--i:${i}` });
+    const name = p.id;
+    const g = el("g", { class: `point g-${slug(p.group || "")}` + (onFront.has(p.id) ? " front" : ""), style: `--i:${i}` });
     g.setAttribute("tabindex", 0);
     g.setAttribute("aria-label", `${name}: ratio ${p.ratio.toFixed(2)}, decode ${Math.round(p.speed).toLocaleString("en")} MB/s`);
     g.append(el("circle", { cx: X(p.speed), cy: Y(p.ratio), r: 5 }));
@@ -121,7 +121,15 @@ function draw(box, totals, CODECS, groups, reference) {
     svg.append(g);
   });
   if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, "No results yet"));
-  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg);
+  const broken = points.filter(p => p.broken.length).sort((a, b) => a.id.localeCompare(b.id));
+  const notes = [];
+  if (broken.length) {
+    const note = document.createElement("p");
+    note.className = "broken-note";
+    note.textContent = "Broke a promise on at least one sample: " + broken.map(p => `${p.id} (${p.broken.join(", ")})`).join(", ") + ".";
+    notes.push(note);
+  }
+  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg, ...notes);
   const path = svg.querySelector(".pareto");
   if (path && !STILL) {
     const length = path.getTotalLength();

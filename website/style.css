@@ -81,8 +81,7 @@ select { font: 14px var(--mono); color: var(--ink); background: var(--page); bor
 .chart .g-native { --c: var(--raster); }
 .chart .g-quantized { --c: var(--arrays); }
 .chart .g-safeguarded { --c: var(--openzl); }
-.chart .point.broken circle:not(.hit) { fill: var(--page); stroke: var(--c, var(--faint)); stroke-width: 2; }
-.chart .point.broken .label { fill: var(--muted); }
+.broken-note { max-width: 900px; margin: 8px 0 0; color: var(--muted); font: 12px/1.6 var(--mono); }
 .near-pick { justify-content: flex-end; margin: 0 0 8px; }
 .chart .point circle { fill: var(--c, var(--faint)); }
 .chart .point.front circle:not(.hit) { stroke: var(--ink); stroke-width: 1.5; }

@@ -318,10 +318,10 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
 
 
 NEAR_NOTE = (
-    "Each point is a configuration at one budget level. A hollow point broke a promise "
-    "on at least one sample, the bound, the sentinel or exact zeros, and its label says "
-    "which. The line marks the best trade-offs among the configurations that kept every "
-    "promise. All corpora pools only configurations that kept every promise everywhere."
+    "Each point is a configuration at one budget level, and the line marks the best "
+    "observed trade-offs. All corpora pools sizes and decode times across samples, for "
+    "configurations completed on every corpus with a budget. Configurations that broke "
+    "a promise on any sample are listed below the chart."
 )
 
 
@@ -375,14 +375,13 @@ def near_chart(
     }
     if pooled:
         for level in LEVELS:
-            data[f"all|{level}"] = summary(
-                {
-                    cid: {
-                        c: t for c, t in levels.get(level, {}).items() if not t["broken"]
-                    }
-                    for cid, levels in by_corpus.items()
-                }
-            )
+            here = {cid: levels.get(level, {}) for cid, levels in by_corpus.items()}
+            pooled_totals = summary(here)
+            for config, total in pooled_totals.items():
+                total["broken"] = sorted(
+                    {b for t in here.values() if config in t for b in t[config]["broken"]}
+                )
+            data[f"all|{level}"] = pooled_totals
     return {"data": data, "codecs": sorted(groups), "groups": groups, "reference": None}
 
 
