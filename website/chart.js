@@ -68,10 +68,11 @@ function draw(box, totals, CODECS, groups, reference) {
     axes.append(el("line", { x1: X(v), x2: X(v), y1: T, y2: H - B, class: "grid" }));
     axes.append(el("text", { x: X(v), y: H - B + 20, class: "tick", "text-anchor": "middle" }, v.toLocaleString("en")));
   }
-  const step = y1 - y0 > 2 ? 0.5 : 0.25;
+  let step = y1 - y0 > 2 ? 0.5 : 0.25;
+  for (const s of [1, 2, 5, 10, 20, 50, 100, 200, 500]) if ((y1 - y0) / step > 10) step = s;
   for (let v = y0; v <= y1 + 1e-9; v += step) {
     axes.append(el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: "grid" }));
-    axes.append(el("text", { x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, v.toFixed(2)));
+    axes.append(el("text", { x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, v.toFixed(step < 1 ? 2 : 0)));
   }
   axes.append(el("text", { x: W - R, y: H - 8, class: "axis", "text-anchor": "end" }, "decode MB/s →"));
   axes.append(el("text", { x: L, y: T - 14, class: "axis" }, "↑ compression ratio"));
@@ -136,7 +137,8 @@ function draw(box, totals, CODECS, groups, reference) {
 }
 
 function mountChart(box, read) {
-  const { data, codecs, groups, reference } = JSON.parse(document.getElementById("chart-data").textContent);
+  const payload = JSON.parse(document.getElementById("chart-data").textContent);
+  const { data, codecs, groups, reference } = payload[box.dataset.set] || payload;
   const render = () => draw(box, data[read()] || {}, codecs, groups, reference);
   // Draw once now, and again only when the width changes enough to matter.
   let lastWidth = box.clientWidth;
@@ -149,9 +151,9 @@ function mountChart(box, read) {
 }
 
 document.querySelectorAll("[data-chart]").forEach(box => {
-  const select = document.getElementById(box.dataset.select || "");
-  const render = mountChart(box, () => (select ? select.value : box.dataset.chart));
-  if (select) select.addEventListener("change", render);
+  const selects = (box.dataset.select || "").split(",").map(id => document.getElementById(id)).filter(Boolean);
+  const render = mountChart(box, () => (selects.length ? selects.map(s => s.value).join("|") : box.dataset.chart));
+  selects.forEach(s => s.addEventListener("change", render));
 });
 
 const tabs = [...document.querySelectorAll('[role="tab"]')];
@@ -161,6 +163,9 @@ tabs.forEach(tab => tab.addEventListener("click", () => {
     t.setAttribute("aria-selected", String(on));
     document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
   });
+  // A chart drawn while its panel was hidden had no width, so draw it again.
+  window.dispatchEvent(new Event("resize"));
+  document.getElementById(tab.getAttribute("aria-controls")).querySelectorAll("select").forEach(s => s.dispatchEvent(new Event("change")));
   const pick = document.querySelector(".pick");
   if (pick) pick.style.visibility = tab === tabs[0] ? "visible" : "hidden";
 }));

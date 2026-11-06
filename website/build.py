@@ -76,6 +76,35 @@ def lossless_rows(corpus: Path) -> list[dict]:
         ]
 
 
+def near_rows(corpus: Path) -> list[dict]:
+    path = corpus / "results.csv"
+    if not path.exists():
+        return []
+    with path.open(newline="") as stream:
+        return [row for row in csv.DictReader(stream) if row["mode"] == "near-lossless"]
+
+
+LEVELS = ("conservative", "matched", "aggressive", "recommended")
+
+
+def base(configuration: str) -> str:
+    return configuration.rsplit("-", 1)[0]
+
+
+def near_totals(rows: list[dict]) -> dict[str, dict[str, dict]]:
+    """Totals per budget level of each configuration that kept every promise on
+    every sample at that level."""
+    count = len({row["sample_id"] for row in rows})
+    out: dict[str, dict[str, dict]] = {}
+    for level in LEVELS:
+        chosen = [r for r in rows if r["budget_level"] == level]
+        for config in sorted({r["configuration"] for r in chosen}):
+            mine = [r for r in chosen if r["configuration"] == config]
+            if len(mine) == count and all(r["status"] == "ok" for r in mine):
+                out.setdefault(level, {})[base(config)] = entry(mine)
+    return out
+
+
 KEYS = ("input", "compressed", "decode_ns")
 
 
@@ -282,22 +311,67 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-def chart_block(select: str = "", key: str = "all", caption: str = "") -> str:
+NEAR_NOTE = (
+    "Each point is a configuration at one budget level. Configurations that broke a "
+    "promise on any sample at that level, the bound, the sentinel or exact zeros, are "
+    "left out."
+)
+
+
+def chart_block(
+    select: str = "", key: str = "all", caption: str = "", near: str = ""
+) -> str:
     pick = f'<label class="pick">{select}</label>' if select else ""
     note = f'<p class="chart-note">{caption}</p>' if caption else ""
+    levels = "".join(
+        f'<option value="{level}"{" selected" if level == "matched" else ""}>{level}</option>'
+        for level in LEVELS
+    )
+    corpus = (
+        near.replace('id="corpus"', 'id="near-corpus"') if near else
+        f'<select id="near-corpus" hidden><option value="{key}">{key}</option></select>'
+    )
+    near_panel = f"""<div class="panel" role="tabpanel" id="panel-near" hidden>
+<div class="pick near-pick">{corpus}<select id="near-level" aria-label="Budget level">{levels}</select></div>
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></div>"""
     return f"""<section class="results">
 <div class="controls">
 <div class="tabs" role="tablist" aria-label="Fidelity mode">
 <button type="button" role="tab" aria-controls="panel-lossless" aria-selected="true">Lossless</button>
-<button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless <span class="soon">soon</span></button>
+<button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless</button>
 <button type="button" role="tab" aria-controls="panel-lossy" aria-selected="false">Lossy <span class="soon">soon</span></button>
 </div>
 {pick}
 </div>
 <div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div>{note}</div>
-<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>Coming soon.</p></div>
+{near_panel}
 <div class="panel soonpanel" role="tabpanel" id="panel-lossy" hidden><p>Coming soon.</p></div>
 </section>"""
+
+
+def families(corpora: Path) -> dict[str, str]:
+    """The family of every near-lossless configuration, from the results."""
+    out: dict[str, str] = {}
+    for path in sorted(corpora.glob("*/results.csv")):
+        for row in near_rows(path.parent):
+            out[base(row["configuration"])] = row["family"]
+    return out
+
+
+def near_chart(
+    by_corpus: dict[str, dict], groups: dict[str, str], pooled: bool = False
+) -> dict:
+    data = {
+        f"{cid}|{level}": totals
+        for cid, levels in by_corpus.items()
+        for level, totals in levels.items()
+    }
+    if pooled:
+        for level in LEVELS:
+            data[f"all|{level}"] = summary(
+                {cid: levels.get(level, {}) for cid, levels in by_corpus.items()}
+            )
+    return {"data": data, "codecs": sorted(groups), "groups": groups, "reference": None}
 
 
 def ratio(entry: dict) -> float:
@@ -382,7 +456,9 @@ def build() -> None:
         "reference": reference,
     }
 
+    near_families = families(ROOT / "corpora")
     corpus_totals: dict[str, dict] = {}
+    near_totals_by: dict[str, dict] = {}
     sample_counts: dict[str, int] = {}
     corpus_cards = []
     for row in datasets:
@@ -394,6 +470,8 @@ def build() -> None:
         found = totals(rows)
         by_sample = per_sample(rows)
         corpus_totals[cid] = found
+        near = near_totals(near_rows(folder))
+        near_totals_by[cid] = near
         meta = f"{inline(row['shape'])} · {inline(row['dtype'])}"
 
         sample_cards = []
@@ -468,7 +546,12 @@ def build() -> None:
                 "../../",
                 f"{cid} · Earth Compress benchmark",
                 body,
-                {"data": {cid: found}, "codecs": codecs, **style},
+                {
+                    "data": {cid: found},
+                    "codecs": codecs,
+                    **style,
+                    "near": near_chart({cid: near}, near_families),
+                },
             )
         )
         corpus_cards.append((cid, f"datasets/{cid}/", first, meta))
@@ -483,6 +566,7 @@ def build() -> None:
         },
         "codecs": codecs,
         **style,
+        "near": near_chart(near_totals_by, near_families, pooled=True),
     }
     grid = "".join(
         card("", href, image, cid, meta) for cid, href, image, meta in corpus_cards
@@ -501,7 +585,7 @@ def build() -> None:
         layout(
             "",
             "Earth Compress benchmark",
-            f'{intro}{chart_block(select, caption=caption)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            f'{intro}{chart_block(select, caption=caption, near=select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
             chart,
         )
     )
