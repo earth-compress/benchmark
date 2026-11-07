@@ -220,6 +220,7 @@ def resized(source: Path | None, target: str, side: int, square: bool) -> str | 
 
 NAV = (
     ("Datasets", "datasets/"),
+    ("Lossy", "lossy/"),
     ("Protocol", "protocol/"),
     ("Codecs", "codecs/"),
     ("Use cases", "usecases/"),
@@ -252,7 +253,9 @@ HF_ICON = (
 )
 
 
-def layout(root: str, title: str, body: str, chart: dict | None = None) -> str:
+def layout(
+    root: str, title: str, body: str, chart: dict | None = None, script: str = "chart.js"
+) -> str:
     links = "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV)
     links += (
         f'<a class="icon" href="{REPO}" title="GitHub" aria-label="GitHub">{GITHUB_ICON}</a>'
@@ -261,7 +264,7 @@ def layout(root: str, title: str, body: str, chart: dict | None = None) -> str:
     )
     data = (
         f'<script id="chart-data" type="application/json">{json.dumps(chart)}</script>'
-        f'<script src="{root}chart.js?v={VERSION["chart.js"]}" defer></script>'
+        f'<script src="{root}{script}?v={VERSION[script]}" defer></script>'
         if chart
         else ""
     )
@@ -641,6 +644,206 @@ def build() -> None:
         )
     )
     usecases()
+    lossy_page()
+
+
+# Lossy
+
+LOSSY_CODECS = {
+    "georvq-s2-v1": ("georvq", "#d6456b"),
+    "georvq-ae-v2": ("georvq", "#d6456b"),
+    "jpegxl-distance": ("JPEG XL", "#d0892a"),
+    "jpeg2000-psnr": ("JPEG 2000", "#6d87a3"),
+    "sperr-psnr": ("SPERR", "#7a68c2"),
+    "sz3-l2norm": ("SZ3", "#8aa09f"),
+    "quant-geozl-med-entropy-rms": ("quant + GeoZL", "#2e8c8c"),
+    "quant-pco-rms": ("quant + PCO", "#a39b4a"),
+}
+LOSSY = (
+    {
+        "key": "s2",
+        "title": "Sentinel-2 L1C",
+        "georvq": "georvq-s2-v1",
+        "corpus": "s2-l1c-10m-4",
+        "rename": ("s2-l1c-10m-4", "s2-l1c"),
+        "original": 89.3,
+        "pixel": "10 m pixel",
+        "metrics": {
+            "rmse_10m": ("RMSE of the 10 m bands", "DN", "rms"),
+            "rmse_20m": ("RMSE of the 20 m bands", "DN", "rms"),
+            "rmse_60m": ("RMSE of the 60 m bands", "DN", "rms"),
+            "rmse_all": ("RMSE of all 13 bands", "DN", "rms"),
+        },
+        "targets": ("rmse_10m", (20, 40, 100, 200), "{:g} DN"),
+        "stops": (0.3, 0.5, 1, 2, 3, 6),
+        "start": 1,
+        "scale": "0 to 250 DN",
+    },
+    {
+        "key": "alphaearth",
+        "title": "AlphaEarth",
+        "georvq": "georvq-ae-v2",
+        "corpus": "alphaearth-v1-64",
+        "rename": None,
+        "original": 512,
+        "pixel": "pixel",
+        "metrics": {
+            "cos_mean": ("mean 1 − cos", "", "mean"),
+            "cos_p99": ("99th percentile of 1 − cos", "", "mean"),
+            "rmse_codes": ("RMSE of the int8 codes", "codes", "rms"),
+        },
+        "targets": ("cos_mean", (0.002, 0.005, 0.01, 0.02), "{:g}"),
+        "stops": (0.2, 0.5, 1, 2, 4, 8),
+        "start": 0.5,
+        "scale": "0 to 0.05",
+    },
+)
+
+
+def lossy_curves(rows: list[dict], metrics: dict) -> dict[str, list[dict]]:
+    """Each codec at each setting over every sample: the mean rate, and each
+    metric pooled as its definition allows. The samples of one dataset have the
+    same size, so a mean of squares is the square over all of them."""
+    out: dict[str, list[dict]] = {}
+    for codec in LOSSY_CODECS:
+        mine = [r for r in rows if r["codec"] == codec]
+        settings = list(dict.fromkeys(r["setting"] for r in mine))
+        points = []
+        for setting in settings:
+            found = [r for r in mine if r["setting"] == setting]
+            point = {
+                "setting": setting,
+                "bpp": statistics.mean(float(r["bits_per_pixel"]) for r in found),
+                "encode_s": statistics.mean(float(r["encode_s"]) for r in found),
+                "decode_s": statistics.mean(float(r["decode_s"]) for r in found),
+            }
+            for key, (_, _, pool) in metrics.items():
+                values = [float(r[key]) for r in found]
+                point[key] = (
+                    math.sqrt(statistics.mean(v * v for v in values))
+                    if pool == "rms"
+                    else statistics.mean(values)
+                )
+            points.append(point)
+        if points:
+            out[codec] = sorted(points, key=lambda p: p["bpp"])
+    return out
+
+
+def rate_at(points: list[dict], key: str, target: float) -> str:
+    """The rate at which a curve first reaches ``target``, interpolated in log-log."""
+    if points[0][key] <= target:
+        return f"≤ {points[0]['bpp']:.2f}"
+    for a, b in zip(points, points[1:]):
+        if a[key] > target >= b[key] and b[key] > 0:
+            t = (math.log(a[key]) - math.log(target)) / (math.log(a[key]) - math.log(b[key]))
+            return f"{math.exp(math.log(a['bpp']) + t * (math.log(b['bpp']) - math.log(a['bpp']))):.2f}"
+    return "–"
+
+
+def lossy_table(case: dict, curves: dict) -> str:
+    key, targets, unit = case["targets"]
+    name = case["metrics"][key][0]
+    head = "".join(f"<th>{unit.format(t)}</th>" for t in targets)
+    rows = []
+    for codec, points in sorted(
+        curves.items(), key=lambda kv: float(rate_at(kv[1], key, targets[1]).strip("≤ –") or 1e9)
+    ):
+        cells = "".join(f"<td>{rate_at(points, key, t)}</td>" for t in targets)
+        label, colour = LOSSY_CODECS[codec]
+        rows.append(
+            f'<tr><td><span class="swatch" style="--c:{colour}"></span>{html.escape(label)} '
+            f"<code>{codec}</code></td>{cells}</tr>"
+        )
+    return f"""<h3>Bits per {case["pixel"]} at equal error</h3>
+<p class="note">The rate each codec needs to reach a {html.escape(name)}, interpolated between its settings. The original takes {case["original"]:g} bits per {case["pixel"]}; – means no setting reaches that error.</p>
+<div class="scroll"><table class="numbers"><thead><tr><th>codec</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>"""
+
+
+def lossy_page() -> None:
+    data, panels, tabs = {}, [], []
+    for k, case in enumerate(LOSSY):
+        folder = ROOT / "lossy" / case["key"]
+        with (folder / "results.csv").open(newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        curves = lossy_curves(rows, case["metrics"])
+        sites = {}
+        for s in manifest(ROOT / "corpora" / case["corpus"]):
+            sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
+            sites[sid] = s.get("site", sid).replace("-", " ").title()
+        samples = {}
+        for path in sorted((folder / "views").glob("*/sample.json")):
+            sid = path.parent.name
+            shutil.copytree(path.parent, OUT / "lossy" / case["key"] / sid)
+            samples[sid] = {**json.loads(path.read_text()), "site": sites.get(sid, sid)}
+        count = len({r["sample_id"] for r in rows})
+        data[case["key"]] = {
+            "curves": curves,
+            "metrics": {key: [name, unit] for key, (name, unit, _) in case["metrics"].items()},
+            "codecs": {c: list(v) for c, v in LOSSY_CODECS.items() if c in curves},
+            "georvq": case["georvq"],
+            "stops": case["stops"],
+            "start": case["start"],
+            "samples": samples,
+        }
+        options = "".join(
+            f'<option value="{key}">{html.escape(name)}</option>'
+            for key, (name, _, _) in case["metrics"].items()
+        )
+        modes = ("image", "error") + (("similarity",) if case["key"] == "alphaearth" else ())
+        tabs.append(
+            f'<button type="button" role="tab" aria-controls="panel-{case["key"]}" '
+            f'aria-selected="{str(not k).lower()}">{case["title"]}</button>'
+        )
+        panels.append(f"""<div class="panel lossy" role="tabpanel" id="panel-{case["key"]}" data-set="{case["key"]}"{" hidden" if k else ""}>
+<div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
+<div class="chart rd"></div>
+<p class="chart-note">Each point is a setting of a codec, at its mean rate over the {count} samples and the error over all of them. A georvq curve is one file read to more and more depth; every other point is a separate file. The dashed line is the rate of the viewer below.</p>
+<div class="viewer">
+<h3>Look at it</h3>
+<div class="viewer-controls">
+<div class="samples" role="group" aria-label="Sample"></div>
+<label class="rate">rate <input type="range" min="0" max="{len(case["stops"]) - 1}" step="1"><output></output></label>
+<select class="other" aria-label="Codec on the right"></select>
+<div class="modes" role="group" aria-label="View">{"".join(f'<button type="button" data-mode="{m}">{m}</button>' for m in modes)}</div>
+</div>
+<div class="viewer-body">
+<div class="stage"><canvas class="right"></canvas><canvas class="left"></canvas><div class="handle"><span></span></div><div class="target" hidden></div>
+<p class="side left"></p><p class="side right"></p></div>
+<div class="viewer-side">
+<p class="mode-note note"></p>
+<h4>One georvq file</h4>
+<div class="onefile"><div class="bar"></div><p class="note"></p></div>
+{'<h4>Detail kept</h4><div class="chart spectrum"></div>' if case["key"] == "s2" else ""}
+</div>
+</div>
+</div>
+{lossy_table(case, curves)}
+</div>""")
+    body = f"""{crumbs("../", ("Lossy", None))}
+<h1>Lossy</h1>
+<p class="lead">Rate against error for georvq, a learned codec, and the lossy configurations of the benchmark, on the Sentinel-2 L1C and AlphaEarth corpora.</p>
+<section class="results">
+<div class="controls"><div class="tabs" role="tablist" aria-label="Dataset">{"".join(tabs)}</div></div>
+{"".join(panels)}
+</section>
+<section class="measure"><h2>How it is measured</h2><div class="doc">
+<p><a href="https://github.com/earth-compress/georvq">georvq</a> is a pyramid of residual vector quantisers. One encode writes every depth, and a reader decodes to the depth it needs, so a single file serves every rate on its curve. The Sentinel-2 model is <code>georvq-s2-v1</code>, for the 13 L1C bands on their 10, 20 and 60 m grids in windows of 360 m; the AlphaEarth model is <code>georvq-ae-v2</code>, for the 64 int8 dimensions in windows of 64 pixels. Both run on the CPU in 32 bit floats.</p>
+<p>The rate of georvq is the bit count its bundle gives for each depth, times the number of windows. The rate of every other codec is the size of the file it wrote. Neither counts the model weights, which a reader holds once.</p>
+<p>The three Sentinel-2 corpora are the same 50 scenes. Each is cut to the footprint the three grids share, 504 pixels at 10 m, and every codec compresses the three grids; their sizes are summed and divided by the 10 m pixels. The AlphaEarth corpus is 15 samples of 512 by 512 pixels. Its error is the cosine distance between each pixel's embedding, dequantised as <code>(v / 127.5)² · sign(v)</code>, and the original, over pixels that are not NoData.</p>
+<p>The other codecs sweep a bound on the root-mean-square error: 2 to 320 DN on Sentinel-2 and 1 to 32 codes on AlphaEarth, with the AlphaEarth codes shifted by 128 to unsigned bytes. The viewer shows, for each rate, the setting of each codec nearest to it on that sample, and says so when that setting is far from it. The AlphaEarth similarity maps use the central 128 pixels of each sample.</p>
+<p>We have not checked whether these scenes were in georvq's training data.</p>
+<pre><code>git clone {REPO}
+cd benchmark
+uv run --extra learned python lossy/s2/run.py
+uv run --extra learned python lossy/alphaearth/run.py
+uv run --extra learned python lossy/views.py</code></pre>
+</div></section>"""
+    target = OUT / "lossy" / "index.html"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        layout("../", "Lossy · Earth Compress benchmark", body, data, script="lossy.js")
+    )
 
 
 # Use cases
@@ -1212,7 +1415,7 @@ def main() -> None:
     shutil.copy(
         ROOT / "docs" / "assets" / "earth-compress.svg", OUT / "earth-compress.svg"
     )
-    for name in ("style.css", "chart.js"):
+    for name in ("style.css", "chart.js", "lossy.js"):
         content = (HERE / name).read_bytes()
         (OUT / name).write_bytes(content)
         VERSION[name] = hashlib.sha256(content).hexdigest()[:10]

@@ -233,3 +233,6 @@ website/dist.old/
 # Local files
 .DS_Store
 docs/papers/
+
+# Lossy page pictures are rebuilt by lossy/views.py
+lossy/*/views/

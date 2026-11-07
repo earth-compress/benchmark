@@ -180,7 +180,7 @@ footer p { margin: 0 0 8px; }
 
 @media (max-width: 760px) {
   nav { gap: 12px; font-size: 13px; }
-  nav a:nth-child(3), nav a:nth-child(5) { display: none; }
+  nav a:nth-child(4), nav a:nth-child(6) { display: none; }
   .version { display: none; }
   .tabs { gap: 16px; }
   .tabs button { font-size: 16px; }
@@ -220,3 +220,47 @@ footer p { margin: 0 0 8px; }
 .explain .h { font-weight: 600; font-size: 14px; }
 .explain .m { font: 12px var(--mono); white-space: pre; }
 .measure .doc { padding: 0; max-width: 780px; }
+
+.lossy .chart.rd { margin-top: 4px; }
+.chart .series polyline { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linejoin: round; stroke-opacity: 0.8; }
+.chart .series circle { fill: var(--c); stroke: var(--page); stroke-width: 1; }
+.chart .series.lead polyline { stroke-width: 3; stroke-opacity: 1; }
+.chart .series:hover polyline { stroke-width: 3; stroke-opacity: 1; }
+.chart .now { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.chart .one { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart .spec { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; }
+.chart.spectrum { margin-top: 18px; }
+.chart.spectrum .axis { font-size: 13px; fill: var(--muted); }
+.viewer { padding: 28px 0 8px; margin-top: 24px; border-top: 1px solid var(--line); }
+.viewer h3, .lossy > h3 { font-size: 17px; margin: 0 0 10px; }
+.lossy > h3 { margin-top: 32px; }
+.viewer-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 14px; }
+.samples, .modes { display: flex; gap: 6px; }
+.samples button, .modes button { font: 13px var(--mono); color: var(--muted); background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.samples button[aria-pressed="true"], .modes button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+.rate { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.rate input { width: 180px; accent-color: var(--accent); }
+.rate output { font: 13px var(--mono); color: var(--ink); min-width: 120px; }
+.stage { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--tint); cursor: ew-resize; touch-action: none; user-select: none; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage.pixelated canvas { image-rendering: pixelated; }
+.stage .handle { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25); }
+.stage .handle span { position: absolute; top: 50%; left: -13px; width: 24px; height: 24px; margin-top: -12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.stage .target { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.stage .side { position: absolute; top: 8px; margin: 0; max-width: 46%; font: 12px/1.4 var(--mono); color: #fff; background: rgba(20, 48, 49, 0.78); padding: 4px 8px; border-radius: 4px; pointer-events: none; }
+.stage .side.left { left: 8px; }
+.stage .side.right { right: 8px; text-align: right; }
+.mode-note { margin: 8px 0 0; }
+.onefile { margin-top: 16px; }
+.onefile .bar { position: relative; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #d6456b var(--read, 0%), var(--tint) var(--read, 0%)); border: 1px solid var(--line); }
+.onefile .bar i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--page); }
+.onefile .note { margin: 8px 0 0; font-size: 13px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 8px; }
+.lossy table.numbers td:first-child code { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.viewer-body { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 32px; align-items: start; }
+.viewer-side h4 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
+.viewer-side .mode-note { margin: 0; }
+.viewer-side .onefile, .viewer-side .chart.spectrum { margin-top: 0; }
+@media (max-width: 860px) {
+  .viewer-body { grid-template-columns: 1fr; }
+}
