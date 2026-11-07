@@ -88,7 +88,6 @@ function plot(box, set, data, o) {
   axes.append(el("text", { x: W - R, y: H - 6, class: "axis", "text-anchor": "end" }, `${o.xlabel} →`));
   axes.append(el("text", { x: L, y: T - 14, class: "axis" }, `${o.up ? "↑" : "↓"} ${o.ylabel}`));
   svg.append(axes);
-  if (o.hline) svg.append(el("line", { class: "now", x1: L, x2: W - R, y1: Y(o.hline), y2: Y(o.hline) }));
   const names = Object.keys(data).sort((a, b) => (a === georvq) - (b === georvq));
   for (const c of names) {
     const points = data[c].filter(p => o.x(p) > 0 && o.y(p) > 0);
@@ -284,7 +283,7 @@ document.querySelectorAll(".panel.lossy").forEach(panel => {
     const errlabel = `${label}${unit ? `, ${unit}` : ""}`;
     const data = series(set, scene.value, metric.value);
     plot(speedBox, set, data, { x: p => p.speed, y: p => p.ratio, xlabel: "decode MB/s", ylabel: "compression ratio", up: true, errlabel });
-    plot(rdBox, set, data, { x: p => p.err, y: p => p.ratio, xlabel: errlabel, ylabel: "compression ratio", up: true, errlabel, hline: set.original / rate });
+    plot(rdBox, set, data, { x: p => p.err, y: p => p.ratio, xlabel: errlabel, ylabel: "compression ratio", up: true, errlabel });
   };
   metric.addEventListener("change", draw);
   scene.addEventListener("change", draw);
