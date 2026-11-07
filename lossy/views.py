@@ -1,4 +1,4 @@
-"""The pictures of the lossy page: three samples of each dataset decoded by every
+"""The pictures of the lossy page: every sample of each dataset decoded by every
 codec near each rate of the page's slider.
 
 For each rate and codec it keeps the setting whose rate on that sample is
@@ -27,8 +27,8 @@ from earthcompress.contract import Budget
 from earthcompress.spec import ArraySpec
 
 HERE = Path(__file__).resolve().parent
-S2_SAMPLES = ("s2-l1c-00", "s2-l1c-12", "s2-l1c-33")
-AE_SAMPLES = ("alphaearth-v1-64-00", "alphaearth-v1-64-05", "alphaearth-v1-64-11")
+S2_SAMPLES = tuple(f"s2-l1c-{i:02d}" for i in range(50))
+AE_SAMPLES = tuple(f"alphaearth-v1-64-{i:02d}" for i in range(15))
 S2_STOPS = (0.3, 0.5, 1, 2, 3, 6)
 AE_STOPS = (0.2, 0.5, 1, 2, 4, 8)
 """Rates of the slider, in bits per pixel."""
@@ -242,7 +242,7 @@ def task(item: tuple[str, str]) -> str:
 
 
 def main() -> None:
-    items = [("s2", s) for s in S2_SAMPLES] + [("ae", s) for s in AE_SAMPLES]
+    items = [("ae", s) for s in AE_SAMPLES] + [("s2", s) for s in S2_SAMPLES]
     if len(sys.argv) > 1:
         items = [i for i in items if i[1] in sys.argv[1:]]
     with ProcessPoolExecutor(6) as pool:

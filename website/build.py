@@ -835,7 +835,7 @@ def lossy_page() -> None:
 <div class="viewer">
 <h3>Look at it</h3>
 <div class="viewer-controls">
-<div class="samples" role="group" aria-label="Sample"></div>
+<select class="view-scene" aria-label="Scene in the viewer">{"".join(f'<option value="{i}">{sid} · {html.escape(sites.get(sid, sid))}</option>' for i, sid in enumerate(scenes))}</select>
 <label class="rate">rate <input type="range" min="0" max="{len(case["stops"]) - 1}" step="1"><output></output></label>
 <select class="other" aria-label="Codec on the right"></select>
 <div class="modes" role="group" aria-label="View">{"".join(f'<button type="button" data-mode="{m}">{m}</button>' for m in modes)}</div>

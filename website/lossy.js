@@ -154,8 +154,10 @@ function viewer(panel, set, key, onRate) {
   const stage = panel.querySelector(".stage"), handle = panel.querySelector(".handle"), target = panel.querySelector(".target");
   const slider = panel.querySelector(".rate input"), out = panel.querySelector(".rate output");
   const other = panel.querySelector("select.other"), note = panel.querySelector(".mode-note");
-  const sampleBox = panel.querySelector(".samples");
-  const ids = Object.keys(set.samples);
+  const pick = panel.querySelector("select.view-scene"), chartScene = panel.querySelector("select.scene");
+  const ids = set.scenes.map(s => s[0]).filter(id => set.samples[id]);
+  [...pick.options].forEach(o => { o.hidden = !set.samples[set.scenes[o.value][0]]; });
+  pick.value = set.scenes.findIndex(s => s[0] === ids[0]);
   const state = { sample: ids[0], stop: set.stops.indexOf(set.start), mode: "image", split: 0.5, pixel: (CROP / 2) * CROP + CROP / 2 };
   const cache = new Map();
   const load = (url, kind) => {
@@ -164,13 +166,6 @@ function viewer(panel, set, key, onRate) {
       : new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url; }));
     return cache.get(url);
   };
-  ids.forEach((id, k) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = set.samples[id].site;
-    b.dataset.id = id;
-    sampleBox.append(b);
-  });
   const others = Object.keys(set.codecs).filter(c => c !== set.georvq);
   other.innerHTML = `<option value="original">original</option>` + others.map(c => `<option value="${c}">${set.codecs[c][0]}</option>`).join("");
   other.value = others.includes("jpegxl-distance") ? "jpegxl-distance" : others[0];
@@ -212,7 +207,6 @@ function viewer(panel, set, key, onRate) {
     const chosen = set.samples[state.sample].stops[String(stop)] || {};
     const lv = chosen[set.georvq], rv = other.value === "original" ? null : chosen[other.value];
     out.textContent = `${stop} bpp · ${Math.round(set.original / stop)}×`;
-    sampleBox.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === state.sample)));
     panel.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
     sl.textContent = caption(set.georvq, lv, stop);
     sr.textContent = caption(other.value, rv, stop);
@@ -264,7 +258,16 @@ function viewer(panel, set, key, onRate) {
   stage.addEventListener("pointerup", () => { dragging = false; });
   slider.addEventListener("input", () => { state.stop = Number(slider.value); render(); });
   other.addEventListener("change", render);
-  sampleBox.addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.sample = b.dataset.id; render(); } });
+  // The scene of the viewer and of the charts are one choice.
+  pick.addEventListener("change", () => {
+    state.sample = set.scenes[pick.value][0];
+    if (chartScene.value !== pick.value) { chartScene.value = pick.value; chartScene.dispatchEvent(new Event("change")); }
+    render();
+  });
+  chartScene.addEventListener("change", () => {
+    const id = set.scenes[chartScene.value]?.[0];
+    if (id && set.samples[id] && id !== state.sample) { pick.value = chartScene.value; state.sample = id; render(); }
+  });
   panel.querySelector(".modes").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.mode = b.dataset.mode; render(); } });
   render();
 }
