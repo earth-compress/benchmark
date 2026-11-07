@@ -16,6 +16,16 @@ function ramp(v) {
   const i = Math.min(Math.floor(x), RAMP.length - 2), t = x - i;
   return RAMP[i].map((c, k) => Math.round(c * (1 - t) + RAMP[i + 1][k] * t));
 }
+// The error maps are this ramp over a fixed scale, so a colour reads back as a value.
+const INVERSE = Array.from({ length: 256 }, (_, i) => [i / 255, ramp(i / 255)]);
+function unramp([r, g, b]) {
+  let best = 0, gap = Infinity;
+  for (const [t, [R, G, B]] of INVERSE) {
+    const d = (R - r) ** 2 + (G - g) ** 2 + (B - b) ** 2;
+    if (d < gap) { gap = d; best = t; }
+  }
+  return best;
+}
 const fmt = v => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
 function logTicks(lo, hi) {
   const out = [];
@@ -96,12 +106,28 @@ function plot(box, set, data, o) {
     g.append(el("polyline", { points: points.map(p => `${X(o.x(p))},${Y(o.y(p))}`).join(" ") }));
     for (const p of points) {
       const dot = el("circle", { cx: X(o.x(p)), cy: Y(o.y(p)), r: c === georvq ? 4 : 3.5 });
-      dot.append(el("title", {}, `${codecs[c][0]} · ${p.setting} · ${p.ratio.toFixed(1)}× · decode ${Math.round(p.speed)} MB/s · ${o.errlabel} ${fmt(p.err)}`));
+      dot.dataset.tip = [codecs[c][0], p.setting, `${p.ratio.toFixed(1)}× smaller`, `decode ${Math.round(p.speed)} MB/s`, `${o.errlabel} ${fmt(p.err)}`].join("\n");
       g.append(dot);
     }
     svg.append(g);
   });
-  box.replaceChildren(svg);
+  const tip = document.createElement("div");
+  tip.className = "lossy-tip";
+  tip.hidden = true;
+  box.replaceChildren(svg, tip);
+  // The values of a point show beside it while the pointer is on it.
+  svg.addEventListener("pointermove", e => {
+    const dot = e.target.closest("circle[data-tip]");
+    if (!dot) { tip.hidden = true; return; }
+    const [name, ...lines] = dot.dataset.tip.split("\n");
+    tip.replaceChildren(Object.assign(document.createElement("b"), { textContent: name }), ...lines.map(l => Object.assign(document.createElement("span"), { textContent: l })));
+    tip.hidden = false;
+    const area = box.getBoundingClientRect(), at = dot.getBoundingClientRect();
+    const x = at.left + at.width / 2 - area.left, y = at.top - area.top;
+    tip.style.left = `${Math.min(Math.max(x, 80), area.width - 80)}px`;
+    tip.style.top = `${y}px`;
+  });
+  svg.addEventListener("pointerleave", () => { tip.hidden = true; });
   // Each codec fades in after the one before, and its line draws itself.
   if (!STILL) svg.querySelectorAll(".series polyline").forEach((line, i) => {
     const length = line.getTotalLength();
@@ -166,6 +192,7 @@ function viewer(panel, set, key, onRate) {
   const other = panel.querySelector("select.other"), note = panel.querySelector(".mode-note");
   const state = { sample: panel.querySelector(".viewer").dataset.sample, stop: set.stops.indexOf(set.start), mode: "image", split: 0.5, pixel: (CROP / 2) * CROP + CROP / 2 };
   const cache = new Map();
+  const sims = new Map();
   const load = (url, kind) => {
     if (!cache.has(url)) cache.set(url, kind === "bin"
       ? fetch(url).then(r => r.arrayBuffer()).then(b => new Int8Array(b))
@@ -191,6 +218,7 @@ function viewer(panel, set, key, onRate) {
       const codes = await load(folder + (code === "original" ? "original.bin" : v.codes), "bin");
       if (mine !== token) return;
       const s = similarity(codes, state.pixel);
+      sims.set(canvas, s);
       canvas.width = canvas.height = CROP;
       const img = ctx.createImageData(CROP, CROP);
       s.forEach((c, i) => {
@@ -260,7 +288,40 @@ function viewer(panel, set, key, onRate) {
     state.split = Math.min(Math.max(x, 0), 1);
     place();
   });
-  stage.addEventListener("pointermove", e => { if (dragging) { state.split = Math.min(Math.max(at(e)[0], 0), 1); place(); } });
+  const tip = document.createElement("div");
+  tip.className = "pixel-tip";
+  tip.hidden = true;
+  stage.append(tip);
+  // The value of both decodes at the pixel under the pointer.
+  function value(canvas, code, x, y) {
+    const col = Math.min(CROP - 1, Math.floor(x * CROP)), row = Math.min(CROP - 1, Math.floor(y * CROP));
+    if (state.mode === "similarity") {
+      const s = sims.get(canvas);
+      const v = s ? s[row * CROP + col] : NaN;
+      return `cos ${Number.isNaN(v) ? "n/a" : v.toFixed(3)}`;
+    }
+    const scale = ae ? 0.05 : 250, unit = ae ? "" : " DN", label = ae ? "1 − cos" : "RMSE";
+    if (code === "original") return `${label} 0${unit}`;
+    const px = canvas.getContext("2d").getImageData(Math.floor(x * canvas.width), Math.floor(y * canvas.height), 1, 1).data;
+    const t = unramp([px[0], px[1], px[2]]);
+    return `${label} ${t >= 0.995 ? "≥ " : "≈ "}${fmt(t * scale)}${unit}`;
+  }
+  function readout(x, y) {
+    if (state.mode === "image") return `pixel ${Math.floor(x * cl.width)}, ${Math.floor(y * cl.height)}\nswitch to error to read values`;
+    const name = code => (code === "original" ? "original" : set.codecs[code][0]);
+    return [[cl, set.georvq], [cr, other.value]].map(([canvas, code]) => `${name(code)}  ${value(canvas, code, x, y)}`).join("\n");
+  }
+  stage.addEventListener("pointermove", e => {
+    const [x, y] = at(e);
+    if (dragging) { state.split = Math.min(Math.max(x, 0), 1); place(); }
+    if (x < 0 || x > 1 || y < 0 || y > 1 || e.target.closest(".handle")) { tip.hidden = true; return; }
+    tip.textContent = readout(x, y);
+    tip.style.left = `${x * 100}%`;
+    tip.style.top = `${y * 100}%`;
+    tip.classList.toggle("flip", x > 0.7);
+    tip.hidden = false;
+  });
+  stage.addEventListener("pointerleave", () => { tip.hidden = true; });
   stage.addEventListener("pointerup", () => { dragging = false; });
   slider.addEventListener("input", () => { state.stop = Number(slider.value); render(); });
   other.addEventListener("change", render);

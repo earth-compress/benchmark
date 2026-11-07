@@ -222,7 +222,6 @@ NAV = (
     ("Datasets", "datasets/"),
     ("Protocol", "protocol/"),
     ("Codecs", "codecs/"),
-    ("Use cases", "usecases/"),
     ("Tolerance", "tolerance/"),
 )
 DOCS = {"protocol": "PROTOCOL.md", "codecs": "CODECS.md", "tolerance": "TOLERANCE.md"}
@@ -252,16 +251,51 @@ HF_ICON = (
 )
 
 
+# Small icons for the four modes, drawn on one 16 px grid in the text colour.
+MODE_ICONS = (
+    ("Lossless", "lossless/",
+     '<rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/>'
+     '<path d="M7.6 7h.8M7.6 9h.8"/>'),
+    ("Near-lossless", "near-lossless/",
+     '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/>'
+     '<path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/>'),
+    ("Lossy", "lossy/",
+     '<rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/>'
+     '<rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/>'),
+    ("Use cases", "usecases/",
+     '<circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/>'),
+)
+
+
+def mode_switch(root: str) -> str:
+    items = "".join(
+        f'<a href="{root}{href}" aria-label="{name}" data-label="{name}"><svg viewBox="0 0 16 16" aria-hidden="true">{icon}</svg></a>'
+        for name, href, icon in MODE_ICONS
+    )
+    return f'<nav class="modes-switch" aria-label="Results">{items}</nav>'
+
+
 def layout(
-    root: str, title: str, body: str, chart: dict | None = None, script: str = "chart.js"
+    root: str, title: str, body: str, chart: dict | None = None, script: str = "chart.js",
+    nav: bool = True,
 ) -> str:
-    links = "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV)
+    links = "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV) if nav else ""
     links += (
         f'<a class="icon" href="{REPO}" title="GitHub" aria-label="GitHub">{GITHUB_ICON}</a>'
         f'<a class="icon" href="https://huggingface.co/datasets/{HF_DATASET}" title="Hugging Face" '
         f'aria-label="Hugging Face">{HF_ICON}</a>'
     )
+    header = (
+        f'''<header><div class="wrap bar">
+<a class="brand" href="{root}"><img src="{root}earth-compress.svg" alt="Earth Compress benchmark" height="30"></a>
+{mode_switch(root)}
+<nav>{links}</nav>
+</div></header>'''
+        if nav
+        else ""
+    )
     data = (
+
         f'<script id="chart-data" type="application/json">{json.dumps(chart)}</script>'
         f'<script src="{root}{script}?v={VERSION[script]}" defer></script>'
         if chart
@@ -279,16 +313,13 @@ def layout(
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{root}style.css?v={VERSION["style.css"]}">
 </head>
-<body>
-<header><div class="wrap bar">
-<a class="brand" href="{root}"><img src="{root}earth-compress.svg" alt="Earth Compress" height="30"><span class="version">benchmark v1.0</span></a>
-<nav>{links}</nav>
-</div></header>
-<main class="wrap">
+<body{"" if nav else ' class="home-page"'}>
+{header}<main class="wrap">
 {body}
 </main>
 <footer><div class="wrap"><p>Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="{REPO}/blob/main/LICENSE">Apache 2.0</a>.</p></div></footer>
 {data}
+<script>document.querySelectorAll(".modes-switch a").forEach(a => {{ if (location.pathname.startsWith(new URL(a.href).pathname)) a.setAttribute("aria-current", "page"); }});</script>
 </body>
 </html>
 """
@@ -319,12 +350,7 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-NEAR_NOTE = (
-    "Each point is a configuration at one budget level, and the line marks the best "
-    "observed trade-offs. All corpora pools sizes and decode times across samples, for "
-    "configurations completed on every corpus with a budget. Configurations that broke "
-    "a promise on any sample are listed below the chart."
-)
+NEAR_NOTE = "Each point is a configuration at one budget level, and the line marks the best trade-offs."
 
 
 NO_BUDGET = (
@@ -332,6 +358,66 @@ NO_BUDGET = (
     'has no error budget, so it runs in lossless mode only. See '
     '<a href="{root}tolerance/">Tolerance</a>.</p></div>'
 )
+
+
+def sample_links(
+    cid: str, sid: str, exact: bool, near: bool,
+    lossy: list[tuple[str, str, str]], uses: list[tuple[str, str]],
+) -> str:
+    """Buttons from a sample to every analysis that measured it."""
+    root = "../../../"
+    links = []
+    if exact:
+        links.append(("Lossless", f"{root}lossless/{cid}/{sid}/"))
+    if near:
+        links.append(("Near-lossless", f"{root}near-lossless/{cid}/{sid}/"))
+    links += [(f"Lossy &middot; {title}", f"{root}lossy/{key}/{lid}/") for key, title, lid in lossy]
+    links += [(f"Use case &middot; {title}", f"{root}usecases/{folder}/results/{sid}/") for folder, title in uses]
+    if not links:
+        return '<p class="note">This sample is not in any analysis yet.</p>'
+    buttons = "".join(f'<a class="button" href="{href}">{name}</a>' for name, href in links)
+    return f'<nav class="analyses" aria-label="Analyses of this sample"><span class="analyses-label">Results</span>{buttons}</nav>'
+
+
+def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
+    """Which use cases measured a corpus sample, by sample id."""
+    found: dict[str, list[tuple[str, str]]] = {}
+    for case in USECASES:
+        path = ROOT / "usecases" / case["folder"] / "results.csv"
+        if not path.exists():
+            continue
+        with path.open(newline="") as stream:
+            for sid in sorted({r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}):
+                found.setdefault(sid, []).append((case["folder"], case["title"]))
+    return found
+
+
+def lossy_scenes() -> dict[tuple[str, str], list[tuple[str, str, str]]]:
+    """Which lossy cases measured each corpus sample, as (key, title, lossy id)."""
+    found: dict[tuple[str, str], list[tuple[str, str, str]]] = {}
+    for case in LOSSY:
+        with (ROOT / "lossy" / case["key"] / "results.csv").open(newline="") as stream:
+            scenes = {r["sample_id"] for r in csv.DictReader(stream)}
+        for s in manifest(ROOT / "corpora" / case["corpus"]):
+            sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
+            if sid in scenes:
+                found.setdefault((case["corpus"], s["id"]), []).append((case["key"], case["title"], sid))
+    return found
+
+
+def lossless_block(key: str, caption: str = "") -> str:
+    note = f'<p class="chart-note">{caption}</p>' if caption else ""
+    return f'<section class="results"><div class="chart" data-chart="{key}"></div>{note}</section>'
+
+
+def near_block(key: str, levels: tuple[str, ...]) -> str:
+    chosen = "matched" if "matched" in levels else (levels or ("",))[0]
+    options = "".join(
+        f'<option value="{level}"{" selected" if level == chosen else ""}>{level}</option>'
+        for level in levels
+    )
+    return f"""<section class="results"><div class="pick near-pick"><select id="near-corpus" hidden><option value="{key}">{key}</option></select><select id="near-level" aria-label="Budget level">{options}</select></div>
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>"""
 
 
 def chart_block(
@@ -467,9 +553,12 @@ def build() -> None:
         target = OUT / slug / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         title = (ROOT / name).read_text().splitlines()[0].lstrip("# ")
-        target.write_text(
-            layout("../", f"{title} · Earth Compress benchmark", document(name))
-        )
+        page = document(name)
+        if slug == "protocol":
+            # How the lossy runs are measured belongs with the rest of the protocol.
+            method = LOSSY_METHOD.split('<div class="doc">', 1)[1].rsplit("</div></section>", 1)[0]
+            page = page.replace("</article>", f'<h2 id="lossy">Lossy</h2>{method}</article>')
+        target.write_text(layout("../", f"{title} · Earth Compress benchmark", page))
 
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
     lossless = table((ROOT / "CODECS.md").read_text(), "## Lossless")
@@ -488,6 +577,8 @@ def build() -> None:
     near_totals_by: dict[str, dict] = {}
     sample_counts: dict[str, int] = {}
     corpus_cards = []
+    lossy_by_sample = lossy_scenes()
+    uses_by_sample = usecase_scenes()
     for row in datasets:
         cid = plain(row["corpus"])
         folder = ROOT / "corpora" / cid
@@ -504,9 +595,12 @@ def build() -> None:
             for sid in {r["sample_id"] for r in mine}
         }
         near_totals_by[cid] = near
+        levels = tuple(level for level in LEVELS if level in near)
         meta = f"{inline(row['shape'])} · {inline(row['dtype'])}"
 
         sample_cards = []
+        exact_cards = []
+        near_cards = []
         first = None
         for i, s in enumerate(samples):
             src = source_png(cid, s)
@@ -536,9 +630,9 @@ def build() -> None:
             download = f"{HF}/{cid}/{s['npz_path']}" if s.get("npz_path") else ""
             body = f"""{crumbs("../../../", ("Datasets", "datasets/"), (cid, f"datasets/{cid}/"), (s["id"], None))}
 <h1>{html.escape(s["id"])}</h1>
-{chart_block(key=s["id"], budget=bool(near), root="../../../", levels=tuple(l for l in LEVELS if l in near))}
 <div class="sample">
 <div class="figure">{f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">' if large else '<div class="noimg"></div>'}
+{sample_links(cid, s["id"], s["id"] in by_sample, bool(near_by_sample.get(s["id"])), lossy_by_sample.get((cid, s["id"]), []), uses_by_sample.get(s["id"], []))}
 {f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
 <div><h2>Metadata</h2>
 {metadata(s)}</div>
@@ -546,19 +640,37 @@ def build() -> None:
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "datasets" / cid / s["id"] / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
-            chart = {
-                "data": {s["id"]: by_sample.get(s["id"], {})},
-                "codecs": codecs,
-                **style,
-                "near": near_chart(
-                    {s["id"]: near_by_sample.get(s["id"], {})}, near_families
-                ),
-            }
             target.write_text(
                 layout(
-                    "../../../", f"{s['id']} · Earth Compress benchmark", body, chart
+                    "../../../",
+                    f"{s['id']} · Earth Compress benchmark",
+                    body,
                 )
             )
+            where = html.escape(" · ".join(x for x in (s.get("site", ""), when) if x))
+            figure = (
+                f'<div class="figure"><img src="../../../{large}" alt="Preview of {html.escape(s["id"])}"></div>'
+                if large else ""
+            )
+            for mode, title, cards, block, payload in (
+                ("lossless", "Lossless", exact_cards, lossless_block(s["id"]),
+                 {"data": {s["id"]: by_sample.get(s["id"], {})}, "codecs": codecs, **style}),
+                ("near-lossless", "Near-lossless", near_cards, near_block(s["id"], levels),
+                 {"data": {}, "codecs": codecs, **style,
+                  "near": near_chart({s["id"]: near_by_sample.get(s["id"], {})}, near_families)}),
+            ):
+                if mode == "near-lossless" and not near:
+                    continue
+                cards.append(card("../../", f"{mode}/{cid}/{s['id']}/", thumb, s["id"], where))
+                page = f"""{crumbs("../../../", (title, f"{mode}/"), (cid, f"{mode}/{cid}/"), (s["id"], None))}
+<h1>{html.escape(s["id"])}</h1>
+<p class="lead">{where} &middot; <a href="../../../datasets/{cid}/{s["id"]}/">sample details</a></p>
+{block}
+{figure}
+<p class="pager">{prev_link}{next_link}</p>"""
+                out = OUT / mode / cid / s["id"] / "index.html"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(layout("../../../", f"{s['id']} {title.lower()} · Earth Compress benchmark", page, payload))
 
         spec = folder / "spec.md"
         blocks = spec.read_text().split("\n## ")[1:] if spec.exists() else []
@@ -571,8 +683,7 @@ def build() -> None:
 <h1>{cid}</h1>
 <p class="lead">{inline(row["contents"])}.</p>
 <section class="spec">{spec_html}</section>
-<p class="folder"><a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
-{chart_block(key=cid, budget=bool(near), root="../../", levels=tuple(l for l in LEVELS if l in near))}
+<p class="folder"><a href="../../lossless/{cid}/">Lossless results</a>{f' &middot; <a href="../../near-lossless/{cid}/">Near-lossless results</a>' if near else ""} &middot; <a href="{REPO}/tree/main/corpora/{cid}">Folder on GitHub</a></p>
 <section><h2>Samples</h2>{'<div class="grid">' + "".join(sample_cards) + "</div>" if sample_cards else '<p class="note">Not built yet.</p>'}</section>"""
         target = OUT / "datasets" / cid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -581,14 +692,24 @@ def build() -> None:
                 "../../",
                 f"{cid} · Earth Compress benchmark",
                 body,
-                {
-                    "data": {cid: found},
-                    "codecs": codecs,
-                    **style,
-                    "near": near_chart({cid: near}, near_families),
-                },
             )
         )
+        for mode, title, cards, block, payload in (
+            ("lossless", "Lossless", exact_cards, lossless_block(cid),
+             {"data": {cid: found}, "codecs": codecs, **style}),
+            ("near-lossless", "Near-lossless", near_cards, near_block(cid, levels),
+             {"data": {}, "codecs": codecs, **style, "near": near_chart({cid: near}, near_families)}),
+        ):
+            if mode == "near-lossless" and not near:
+                continue
+            page = f"""{crumbs("../../", (title, f"{mode}/"), (cid, None))}
+<h1>{cid}</h1>
+<p class="lead">{len(samples)} samples of <a href="../../datasets/{cid}/"><code>{cid}</code></a>, {inline(row["contents"])}.</p>
+{block}
+<section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
+            out = OUT / mode / cid / "index.html"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(layout("../../", f"{cid} {title.lower()} · Earth Compress benchmark", page, payload))
         corpus_cards.append((cid, f"datasets/{cid}/", first, meta))
 
     measured = [cid for cid, found in corpus_totals.items() if found]
@@ -611,34 +732,67 @@ def build() -> None:
         card("", href, image, cid, meta) for cid, href, image, meta in corpus_cards
     )
     samples = sum(sample_counts[cid] for cid in measured)
-    budgeted_count = sum(1 for cid in measured if near_totals_by.get(cid))
+    budgeted = [cid for cid in measured if near_totals_by.get(cid)]
+    budgeted_samples = sum(sample_counts[cid] for cid in budgeted)
     modes = (
-        ("Lossless", "lossless/", f"Every value back exactly. {len(measured)} corpora, {samples} samples."),
-        ("Near-lossless", "near-lossless/", f"Every value within a budget, with zeros and NoData kept. {budgeted_count} corpora with a budget."),
-        ("Lossy", "lossy/", "A bound on the average error. The learned codec georvq against the classical codecs on Sentinel-2 and AlphaEarth."),
-        ("Use cases", "usecases/", "What compression changes in a real analysis: methane plumes, drainage, change detection and clouds."),
+        ("Lossless", "lossless/", "Every value back exactly.",
+         f"{len(measured)} corpora &middot; {samples} samples"),
+        ("Near-lossless", "near-lossless/", "Every value back within a budget, with zeros and NoData kept.",
+         f"{len(budgeted)} corpora &middot; {budgeted_samples} samples"),
+        ("Lossy", "lossy/", "A bound on the average error, the learned codec georvq against the classical codecs.",
+         "Sentinel-2 &middot; AlphaEarth"),
+        ("Use cases", "usecases/", "What compression changes in a real analysis.",
+         "methane &middot; drainage &middot; change &middot; clouds"),
     )
+    def large(cid: str, n: int = 0) -> tuple[str, str] | None:
+        found = sorted((OUT / "img" / cid).glob(f"*-{n:02d}-large.webp"))
+        return (found[0].relative_to(OUT).as_posix(), cid) if found else None
+
+    def pick(prefer: list[str], pool: list[str]) -> list[tuple[str, str]]:
+        chosen = [c for c in prefer if c in pool] + [c for c in pool if c not in prefer]
+        return [x for x in (large(c) for c in chosen) if x][:4]
+
+    exact = pick(["s2-l1c-10m-4", "cop-dem-glo30", "era5-t2m-1h", "s1-grd-iw-2"], measured)
+    shown = {cid for _, cid in exact}
+    pictures = (
+        exact,
+        pick(["imerg-pcp-12", "l8-oli-8", "emit-l2a-285", "era5-tcc-1h"],
+             [c for c in budgeted if c not in shown]),
+        [x for x in (large("s2-l1c-10m-4", 1), large("alphaearth-v1-64", 0),
+                     large("s2-l1c-10m-4", 2), large("alphaearth-v1-64", 1)) if x],
+        [(f"img/usecases/{name}-large.webp", label) for name, label in (
+            ("methane", "methane"), ("drainage", "drainage"),
+            ("change-detection", "change detection"), ("clouds-decoded", "clouds"))],
+    )
+
+    def strip(images: list[tuple[str, str]], offset: int) -> str:
+        frames = "".join(
+            f'<span class="mode-frame" style="--i:{k};--o:{offset}">'
+            f'<img src="{src}" alt="" loading="lazy"><span class="mode-tag">{html.escape(label)}</span></span>'
+            for k, (src, label) in enumerate(images)
+        )
+        return f'<span class="mode-media" aria-hidden="true">{frames}</span>'
+
     entries = "".join(
-        f'<a class="mode" href="{href}"><span class="mode-name">{name}</span><span class="meta">{text}</span></a>'
-        for name, href, text in modes
+        f'<a class="mode" href="{href}">{strip(pictures[i - 1], i)}<span class="mode-num">0{i}</span>'
+        f'<span class="mode-name">{name}<span class="mode-arrow" aria-hidden="true">&rarr;</span></span>'
+        f'<span class="mode-text">{text}</span><span class="mode-stat">{stat}</span></a>'
+        for i, (name, href, text, stat) in enumerate(modes, 1)
     )
     intro = (
-        '<div class="home-intro"><h1>Earth Compress benchmark</h1>'
-        f"<p>Compression of {samples} samples across {len(measured)} corpora of imagery, "
+        '<div class="home-intro"><h1><img src="earth-compress.svg" alt="Earth Compress benchmark"></h1>'
+        f"<p>A compression benchmark of {samples} samples across {len(measured)} corpora of imagery, "
         "environmental fields and embeddings.</p></div>"
     )
     (OUT / "index.html").write_text(
         layout(
             "",
             "Earth Compress benchmark",
-            f'{intro}<section class="modes-grid">{entries}</section>\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            f'<div class="home">{intro}<div class="modes-grid">{entries}</div></div>',
+            nav=False,
         )
     )
-    caption = (
-        "Each point is a configuration. The line marks the best observed trade-offs. "
-        "All corpora pools sizes and decode times across samples, so larger corpora "
-        "carry more weight. Only configurations completed on every corpus appear."
-    )
+    caption = "Each point is a configuration, and the line marks the best trade-offs."
     (OUT / "lossless").mkdir(exist_ok=True)
     (OUT / "lossless" / "index.html").write_text(
         layout(
@@ -648,7 +802,8 @@ def build() -> None:
 <h1>Lossless</h1>
 <p class="lead">Every value back exactly, on every corpus.</p>
 <section class="results"><div class="pick near-pick">{select}</div>
-<div class="chart" data-chart="all" data-select="corpus"></div><p class="chart-note">{caption}</p></section>""",
+<div class="chart" data-chart="all" data-select="corpus"></div><p class="chart-note">{caption}</p></section>
+<section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in measured)}</div></section>""",
             chart,
         )
     )
@@ -665,7 +820,8 @@ def build() -> None:
 <h1>Near-lossless</h1>
 <p class="lead">Every value within the budget of its corpus, at four levels. See <a href="../tolerance/">Tolerance</a>.</p>
 <section class="results"><div class="pick near-pick">{near_select.replace('id="corpus"', 'id="near-corpus"')}<select id="near-level" aria-label="Budget level">{levels}</select></div>
-<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>""",
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>
+<section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"near-lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in budgeted)}</div></section>""",
             chart,
         )
     )
@@ -888,12 +1044,10 @@ def lossy_page() -> None:
                 if i + 1 < len(scenes)
                 else "<span></span>"
             )
-            row = corpus_rows.get(sid)
             body = f"""{crumbs("../../../", ("Lossy", "lossy/"), (case["title"], f"lossy/{key}/"), (sid, None))}
 <h1>{html.escape(sid)}</h1>
 <p class="lead">{html.escape(site(sid))}</p>
 {lossy_panel(case, str(i), lossy_viewer(case, sid) if sid in samples else "")}
-{f'<section><h2>Metadata</h2>{metadata(row)}</section>' if row else ""}
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "lossy" / key / sid / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -915,8 +1069,7 @@ def lossy_page() -> None:
     body = f"""{crumbs("../", ("Lossy", None))}
 <h1>Lossy</h1>
 <p class="lead">georvq, a learned codec, against the lossy configurations of the benchmark.</p>
-<section><div class="grid">{"".join(dataset_cards)}</div></section>
-{LOSSY_METHOD}"""
+<section><div class="grid">{"".join(dataset_cards)}</div></section>"""
     (OUT / "lossy" / "index.html").write_text(layout("../", "Lossy · Earth Compress benchmark", body))
 
 
@@ -1110,13 +1263,6 @@ USECASES = (
             "cloud on both",
         ),
         "samples": 100,
-        "run": (
-            "git clone -b compressed-readers https://github.com/asterisk-labs/clouds-decoded\n"
-            "pip install -e clouds-decoded imagecodecs\n"
-            "clouds-decoded full-workflow jpegxl/&lt;product&gt;.SAFE \\\n"
-            "    --compression-level d-0.33 --output-dir out/",
-            "Clouds Decoded reads a compressed product at the level given by <code>--compression-level</code>.",
-        ),
     },
 )
 HIDDEN_META = {"id", "npz_path", "asset", "asset_2017", "asset_2025", "nodata"}
@@ -1139,20 +1285,6 @@ def ticks(low: float, high: float) -> list[float]:
     )
     count = round(span / step)
     return [round(low + k * step, 6) for k in range(count + 1)]
-
-
-def run_it(folder: str, commands: tuple[str, str] | None = None) -> str:
-    """How to run a use case, by its ``run.py`` unless ``commands`` and their
-    note say otherwise."""
-    code, note = commands or (
-        f"git clone {REPO}\ncd benchmark\nuv run --extra corpus python usecases/{folder}/run.py",
-        "<code>run.py</code> reads the samples, tries to fetch any missing files "
-        "and writes <code>results.csv</code>.",
-    )
-    return f"""<div class="materials"><h3>Run it</h3>
-<pre><code>{code}</code></pre>
-<p class="note">{note}</p>
-</div>"""
 
 
 RATIO_TICKS = (0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000)
@@ -1440,7 +1572,6 @@ def usecases() -> None:
 <div class="sample usecase">
 <div class="figure">{figure}<p class="note">{html.escape(case["caption"])}</p></div>
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
-{run_it(folder, case.get("run"))}
 <p><a class="button primary" href="results/">Results</a></p></div>
 </div>"""
         target = OUT / "usecases" / folder / "index.html"
