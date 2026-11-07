@@ -27,7 +27,11 @@ from earthcompress.spec import ArraySpec
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-GRIDS = (("10m", "s2-l1c-10m-4", 10), ("20m", "s2-l1c-20m-6", 20), ("60m", "s2-l1c-60m-3", 60))
+GRIDS = (
+    ("10m", "s2-l1c-10m-4", 10),
+    ("20m", "s2-l1c-20m-6", 20),
+    ("60m", "s2-l1c-60m-3", 60),
+)
 SIDE = 504
 """Pixels of the common footprint at 10 m."""
 TAUS = (2, 5, 10, 20, 40, 80, 160, 320)
@@ -48,7 +52,7 @@ def scenes() -> list[tuple[str, tuple[np.ndarray, ...]]]:
         folder = ROOT / "corpora" / corpus
         with (folder / "manifest.csv").open(newline="") as stream:
             rows = list(csv.DictReader(stream))
-        loaded[name] = list(zip(rows, load_samples(folder)))
+        loaded[name] = list(zip(rows, load_samples(folder), strict=False))
     out = []
     for i, (row10, _) in enumerate(loaded["10m"]):
         x10, y10 = origin(row10)
@@ -62,7 +66,7 @@ def scenes() -> list[tuple[str, tuple[np.ndarray, ...]]]:
                 edge = (x10, y10)[axis] + sign * 10 * k
                 if all(
                     (sign * (edge - origin(row)[axis]) / m).is_integer()
-                    for row, (_, _, m) in zip(rows, GRIDS)
+                    for row, (_, _, m) in zip(rows, GRIDS, strict=False)
                 ):
                     shift.append(k)
                     break
@@ -71,7 +75,7 @@ def scenes() -> list[tuple[str, tuple[np.ndarray, ...]]]:
         col, line = shift
         x0, y0 = x10 + 10 * col, y10 - 10 * line
         arrays = []
-        for (name, _, metres), row in zip(GRIDS, rows):
+        for (name, _, metres), row in zip(GRIDS, rows, strict=False):
             x, y = origin(row)
             c, r = int((x0 - x) / metres), int((y - y0) / metres)
             side = SIDE * 10 // metres
@@ -91,7 +95,7 @@ def classical():
 def errors(arrays, decoded) -> dict:
     row = {}
     squares, count = 0.0, 0
-    for (name, _, _), a, d in zip(GRIDS, arrays, decoded):
+    for (name, _, _), a, d in zip(GRIDS, arrays, decoded, strict=False):
         e = a.astype(np.float64) - d.astype(np.float64)
         row[f"rmse_{name}"] = float(np.sqrt(np.mean(e**2)))
         row[f"max_{name}"] = float(np.abs(e).max())
@@ -106,10 +110,10 @@ def measure_classical(sample: str, arrays) -> list[dict]:
         for tau in TAUS:
             configs = [make(Budget(float(tau))) for _ in arrays]
             specs = [ArraySpec(a.shape, a.dtype) for a in arrays]
-            if not all(c.supports(s) for c, s in zip(configs, specs)):
+            if not all(c.supports(s) for c, s in zip(configs, specs, strict=False)):
                 continue
             size, decoded, enc, dec = 0, [], 0.0, 0.0
-            for config, spec, array in zip(configs, specs, arrays):
+            for config, spec, array in zip(configs, specs, arrays, strict=False):
                 codec = config.factory(spec)
                 t = time.perf_counter()
                 data = codec.encode(np.ascontiguousarray(array))
@@ -140,11 +144,13 @@ def georvq():
     global _CODEC
     if _CODEC is None:
         import torch
-        from huggingface_hub import snapshot_download
         from georvq.s2.v1 import load_bundle
+        from huggingface_hub import snapshot_download
 
         torch.set_num_threads(1)
-        folder = snapshot_download(BUNDLE[0], revision=BUNDLE[1], ignore_patterns=["onnx/*"])
+        folder = snapshot_download(
+            BUNDLE[0], revision=BUNDLE[1], ignore_patterns=["onnx/*"]
+        )
         _CODEC = load_bundle(folder, device="cpu")
         _CODEC.rung_bits = {
             tuple(r["tuple"]): r["bits_window"]
@@ -155,7 +161,7 @@ def georvq():
 
 def windows(arrays) -> tuple[np.ndarray, ...]:
     out = []
-    for array, (_, _, metres) in zip(arrays, GRIDS):
+    for array, (_, _, metres) in zip(arrays, GRIDS, strict=False):
         w = 360 // metres
         n = array.shape[1] // w
         out.append(
@@ -178,7 +184,8 @@ def georvq_decodes(arrays):
     """Every rung of one georvq encode, as (rung, bits, decoded grids, seconds)."""
     import torch
     from georvq.inference.store_codec import cumulative
-    from georvq.s2.v1 import GRIDS as RVQ_GRIDS, stats_vector
+    from georvq.s2.v1 import GRIDS as RVQ_GRIDS
+    from georvq.s2.v1 import stats_vector
 
     codec = georvq()
     wins = windows(arrays)
@@ -191,14 +198,19 @@ def georvq_decodes(arrays):
         stats = torch.from_numpy(codec.channel.decode(fields))
         cums = [
             cumulative(rvq, torch.from_numpy(s), sp.depth)
-            for rvq, s, sp in zip(codec.model.rvqs, stacked, codec.specs)
+            for rvq, s, sp in zip(codec.model.rvqs, stacked, codec.specs, strict=False)
         ]
         for rung in codec.rungs:
             t = time.perf_counter()
-            out = codec._forward([c[L] for c, L in zip(cums, rung)], rung, stats, valid)
+            out = codec._forward(
+                [c[L] for c, L in zip(cums, rung, strict=False)], rung, stats, valid
+            )
             decoded = [
-                unwindow(out[g].float().round().clamp(1, 65535).numpy().astype(np.uint16), a.shape[1])
-                for (g, _, _), a in zip(RVQ_GRIDS, arrays)
+                unwindow(
+                    out[g].float().round().clamp(1, 65535).numpy().astype(np.uint16),
+                    a.shape[1],
+                )
+                for (g, _, _), a in zip(RVQ_GRIDS, arrays, strict=False)
             ]
             dec = time.perf_counter() - t
             yield rung, codec.rung_bits[tuple(rung)] * len(wins[0]), decoded, enc, dec

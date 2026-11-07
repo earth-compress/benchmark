@@ -38,7 +38,14 @@ S2_ERROR = 250.0
 AE_ERROR = 0.05
 """Top of the colour scale of the error maps, in DN and in cosine distance."""
 RAMP = np.array(
-    [(0, 0, 4), (59, 15, 112), (140, 41, 129), (222, 73, 104), (254, 159, 109), (252, 253, 191)],
+    [
+        (0, 0, 4),
+        (59, 15, 112),
+        (140, 41, 129),
+        (222, 73, 104),
+        (254, 159, 109),
+        (252, 253, 191),
+    ],
     dtype=np.float64,
 )
 
@@ -79,7 +86,11 @@ def matched(views: list[dict], stops) -> dict:
 
 def s2_rgb(bands: np.ndarray, low: float, high: float) -> np.ndarray:
     rgb = bands[[2, 1, 0]].astype(np.float64).transpose(1, 2, 0)
-    return (np.clip((rgb - low) / (high - low), 0, 1) ** (1 / 1.6) * 255).round().astype(np.uint8)
+    return (
+        (np.clip((rgb - low) / (high - low), 0, 1) ** (1 / 1.6) * 255)
+        .round()
+        .astype(np.uint8)
+    )
 
 
 def spectrum(bands: np.ndarray) -> np.ndarray:
@@ -91,7 +102,8 @@ def spectrum(bands: np.ndarray) -> np.ndarray:
     edges = np.geomspace(2 / side, 0.5, 25)
     which = np.digitize(radius, edges) - 1
     power = sum(
-        np.abs(np.fft.fft2((b - b.mean()) * window)) ** 2 for b in bands.astype(np.float64)
+        np.abs(np.fft.fft2((b - b.mean()) * window)) ** 2
+        for b in bands.astype(np.float64)
     )
     return np.array([power[which == k].mean() for k in range(len(edges) - 1)])
 
@@ -128,15 +140,17 @@ def s2(sample: str) -> dict:
         for tau in run.TAUS:
             configs = [make(Budget(float(tau))) for _ in arrays]
             specs = [ArraySpec(a.shape, a.dtype) for a in arrays]
-            if not all(c.supports(s) for c, s in zip(configs, specs)):
+            if not all(c.supports(s) for c, s in zip(configs, specs, strict=False)):
                 continue
             size, decoded = 0, []
-            for config, spec, array in zip(configs, specs, arrays):
+            for config, spec, array in zip(configs, specs, arrays, strict=False):
                 codec = config.factory(spec)
                 data = codec.encode(np.ascontiguousarray(array))
                 decoded.append(codec.decode(data))
                 size += len(data)
-            views.append(view(configs[0].id.rsplit("-tau", 1)[0], f"tau={tau}", size, decoded))
+            views.append(
+                view(configs[0].id.rsplit("-tau", 1)[0], f"tau={tau}", size, decoded)
+            )
     return finish(folder, views, S2_STOPS, "georvq-s2-v1")
 
 
@@ -154,7 +168,9 @@ def ae(sample: str) -> dict:
     valid = (codes != run.NODATA).all(0)
     a = run.embedding(codes).reshape(codes.shape[0], -1)
     mean = a[:, valid.ravel()].mean(1, keepdims=True)
-    _, _, vt = np.linalg.svd((a[:, valid.ravel()][:, ::7] - mean).T, full_matrices=False)
+    _, _, vt = np.linalg.svd(
+        (a[:, valid.ravel()][:, ::7] - mean).T, full_matrices=False
+    )
     axes = vt[:3]
     projected = axes @ (a - mean)
     low, high = np.percentile(projected[:, valid.ravel()], (2, 98), axis=1)
@@ -172,7 +188,9 @@ def ae(sample: str) -> dict:
 
     def view(codec: str, setting: str, size: float, decoded) -> dict:
         b = run.embedding(decoded).reshape(decoded.shape[0], -1)
-        cos = (a * b).sum(0) / np.maximum(np.linalg.norm(a, axis=0) * np.linalg.norm(b, axis=0), 1e-12)
+        cos = (a * b).sum(0) / np.maximum(
+            np.linalg.norm(a, axis=0) * np.linalg.norm(b, axis=0), 1e-12
+        )
         error = ramp((1 - cos).reshape(side, side) / AE_ERROR)
         error[~valid] = 200
         name = f"{codec}-{setting.replace('=', '-')}"
@@ -184,7 +202,11 @@ def ae(sample: str) -> dict:
             "image": f"{name}.webp",
             "error": f"{name}-error.webp",
             "codes": f"{name}.bin",
-            "_pictures": (colour(decoded), error, np.ascontiguousarray(decoded[window]).tobytes()),
+            "_pictures": (
+                colour(decoded),
+                error,
+                np.ascontiguousarray(decoded[window]).tobytes(),
+            ),
         }
 
     views = [
@@ -201,7 +223,9 @@ def ae(sample: str) -> dict:
             codec = config.factory(spec)
             data = codec.encode(shifted)
             back = (codec.decode(data).astype(np.int16) - 128).astype(np.int8)
-            views.append(view(config.id.rsplit("-tau", 1)[0], f"tau={tau}", len(data), back))
+            views.append(
+                view(config.id.rsplit("-tau", 1)[0], f"tau={tau}", len(data), back)
+            )
     return finish(folder, views, AE_STOPS, "georvq-ae-v2")
 
 
@@ -217,7 +241,9 @@ def finish(folder: Path, views: list[dict], stops, georvq: str) -> dict:
                 (folder / v["codes"]).write_bytes(codes)
     clean = lambda v: {k: x for k, x in v.items() if not k.startswith("_")}  # noqa: E731
     out = {
-        "stops": {s: {c: clean(v) for c, v in chosen.items()} for s, chosen in stops.items()},
+        "stops": {
+            s: {c: clean(v) for c, v in chosen.items()} for s, chosen in stops.items()
+        },
         "rungs": [
             {"setting": v["setting"], "bits_per_pixel": v["bits_per_pixel"]}
             for v in views
@@ -226,7 +252,11 @@ def finish(folder: Path, views: list[dict], stops, georvq: str) -> dict:
     }
     # Pictures of views no stop chose are not kept.
     keep = {"original.webp", "original.bin", "sample.json"} | {
-        v[k] for chosen in stops.values() for v in chosen.values() for k in ("image", "error", "codes") if k in v
+        v[k]
+        for chosen in stops.values()
+        for v in chosen.values()
+        for k in ("image", "error", "codes")
+        if k in v
     }
     for path in folder.iterdir():
         if path.name not in keep:

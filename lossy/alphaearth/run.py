@@ -45,7 +45,9 @@ def embedding(codes: np.ndarray) -> np.ndarray:
 def errors(codes: np.ndarray, decoded: np.ndarray) -> dict:
     valid = (codes != NODATA).all(0)
     a, b = embedding(codes)[:, valid], embedding(decoded)[:, valid]
-    cos = (a * b).sum(0) / np.maximum(np.linalg.norm(a, axis=0) * np.linalg.norm(b, axis=0), 1e-12)
+    cos = (a * b).sum(0) / np.maximum(
+        np.linalg.norm(a, axis=0) * np.linalg.norm(b, axis=0), 1e-12
+    )
     distance = 1 - cos
     e = codes[:, valid].astype(np.float64) - decoded[:, valid].astype(np.float64)
     return {
@@ -102,12 +104,14 @@ def georvq():
     global _CODEC
     if _CODEC is None:
         import torch
-        from huggingface_hub import snapshot_download
         from georvq.ae.v2 import AE_V2
         from georvq.inference.bundle import load_bundle
+        from huggingface_hub import snapshot_download
 
         torch.set_num_threads(1)
-        folder = snapshot_download(BUNDLE[0], revision=BUNDLE[1], ignore_patterns=["onnx/*"])
+        folder = snapshot_download(
+            BUNDLE[0], revision=BUNDLE[1], ignore_patterns=["onnx/*"]
+        )
         _CODEC = load_bundle(folder, AE_V2, "cpu", None, True)
         _CODEC.rung_bits = {
             tuple(r["tuple"]): r["bits_window"]
@@ -122,7 +126,9 @@ def georvq_decodes(codes: np.ndarray):
     c, h, w = codes.shape
     n = h // WINDOW
     wins = np.ascontiguousarray(
-        codes.reshape(c, n, WINDOW, n, WINDOW).transpose(1, 3, 0, 2, 4).reshape(n * n, c, WINDOW, WINDOW)
+        codes.reshape(c, n, WINDOW, n, WINDOW)
+        .transpose(1, 3, 0, 2, 4)
+        .reshape(n * n, c, WINDOW, WINDOW)
     )
     t = time.perf_counter()
     rec, _, valid = codec.encode_windows(wins, stats=False)
@@ -133,10 +139,14 @@ def georvq_decodes(codes: np.ndarray):
         t = time.perf_counter()
         tiers = [
             rec[name][:depth].transpose(1, 0, 2) if depth else None
-            for name, depth in zip(codec.names[1:], rung[1:])
+            for name, depth in zip(codec.names[1:], rung[1:], strict=False)
         ]
         out = codec.decode_records(base, tiers, rung, valid)
-        decoded = out.reshape(n, n, c, WINDOW, WINDOW).transpose(2, 0, 3, 1, 4).reshape(c, h, w)
+        decoded = (
+            out.reshape(n, n, c, WINDOW, WINDOW)
+            .transpose(2, 0, 3, 1, 4)
+            .reshape(c, h, w)
+        )
         dec = time.perf_counter() - t
         yield rung, codec.rung_bits[tuple(rung)] * n * n, decoded, enc, dec
 

@@ -253,17 +253,29 @@ HF_ICON = (
 
 # Small icons for the four modes, drawn on one 16 px grid in the text colour.
 MODE_ICONS = (
-    ("Lossless", "lossless/",
-     '<rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/>'
-     '<path d="M7.6 7h.8M7.6 9h.8"/>'),
-    ("Near-lossless", "near-lossless/",
-     '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/>'
-     '<path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/>'),
-    ("Lossy", "lossy/",
-     '<rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/>'
-     '<rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/>'),
-    ("Use cases", "usecases/",
-     '<circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/>'),
+    (
+        "Lossless",
+        "lossless/",
+        '<rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/>'
+        '<path d="M7.6 7h.8M7.6 9h.8"/>',
+    ),
+    (
+        "Near-lossless",
+        "near-lossless/",
+        '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/>'
+        '<path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/>',
+    ),
+    (
+        "Lossy",
+        "lossy/",
+        '<rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/>'
+        '<rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/>',
+    ),
+    (
+        "Use cases",
+        "usecases/",
+        '<circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/>',
+    ),
 )
 
 
@@ -276,10 +288,18 @@ def mode_switch(root: str) -> str:
 
 
 def layout(
-    root: str, title: str, body: str, chart: dict | None = None, script: str = "chart.js",
+    root: str,
+    title: str,
+    body: str,
+    chart: dict | None = None,
+    script: str = "chart.js",
     nav: bool = True,
 ) -> str:
-    links = "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV) if nav else ""
+    links = (
+        "".join(f'<a href="{root}{href}">{name}</a>' for name, href in NAV)
+        if nav
+        else ""
+    )
     links += (
         f'<a class="icon" href="{REPO}" title="GitHub" aria-label="GitHub">{GITHUB_ICON}</a>'
         f'<a class="icon" href="https://huggingface.co/datasets/{HF_DATASET}" title="Hugging Face" '
@@ -295,7 +315,6 @@ def layout(
         else ""
     )
     data = (
-
         f'<script id="chart-data" type="application/json">{json.dumps(chart)}</script>'
         f'<script src="{root}{script}?v={VERSION[script]}" defer></script>'
         if chart
@@ -360,14 +379,18 @@ NEAR_NOTE = (
 
 NO_BUDGET = (
     '<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>This corpus '
-    'has no error budget, so it runs in lossless mode only. See '
+    "has no error budget, so it runs in lossless mode only. See "
     '<a href="{root}tolerance/">Tolerance</a>.</p></div>'
 )
 
 
 def sample_links(
-    cid: str, sid: str, exact: bool, near: bool,
-    lossy: list[tuple[str, str, str]], uses: list[tuple[str, str]],
+    cid: str,
+    sid: str,
+    exact: bool,
+    near: bool,
+    lossy: list[tuple[str, str, str]],
+    uses: list[tuple[str, str]],
 ) -> str:
     """Buttons from a sample to every analysis that measured it."""
     root = "../../../"
@@ -376,11 +399,19 @@ def sample_links(
         links.append(("Lossless", f"{root}lossless/{cid}/{sid}/"))
     if near:
         links.append(("Near-lossless", f"{root}near-lossless/{cid}/{sid}/"))
-    links += [(f"Lossy &middot; {title}", f"{root}lossy/{key}/{lid}/") for key, title, lid in lossy]
-    links += [(f"Use case &middot; {title}", f"{root}usecases/{folder}/results/{sid}/") for folder, title in uses]
+    links += [
+        (f"Lossy &middot; {title}", f"{root}lossy/{key}/{lid}/")
+        for key, title, lid in lossy
+    ]
+    links += [
+        (f"Use case &middot; {title}", f"{root}usecases/{folder}/results/{sid}/")
+        for folder, title in uses
+    ]
     if not links:
         return '<p class="note">This sample is not in any analysis yet.</p>'
-    buttons = "".join(f'<a class="button" href="{href}">{name}</a>' for name, href in links)
+    buttons = "".join(
+        f'<a class="button" href="{href}">{name}</a>' for name, href in links
+    )
     return f'<nav class="analyses" aria-label="Analyses of this sample"><span class="analyses-label">Results</span>{buttons}</nav>'
 
 
@@ -392,7 +423,9 @@ def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
         if not path.exists():
             continue
         with path.open(newline="") as stream:
-            for sid in sorted({r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}):
+            for sid in sorted(
+                {r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}
+            ):
                 found.setdefault(sid, []).append((case["folder"], case["title"]))
     return found
 
@@ -406,7 +439,9 @@ def lossy_scenes() -> dict[tuple[str, str], list[tuple[str, str, str]]]:
         for s in manifest(ROOT / "corpora" / case["corpus"]):
             sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
             if sid in scenes:
-                found.setdefault((case["corpus"], s["id"]), []).append((case["key"], case["title"], sid))
+                found.setdefault((case["corpus"], s["id"]), []).append(
+                    (case["key"], case["title"], sid)
+                )
     return found
 
 
@@ -442,8 +477,9 @@ def chart_block(
         for level in levels
     )
     corpus = (
-        near.replace('id="corpus"', 'id="near-corpus"') if near else
-        f'<select id="near-corpus" hidden><option value="{key}">{key}</option></select>'
+        near.replace('id="corpus"', 'id="near-corpus"')
+        if near
+        else f'<select id="near-corpus" hidden><option value="{key}">{key}</option></select>'
     )
     near_panel = f"""<div class="panel" role="tabpanel" id="panel-near" hidden>
 <div class="pick near-pick">{corpus}<select id="near-level" aria-label="Budget level">{levels}</select></div>
@@ -486,7 +522,12 @@ def near_chart(
             pooled_totals = summary(here)
             for config, total in pooled_totals.items():
                 total["broken"] = sorted(
-                    {b for t in here.values() if config in t for b in t[config]["broken"]}
+                    {
+                        b
+                        for t in here.values()
+                        if config in t
+                        for b in t[config]["broken"]
+                    }
                 )
             data[f"all|{level}"] = pooled_totals
     return {"data": data, "codecs": sorted(groups), "groups": groups, "reference": None}
@@ -561,8 +602,12 @@ def build() -> None:
         page = document(name)
         if slug == "protocol":
             # How the lossy runs are measured belongs with the rest of the protocol.
-            method = LOSSY_METHOD.split('<div class="doc">', 1)[1].rsplit("</div></section>", 1)[0]
-            page = page.replace("</article>", f'<h2 id="lossy">Lossy</h2>{method}</article>')
+            method = LOSSY_METHOD.split('<div class="doc">', 1)[1].rsplit(
+                "</div></section>", 1
+            )[0]
+            page = page.replace(
+                "</article>", f'<h2 id="lossy">Lossy</h2>{method}</article>'
+            )
         target.write_text(layout("../", f"{title} · Earth Compress benchmark", page))
 
     datasets = table((ROOT / "DATASETS.md").read_text(), "## Corpora")
@@ -655,18 +700,41 @@ def build() -> None:
             where = html.escape(" · ".join(x for x in (s.get("site", ""), when) if x))
             figure = (
                 f'<div class="figure"><img src="../../../{large}" alt="Preview of {html.escape(s["id"])}"></div>'
-                if large else ""
+                if large
+                else ""
             )
             for mode, title, cards, block, payload in (
-                ("lossless", "Lossless", exact_cards, lossless_block(s["id"]),
-                 {"data": {s["id"]: by_sample.get(s["id"], {})}, "codecs": codecs, **style}),
-                ("near-lossless", "Near-lossless", near_cards, near_block(s["id"], levels),
-                 {"data": {}, "codecs": codecs, **style,
-                  "near": near_chart({s["id"]: near_by_sample.get(s["id"], {})}, near_families)}),
+                (
+                    "lossless",
+                    "Lossless",
+                    exact_cards,
+                    lossless_block(s["id"]),
+                    {
+                        "data": {s["id"]: by_sample.get(s["id"], {})},
+                        "codecs": codecs,
+                        **style,
+                    },
+                ),
+                (
+                    "near-lossless",
+                    "Near-lossless",
+                    near_cards,
+                    near_block(s["id"], levels),
+                    {
+                        "data": {},
+                        "codecs": codecs,
+                        **style,
+                        "near": near_chart(
+                            {s["id"]: near_by_sample.get(s["id"], {})}, near_families
+                        ),
+                    },
+                ),
             ):
                 if mode == "near-lossless" and not near:
                     continue
-                cards.append(card("../../", f"{mode}/{cid}/{s['id']}/", thumb, s["id"], where))
+                cards.append(
+                    card("../../", f"{mode}/{cid}/{s['id']}/", thumb, s["id"], where)
+                )
                 page = f"""{crumbs("../../../", (title, f"{mode}/"), (cid, f"{mode}/{cid}/"), (s["id"], None))}
 <h1>{html.escape(s["id"])}</h1>
 <p class="lead">{where} &middot; <a href="../../../datasets/{cid}/{s["id"]}/">sample details</a></p>
@@ -675,7 +743,14 @@ def build() -> None:
 <p class="pager">{prev_link}{next_link}</p>"""
                 out = OUT / mode / cid / s["id"] / "index.html"
                 out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_text(layout("../../../", f"{s['id']} {title.lower()} · Earth Compress benchmark", page, payload))
+                out.write_text(
+                    layout(
+                        "../../../",
+                        f"{s['id']} {title.lower()} · Earth Compress benchmark",
+                        page,
+                        payload,
+                    )
+                )
 
         spec = folder / "spec.md"
         blocks = spec.read_text().split("\n## ")[1:] if spec.exists() else []
@@ -700,10 +775,25 @@ def build() -> None:
             )
         )
         for mode, title, cards, block, payload in (
-            ("lossless", "Lossless", exact_cards, lossless_block(cid),
-             {"data": {cid: found}, "codecs": codecs, **style}),
-            ("near-lossless", "Near-lossless", near_cards, near_block(cid, levels),
-             {"data": {}, "codecs": codecs, **style, "near": near_chart({cid: near}, near_families)}),
+            (
+                "lossless",
+                "Lossless",
+                exact_cards,
+                lossless_block(cid),
+                {"data": {cid: found}, "codecs": codecs, **style},
+            ),
+            (
+                "near-lossless",
+                "Near-lossless",
+                near_cards,
+                near_block(cid, levels),
+                {
+                    "data": {},
+                    "codecs": codecs,
+                    **style,
+                    "near": near_chart({cid: near}, near_families),
+                },
+            ),
         ):
             if mode == "near-lossless" and not near:
                 continue
@@ -714,14 +804,23 @@ def build() -> None:
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
             out = OUT / mode / cid / "index.html"
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(layout("../../", f"{cid} {title.lower()} · Earth Compress benchmark", page, payload))
+            out.write_text(
+                layout(
+                    "../../",
+                    f"{cid} {title.lower()} · Earth Compress benchmark",
+                    page,
+                    payload,
+                )
+            )
         corpus_cards.append((cid, f"datasets/{cid}/", first, meta))
 
     measured = [cid for cid, found in corpus_totals.items() if found]
     options = "".join(f'<option value="{cid}">{cid}</option>' for cid in measured)
     select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{options}</select>'
     budgeted = "".join(
-        f'<option value="{cid}">{cid}</option>' for cid in measured if near_totals_by.get(cid)
+        f'<option value="{cid}">{cid}</option>'
+        for cid in measured
+        if near_totals_by.get(cid)
     )
     near_select = f'<select id="corpus" aria-label="Corpus"><option value="all">All corpora</option>{budgeted}</select>'
     chart = {
@@ -740,15 +839,32 @@ def build() -> None:
     budgeted = [cid for cid in measured if near_totals_by.get(cid)]
     budgeted_samples = sum(sample_counts[cid] for cid in budgeted)
     modes = (
-        ("Lossless", "lossless/", "Decoded values match the input exactly.",
-         f"{len(measured)} corpora &middot; {samples} samples"),
-        ("Near-lossless", "near-lossless/", "Each valid value has an error bound. Zeros and NoData must be preserved.",
-         f"{len(budgeted)} corpora &middot; {budgeted_samples} samples"),
-        ("Lossy", "lossy/", "Compare georvq with other codecs by size, decode speed and measured error.",
-         "Sentinel-2 &middot; AlphaEarth"),
-        ("Use cases", "usecases/", "Compare analyses before and after compression.",
-         "methane &middot; drainage &middot; change &middot; clouds"),
+        (
+            "Lossless",
+            "lossless/",
+            "Decoded values match the input exactly.",
+            f"{len(measured)} corpora &middot; {samples} samples",
+        ),
+        (
+            "Near-lossless",
+            "near-lossless/",
+            "Each valid value has an error bound. Zeros and NoData must be preserved.",
+            f"{len(budgeted)} corpora &middot; {budgeted_samples} samples",
+        ),
+        (
+            "Lossy",
+            "lossy/",
+            "Compare georvq with other codecs by size, decode speed and measured error.",
+            "Sentinel-2 &middot; AlphaEarth",
+        ),
+        (
+            "Use cases",
+            "usecases/",
+            "Compare analyses before and after compression.",
+            "methane &middot; drainage &middot; change &middot; clouds",
+        ),
     )
+
     def large(cid: str, n: int = 0) -> tuple[str, str] | None:
         found = sorted((OUT / "img" / cid).glob(f"*-{n:02d}-large.webp"))
         return (found[0].relative_to(OUT).as_posix(), cid) if found else None
@@ -757,17 +873,35 @@ def build() -> None:
         chosen = [c for c in prefer if c in pool] + [c for c in pool if c not in prefer]
         return [x for x in (large(c) for c in chosen) if x][:4]
 
-    exact = pick(["s2-l1c-10m-4", "cop-dem-glo30", "era5-t2m-1h", "s1-grd-iw-2"], measured)
+    exact = pick(
+        ["s2-l1c-10m-4", "cop-dem-glo30", "era5-t2m-1h", "s1-grd-iw-2"], measured
+    )
     shown = {cid for _, cid in exact}
     pictures = (
         exact,
-        pick(["imerg-pcp-12", "l8-oli-8", "emit-l2a-285", "era5-tcc-1h"],
-             [c for c in budgeted if c not in shown]),
-        [x for x in (large("s2-l1c-10m-4", 1), large("alphaearth-v1-64", 0),
-                     large("s2-l1c-10m-4", 2), large("alphaearth-v1-64", 1)) if x],
-        [(f"img/usecases/{name}-large.webp", label) for name, label in (
-            ("methane", "methane"), ("drainage", "drainage"),
-            ("change-detection", "change detection"), ("clouds-decoded", "clouds"))],
+        pick(
+            ["imerg-pcp-12", "l8-oli-8", "emit-l2a-285", "era5-tcc-1h"],
+            [c for c in budgeted if c not in shown],
+        ),
+        [
+            x
+            for x in (
+                large("s2-l1c-10m-4", 1),
+                large("alphaearth-v1-64", 0),
+                large("s2-l1c-10m-4", 2),
+                large("alphaearth-v1-64", 1),
+            )
+            if x
+        ],
+        [
+            (f"img/usecases/{name}-large.webp", label)
+            for name, label in (
+                ("methane", "methane"),
+                ("drainage", "drainage"),
+                ("change-detection", "change detection"),
+                ("clouds-decoded", "clouds"),
+            )
+        ],
     )
 
     def strip(images: list[tuple[str, str]], offset: int) -> str:
@@ -968,7 +1102,9 @@ def lossy_panel(case: dict, scene: str, viewer: str = "") -> str:
 
 
 def lossy_viewer(case: dict, sample: str) -> str:
-    modes = ("image", "error") + (("similarity",) if case["key"] == "alphaearth" else ())
+    modes = ("image", "error") + (
+        ("similarity",) if case["key"] == "alphaearth" else ()
+    )
     return f"""<div class="viewer" data-sample="{sample}">
 <h3>Compare decodes</h3>
 <div class="viewer-controls">
@@ -989,6 +1125,50 @@ def lossy_viewer(case: dict, sample: str) -> str:
 </div>"""
 
 
+def lossy_site(corpus_rows: dict[str, dict], sid: str) -> str:
+    return corpus_rows.get(sid, {}).get("site", sid).replace("-", " ").title()
+
+
+def lossy_payload(
+    case: dict,
+    rows: list[dict],
+    scenes: list[str],
+    codecs: list[str],
+    samples: dict,
+    corpus_rows: dict[str, dict],
+    only: str | None,
+    base: str,
+) -> dict:
+    metrics = list(case["metrics"])
+    return {
+        case["key"]: {
+            "columns": ["scene", "codec", "setting", "bpp", "decode_s", *metrics],
+            "rows": [
+                [
+                    scenes.index(r["sample_id"]),
+                    codecs.index(r["codec"]),
+                    r["setting"],
+                    round(float(r["bits_per_pixel"]), 5),
+                    round(float(r["decode_s"]), 5),
+                    *(float(f"{float(r[m]):.5g}") for m in metrics),
+                ]
+                for r in rows
+                if r["codec"] in codecs and only in (None, r["sample_id"])
+            ],
+            "scenes": [[sid, lossy_site(corpus_rows, sid)] for sid in scenes],
+            "original": case["original"],
+            "input": case["original"] * case["side"] ** 2 / 8,
+            "metrics": {k: list(v) for k, v in case["metrics"].items()},
+            "codecs": {c: list(LOSSY_CODECS[c]) for c in codecs},
+            "georvq": case["georvq"],
+            "stops": case["stops"],
+            "start": case["start"],
+            "samples": {only: samples[only]} if only in samples else {},
+            "base": base,
+        }
+    }
+
+
 def lossy_page() -> None:
     dataset_cards = []
     for case in LOSSY:
@@ -1001,7 +1181,6 @@ def lossy_page() -> None:
         for s in manifest(ROOT / "corpora" / case["corpus"]):
             sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
             corpus_rows[sid] = s
-        site = lambda sid: corpus_rows.get(sid, {}).get("site", sid).replace("-", " ").title()  # noqa: E731
         samples = {}
         for path in sorted((folder / "views").glob("*/sample.json")):
             sid = path.parent.name
@@ -1009,45 +1188,32 @@ def lossy_page() -> None:
             samples[sid] = json.loads(path.read_text())
         scenes = sorted({r["sample_id"] for r in rows})
         codecs = [c for c in LOSSY_CODECS if c in curves]
-        metrics = list(case["metrics"])
-
-        def payload(only: str | None, base: str) -> dict:
-            return {
-                key: {
-                    "columns": ["scene", "codec", "setting", "bpp", "decode_s", *metrics],
-                    "rows": [
-                        [
-                            scenes.index(r["sample_id"]),
-                            codecs.index(r["codec"]),
-                            r["setting"],
-                            round(float(r["bits_per_pixel"]), 5),
-                            round(float(r["decode_s"]), 5),
-                            *(float(f"{float(r[m]):.5g}") for m in metrics),
-                        ]
-                        for r in rows
-                        if r["codec"] in codecs and only in (None, r["sample_id"])
-                    ],
-                    "scenes": [[sid, site(sid)] for sid in scenes],
-                    "original": case["original"],
-                    "input": case["original"] * case["side"] ** 2 / 8,
-                    "metrics": {k: list(v) for k, v in case["metrics"].items()},
-                    "codecs": {c: list(LOSSY_CODECS[c]) for c in codecs},
-                    "georvq": case["georvq"],
-                    "stops": case["stops"],
-                    "start": case["start"],
-                    "samples": {only: samples[only]} if only in samples else {},
-                    "base": base,
-                }
-            }
 
         cards = []
         first = None
         for i, sid in enumerate(scenes):
             source = folder / "views" / sid / "original.webp"
-            thumb = resized(source if source.exists() else None, f"img/lossy/{key}/{sid}.webp", THUMB, True)
+            thumb = resized(
+                source if source.exists() else None,
+                f"img/lossy/{key}/{sid}.webp",
+                THUMB,
+                True,
+            )
             first = first or thumb
-            cards.append(card("../../", f"lossy/{key}/{sid}/", thumb, sid, html.escape(site(sid))))
-            prev_link = f'<a href="../{scenes[i - 1]}/">← {scenes[i - 1]}</a>' if i else "<span></span>"
+            cards.append(
+                card(
+                    "../../",
+                    f"lossy/{key}/{sid}/",
+                    thumb,
+                    sid,
+                    html.escape(lossy_site(corpus_rows, sid)),
+                )
+            )
+            prev_link = (
+                f'<a href="../{scenes[i - 1]}/">← {scenes[i - 1]}</a>'
+                if i
+                else "<span></span>"
+            )
             next_link = (
                 f'<a href="../{scenes[i + 1]}/">{scenes[i + 1]} →</a>'
                 if i + 1 < len(scenes)
@@ -1055,13 +1221,21 @@ def lossy_page() -> None:
             )
             body = f"""{crumbs("../../../", ("Lossy", "lossy/"), (case["title"], f"lossy/{key}/"), (sid, None))}
 <h1>{html.escape(sid)}</h1>
-<p class="lead">{html.escape(site(sid))}</p>
+<p class="lead">{html.escape(lossy_site(corpus_rows, sid))}</p>
 {lossy_panel(case, str(i), lossy_viewer(case, sid) if sid in samples else "")}
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "lossy" / key / sid / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(
-                layout("../../../", f"{sid} · Earth Compress benchmark", body, payload(sid, "../"), script="lossy.js")
+                layout(
+                    "../../../",
+                    f"{sid} · Earth Compress benchmark",
+                    body,
+                    lossy_payload(
+                        case, rows, scenes, codecs, samples, corpus_rows, sid, "../"
+                    ),
+                    script="lossy.js",
+                )
             )
 
         body = f"""{crumbs("../../", ("Lossy", "lossy/"), (case["title"], None))}
@@ -1071,15 +1245,33 @@ def lossy_page() -> None:
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
         target = OUT / "lossy" / key / "index.html"
         target.write_text(
-            layout("../../", f"{case['title']} lossy · Earth Compress benchmark", body, payload(None, ""), script="lossy.js")
+            layout(
+                "../../",
+                f"{case['title']} lossy · Earth Compress benchmark",
+                body,
+                lossy_payload(
+                    case, rows, scenes, codecs, samples, corpus_rows, None, ""
+                ),
+                script="lossy.js",
+            )
         )
-        dataset_cards.append(card("../", f"lossy/{key}/", first, case["title"], f"{len(scenes)} samples · <code>{case['georvq']}</code>"))
+        dataset_cards.append(
+            card(
+                "../",
+                f"lossy/{key}/",
+                first,
+                case["title"],
+                f"{len(scenes)} samples · <code>{case['georvq']}</code>",
+            )
+        )
 
     body = f"""{crumbs("../", ("Lossy", None))}
 <h1>Lossy</h1>
 <p class="lead">Compare the learned codec georvq with the benchmark's lossy configurations.</p>
 <section><div class="grid">{"".join(dataset_cards)}</div></section>"""
-    (OUT / "lossy" / "index.html").write_text(layout("../", "Lossy · Earth Compress benchmark", body))
+    (OUT / "lossy" / "index.html").write_text(
+        layout("../", "Lossy · Earth Compress benchmark", body)
+    )
 
 
 # Use cases
