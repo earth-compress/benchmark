@@ -4,6 +4,7 @@ const NS = "http://www.w3.org/2000/svg";
 const PAYLOAD = JSON.parse(document.getElementById("chart-data").textContent);
 const RAMP = [[0, 0, 4], [59, 15, 112], [140, 41, 129], [222, 73, 104], [254, 159, 109], [252, 253, 191]];
 const CROP = 128;
+const STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function el(name, attrs, text) {
   const node = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -74,7 +75,7 @@ function plot(box, set, data, o) {
   const y0 = Math.log10(Math.min(...ys) / 1.4), y1 = Math.log10(Math.max(...ys) * 1.4);
   const X = v => L + (Math.log10(v) - x0) / (x1 - x0) * (W - L - R);
   const Y = v => H - B - (Math.log10(v) - y0) / (y1 - y0) * (H - T - B);
-  const svg = el("svg", { class: "in", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${o.ylabel} against ${o.xlabel}` });
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${o.ylabel} against ${o.xlabel}` });
   const axes = el("g", { class: "axes" });
   const thin = t => (t.length > 7 ? t.filter(v => String(v)[0] !== "2") : t);
   for (const v of thin(logTicks(10 ** x0, 10 ** x1))) {
@@ -89,9 +90,9 @@ function plot(box, set, data, o) {
   axes.append(el("text", { x: L, y: T - 14, class: "axis" }, `${o.up ? "↑" : "↓"} ${o.ylabel}`));
   svg.append(axes);
   const names = Object.keys(data).sort((a, b) => (a === georvq) - (b === georvq));
-  for (const c of names) {
+  names.forEach((c, i) => {
     const points = data[c].filter(p => o.x(p) > 0 && o.y(p) > 0);
-    const g = el("g", { class: `series${c === georvq ? " lead" : ""}`, style: `--c:${codecs[c][1]}` });
+    const g = el("g", { class: `series${c === georvq ? " lead" : ""}`, style: `--c:${codecs[c][1]}; --i:${i}` });
     g.append(el("polyline", { points: points.map(p => `${X(o.x(p))},${Y(o.y(p))}`).join(" ") }));
     for (const p of points) {
       const dot = el("circle", { cx: X(o.x(p)), cy: Y(o.y(p)), r: c === georvq ? 4 : 3.5 });
@@ -99,8 +100,17 @@ function plot(box, set, data, o) {
       g.append(dot);
     }
     svg.append(g);
-  }
+  });
   box.replaceChildren(svg);
+  // Each codec fades in after the one before, and its line draws itself.
+  if (!STILL) svg.querySelectorAll(".series polyline").forEach((line, i) => {
+    const length = line.getTotalLength();
+    line.style.strokeDasharray = length;
+    line.animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { duration: 900, delay: i * 120 + 250, easing: "ease-out", fill: "backwards" })
+      .finished.then(() => { line.style.strokeDasharray = ""; });
+  });
+  svg.getBoundingClientRect();
+  svg.classList.add("in");
 }
 
 // How much of each sample's power the decode keeps, at each scale.
@@ -148,17 +158,13 @@ function similarity(codes, p) {
 
 function viewer(panel, set, key, onRate) {
   const ae = key === "alphaearth";
-  const base = `${key}/`;
+  const base = set.base;
   const [cl, cr] = ["left", "right"].map(s => panel.querySelector(`canvas.${s}`));
   const [sl, sr] = ["left", "right"].map(s => panel.querySelector(`.side.${s}`));
   const stage = panel.querySelector(".stage"), handle = panel.querySelector(".handle"), target = panel.querySelector(".target");
   const slider = panel.querySelector(".rate input"), out = panel.querySelector(".rate output");
   const other = panel.querySelector("select.other"), note = panel.querySelector(".mode-note");
-  const pick = panel.querySelector("select.view-scene"), chartScene = panel.querySelector("select.scene");
-  const ids = set.scenes.map(s => s[0]).filter(id => set.samples[id]);
-  [...pick.options].forEach(o => { o.hidden = !set.samples[set.scenes[o.value][0]]; });
-  pick.value = set.scenes.findIndex(s => s[0] === ids[0]);
-  const state = { sample: ids[0], stop: set.stops.indexOf(set.start), mode: "image", split: 0.5, pixel: (CROP / 2) * CROP + CROP / 2 };
+  const state = { sample: panel.querySelector(".viewer").dataset.sample, stop: set.stops.indexOf(set.start), mode: "image", split: 0.5, pixel: (CROP / 2) * CROP + CROP / 2 };
   const cache = new Map();
   const load = (url, kind) => {
     if (!cache.has(url)) cache.set(url, kind === "bin"
@@ -258,47 +264,28 @@ function viewer(panel, set, key, onRate) {
   stage.addEventListener("pointerup", () => { dragging = false; });
   slider.addEventListener("input", () => { state.stop = Number(slider.value); render(); });
   other.addEventListener("change", render);
-  // The scene of the viewer and of the charts are one choice.
-  pick.addEventListener("change", () => {
-    state.sample = set.scenes[pick.value][0];
-    if (chartScene.value !== pick.value) { chartScene.value = pick.value; chartScene.dispatchEvent(new Event("change")); }
-    render();
-  });
-  chartScene.addEventListener("change", () => {
-    const id = set.scenes[chartScene.value]?.[0];
-    if (id && set.samples[id] && id !== state.sample) { pick.value = chartScene.value; state.sample = id; render(); }
-  });
   panel.querySelector(".modes").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.mode = b.dataset.mode; render(); } });
   render();
 }
 
 document.querySelectorAll(".panel.lossy").forEach(panel => {
-  const key = panel.dataset.set, set = PAYLOAD[key];
+  const key = panel.dataset.set, set = PAYLOAD[key], scene = panel.dataset.scene;
   const speedBox = panel.querySelector(".chart.speed"), rdBox = panel.querySelector(".chart.rd");
-  const metric = panel.querySelector("select.metric"), scene = panel.querySelector("select.scene");
+  const metric = panel.querySelector("select.metric");
   const legendBox = document.createElement("div");
   panel.querySelector(".lossy-charts").before(legendBox);
   legendBox.replaceWith(legend(set.codecs, [set.georvq, ...Object.keys(set.codecs).filter(c => c !== set.georvq)]));
-  let rate = set.start, width = 0;
+  let width = 0;
   const draw = () => {
     width = rdBox.clientWidth;
     const [label, unit] = set.metrics[metric.value];
     const errlabel = `${label}${unit ? `, ${unit}` : ""}`;
-    const data = series(set, scene.value, metric.value);
+    const data = series(set, scene, metric.value);
     plot(speedBox, set, data, { x: p => p.speed, y: p => p.ratio, xlabel: "decode MB/s", ylabel: "compression ratio", up: true, errlabel });
     plot(rdBox, set, data, { x: p => p.err, y: p => p.ratio, xlabel: errlabel, ylabel: "compression ratio", up: true, errlabel });
   };
   metric.addEventListener("change", draw);
-  scene.addEventListener("change", draw);
   new ResizeObserver(() => { if (Math.abs(rdBox.clientWidth - width) > 40) draw(); }).observe(rdBox);
-  viewer(panel, set, key, r => { if (r !== rate) { rate = r; draw(); } });
+  if (panel.querySelector(".viewer")) viewer(panel, set, key, () => {});
   draw();
 });
-
-const tabs = [...document.querySelectorAll('[role="tab"]')];
-tabs.forEach(tab => tab.addEventListener("click", () => {
-  tabs.forEach(t => {
-    t.setAttribute("aria-selected", String(t === tab));
-    document.getElementById(t.getAttribute("aria-controls")).hidden = t !== tab;
-  });
-}));

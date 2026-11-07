@@ -772,70 +772,41 @@ def lossy_table(case: dict, curves: dict) -> str:
 <div class="scroll"><table class="numbers"><thead><tr><th>codec</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>"""
 
 
-def lossy_page() -> None:
-    data, panels, tabs = {}, [], []
-    for k, case in enumerate(LOSSY):
-        folder = ROOT / "lossy" / case["key"]
-        with (folder / "results.csv").open(newline="") as stream:
-            rows = list(csv.DictReader(stream))
-        curves = lossy_curves(rows, case["metrics"])
-        sites = {}
-        for s in manifest(ROOT / "corpora" / case["corpus"]):
-            sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
-            sites[sid] = s.get("site", sid).replace("-", " ").title()
-        samples = {}
-        for path in sorted((folder / "views").glob("*/sample.json")):
-            sid = path.parent.name
-            shutil.copytree(path.parent, OUT / "lossy" / case["key"] / sid)
-            samples[sid] = {**json.loads(path.read_text()), "site": sites.get(sid, sid)}
-        scenes = sorted({r["sample_id"] for r in rows})
-        codecs = [c for c in LOSSY_CODECS if c in curves]
-        metrics = list(case["metrics"])
-        data[case["key"]] = {
-            "columns": ["scene", "codec", "setting", "bpp", "decode_s", *metrics],
-            "rows": [
-                [
-                    scenes.index(r["sample_id"]),
-                    codecs.index(r["codec"]),
-                    r["setting"],
-                    round(float(r["bits_per_pixel"]), 5),
-                    round(float(r["decode_s"]), 5),
-                    *(float(f"{float(r[m]):.5g}") for m in metrics),
-                ]
-                for r in rows
-                if r["codec"] in codecs
-            ],
-            "scenes": [[sid, sites.get(sid, sid)] for sid in scenes],
-            "original": case["original"],
-            "input": case["original"] * case["side"] ** 2 / 8,
-            "metrics": {key: list(v) for key, v in case["metrics"].items()},
-            "codecs": {c: list(LOSSY_CODECS[c]) for c in codecs},
-            "georvq": case["georvq"],
-            "stops": case["stops"],
-            "start": case["start"],
-            "samples": samples,
-        }
-        scene_options = '<option value="all">All scenes</option>' + "".join(
-            f'<option value="{i}">{sid} · {html.escape(sites.get(sid, sid))}</option>'
-            for i, sid in enumerate(scenes)
-        )
-        options = "".join(
-            f'<option value="{key}">{html.escape(name)}</option>'
-            for key, (name, _, _) in case["metrics"].items()
-        )
-        modes = ("image", "error") + (("similarity",) if case["key"] == "alphaearth" else ())
-        tabs.append(
-            f'<button type="button" role="tab" aria-controls="panel-{case["key"]}" '
-            f'aria-selected="{str(not k).lower()}">{case["title"]}</button>'
-        )
-        panels.append(f"""<div class="panel lossy" role="tabpanel" id="panel-{case["key"]}" data-set="{case["key"]}"{" hidden" if k else ""}>
-<div class="pick near-pick"><select class="scene" aria-label="Scene">{scene_options}</select><select class="metric" aria-label="Error">{options}</select></div>
+LOSSY_METHOD = f"""<section class="measure"><h2>How it is measured</h2><div class="doc">
+<ul>
+<li><a href="https://github.com/earth-compress/georvq">georvq</a> writes every depth in one file and a reader stops at the depth it needs. Its size is the bit count of its bundle for that depth; model weights are not counted.</li>
+<li>Sentinel-2: the 50 scenes cut to the 504 px footprint the 10, 20 and 60 m grids share, all 13 bands. AlphaEarth: 15 samples of 512 px, error as the cosine distance of the dequantised embedding.</li>
+<li>Compression ratio is raw array bytes over compressed bytes. Decode speed is single threaded on one CPU.</li>
+<li>We have not checked whether these scenes were in georvq's training data.</li>
+</ul>
+<pre><code>git clone {REPO}
+cd benchmark
+uv run --extra learned python lossy/s2/run.py
+uv run --extra learned python lossy/alphaearth/run.py
+uv run --extra learned python lossy/views.py</code></pre>
+</div></section>"""
+
+
+def lossy_panel(case: dict, scene: str, viewer: str = "", table: str = "") -> str:
+    """The charts of one scene, or of every scene with ``all``, with the viewer
+    and the table when given."""
+    options = "".join(
+        f'<option value="{key}">{html.escape(name)}</option>'
+        for key, (name, _, _) in case["metrics"].items()
+    )
+    return f"""<section class="results"><div class="panel lossy" data-set="{case["key"]}" data-scene="{scene}">
+<div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
 <div class="lossy-charts"><div class="chart speed"></div><div class="chart rd"></div></div>
 <p class="chart-note">Each point is a setting; a line joins the settings of one codec. All of a georvq line is one file.</p>
-<div class="viewer">
+{viewer}{table}
+</div></section>"""
+
+
+def lossy_viewer(case: dict, sample: str) -> str:
+    modes = ("image", "error") + (("similarity",) if case["key"] == "alphaearth" else ())
+    return f"""<div class="viewer" data-sample="{sample}">
 <h3>Look at it</h3>
 <div class="viewer-controls">
-<select class="view-scene" aria-label="Scene in the viewer">{"".join(f'<option value="{i}">{sid} · {html.escape(sites.get(sid, sid))}</option>' for i, sid in enumerate(scenes))}</select>
 <label class="rate">rate <input type="range" min="0" max="{len(case["stops"]) - 1}" step="1"><output></output></label>
 <select class="other" aria-label="Codec on the right"></select>
 <div class="modes" role="group" aria-label="View">{"".join(f'<button type="button" data-mode="{m}">{m}</button>' for m in modes)}</div>
@@ -850,34 +821,103 @@ def lossy_page() -> None:
 {'<h4>Detail kept</h4><div class="chart spectrum"></div>' if case["key"] == "s2" else ""}
 </div>
 </div>
-</div>
-{lossy_table(case, curves)}
-</div>""")
+</div>"""
+
+
+def lossy_page() -> None:
+    dataset_cards = []
+    for case in LOSSY:
+        key = case["key"]
+        folder = ROOT / "lossy" / key
+        with (folder / "results.csv").open(newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        curves = lossy_curves(rows, case["metrics"])
+        corpus_rows = {}
+        for s in manifest(ROOT / "corpora" / case["corpus"]):
+            sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
+            corpus_rows[sid] = s
+        site = lambda sid: corpus_rows.get(sid, {}).get("site", sid).replace("-", " ").title()  # noqa: E731
+        samples = {}
+        for path in sorted((folder / "views").glob("*/sample.json")):
+            sid = path.parent.name
+            shutil.copytree(path.parent, OUT / "lossy" / key / sid)
+            samples[sid] = json.loads(path.read_text())
+        scenes = sorted({r["sample_id"] for r in rows})
+        codecs = [c for c in LOSSY_CODECS if c in curves]
+        metrics = list(case["metrics"])
+
+        def payload(only: str | None, base: str) -> dict:
+            return {
+                key: {
+                    "columns": ["scene", "codec", "setting", "bpp", "decode_s", *metrics],
+                    "rows": [
+                        [
+                            scenes.index(r["sample_id"]),
+                            codecs.index(r["codec"]),
+                            r["setting"],
+                            round(float(r["bits_per_pixel"]), 5),
+                            round(float(r["decode_s"]), 5),
+                            *(float(f"{float(r[m]):.5g}") for m in metrics),
+                        ]
+                        for r in rows
+                        if r["codec"] in codecs and only in (None, r["sample_id"])
+                    ],
+                    "scenes": [[sid, site(sid)] for sid in scenes],
+                    "original": case["original"],
+                    "input": case["original"] * case["side"] ** 2 / 8,
+                    "metrics": {k: list(v) for k, v in case["metrics"].items()},
+                    "codecs": {c: list(LOSSY_CODECS[c]) for c in codecs},
+                    "georvq": case["georvq"],
+                    "stops": case["stops"],
+                    "start": case["start"],
+                    "samples": {only: samples[only]} if only in samples else {},
+                    "base": base,
+                }
+            }
+
+        cards = []
+        first = None
+        for i, sid in enumerate(scenes):
+            source = folder / "views" / sid / "original.webp"
+            thumb = resized(source if source.exists() else None, f"img/lossy/{key}/{sid}.webp", THUMB, True)
+            first = first or thumb
+            cards.append(card("../../", f"lossy/{key}/{sid}/", thumb, sid, html.escape(site(sid))))
+            prev_link = f'<a href="../{scenes[i - 1]}/">← {scenes[i - 1]}</a>' if i else "<span></span>"
+            next_link = (
+                f'<a href="../{scenes[i + 1]}/">{scenes[i + 1]} →</a>'
+                if i + 1 < len(scenes)
+                else "<span></span>"
+            )
+            row = corpus_rows.get(sid)
+            body = f"""{crumbs("../../../", ("Lossy", "lossy/"), (case["title"], f"lossy/{key}/"), (sid, None))}
+<h1>{html.escape(sid)}</h1>
+<p class="lead">{html.escape(site(sid))}</p>
+{lossy_panel(case, str(i), lossy_viewer(case, sid) if sid in samples else "")}
+{f'<section><h2>Metadata</h2>{metadata(row)}</section>' if row else ""}
+<p class="pager">{prev_link}{next_link}</p>"""
+            target = OUT / "lossy" / key / sid / "index.html"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(
+                layout("../../../", f"{sid} · Earth Compress benchmark", body, payload(sid, "../"), script="lossy.js")
+            )
+
+        body = f"""{crumbs("../../", ("Lossy", "lossy/"), (case["title"], None))}
+<h1>{case["title"]}</h1>
+<p class="lead">{len(scenes)} samples of <a href="../../datasets/{case["corpus"]}/"><code>{case["corpus"]}</code></a>.</p>
+{lossy_panel(case, "all", table=lossy_table(case, curves))}
+<section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
+        target = OUT / "lossy" / key / "index.html"
+        target.write_text(
+            layout("../../", f"{case['title']} lossy · Earth Compress benchmark", body, payload(None, ""), script="lossy.js")
+        )
+        dataset_cards.append(card("../", f"lossy/{key}/", first, case["title"], f"{len(scenes)} samples · <code>{case['georvq']}</code>"))
+
     body = f"""{crumbs("../", ("Lossy", None))}
 <h1>Lossy</h1>
-<p class="lead">georvq, a learned codec, against the lossy configurations of the benchmark on Sentinel-2 L1C and AlphaEarth.</p>
-<section class="results">
-<div class="controls"><div class="tabs" role="tablist" aria-label="Dataset">{"".join(tabs)}</div></div>
-{"".join(panels)}
-</section>
-<section class="measure"><h2>How it is measured</h2><div class="doc">
-<ul>
-<li><a href="https://github.com/earth-compress/georvq">georvq</a> writes every depth in one file and a reader stops at the depth it needs. Its size is the bit count of its bundle for that depth; model weights are not counted.</li>
-<li>Sentinel-2: the 50 scenes cut to the 504 px footprint the 10, 20 and 60 m grids share, all 13 bands. AlphaEarth: 15 samples of 512 px, error as the cosine distance of the dequantised embedding.</li>
-<li>Compression ratio is raw array bytes over compressed bytes. Decode speed is single threaded on one CPU.</li>
-<li>We have not checked whether these scenes were in georvq's training data.</li>
-</ul>
-<pre><code>git clone {REPO}
-cd benchmark
-uv run --extra learned python lossy/s2/run.py
-uv run --extra learned python lossy/alphaearth/run.py
-uv run --extra learned python lossy/views.py</code></pre>
-</div></section>"""
-    target = OUT / "lossy" / "index.html"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
-        layout("../", "Lossy · Earth Compress benchmark", body, data, script="lossy.js")
-    )
+<p class="lead">georvq, a learned codec, against the lossy configurations of the benchmark.</p>
+<section><div class="grid">{"".join(dataset_cards)}</div></section>
+{LOSSY_METHOD}"""
+    (OUT / "lossy" / "index.html").write_text(layout("../", "Lossy · Earth Compress benchmark", body))
 
 
 # Use cases

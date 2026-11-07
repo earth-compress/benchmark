@@ -270,3 +270,6 @@ footer p { margin: 0 0 8px; }
 @media (max-width: 860px) {
   .lossy-charts { grid-template-columns: 1fr; }
 }
+.chart .series { opacity: 0; transition: opacity 0.5s ease; transition-delay: calc(var(--i) * 120ms + 200ms); }
+.chart svg.in .series { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .chart .series { transition: none; } }
