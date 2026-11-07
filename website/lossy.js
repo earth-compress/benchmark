@@ -34,46 +34,74 @@ function legend(codecs, names) {
   return div;
 }
 
-// Rate against error, both on log scales.
-function rd(box, set, metric, rate) {
-  const { curves, codecs, metrics, georvq } = set;
-  const [label, unit] = metrics[metric];
-  const W = Math.max(320, box.clientWidth || 960);
-  const H = Math.round(Math.max(300, Math.min(480, W * 0.5)));
-  const L = 56, R = 24, T = 40, B = 54;
-  const all = Object.values(curves).flat().filter(p => p[metric] > 0);
-  const x0 = Math.log10(Math.min(...all.map(p => p.bpp)) / 1.3), x1 = Math.log10(Math.max(...all.map(p => p.bpp)) * 1.3);
-  const y0 = Math.log10(Math.min(...all.map(p => p[metric])) / 1.5), y1 = Math.log10(Math.max(...all.map(p => p[metric])) * 1.5);
+// The settings of each codec on one scene or pooled over all of them: the mean
+// rate, decode speed from the summed times, and the error pooled as its metric says.
+function series(set, scene, metric) {
+  const at = Object.fromEntries(set.columns.map((c, i) => [c, i]));
+  const names = Object.keys(set.codecs), rms = set.metrics[metric][2] === "rms";
+  const groups = new Map();
+  for (const r of set.rows) {
+    if (scene !== "all" && r[0] !== Number(scene)) continue;
+    const key = `${r[1]}|${r[2]}`;
+    if (!groups.has(key)) groups.set(key, { codec: names[r[1]], setting: r[2], bpp: 0, decode: 0, err: 0, n: 0 });
+    const g = groups.get(key), e = r[at[metric]];
+    g.bpp += r[3]; g.decode += r[4]; g.err += rms ? e * e : e; g.n += 1;
+  }
+  const out = {};
+  for (const g of groups.values()) {
+    const bpp = g.bpp / g.n;
+    (out[g.codec] ||= []).push({
+      setting: g.setting, bpp,
+      ratio: set.original / bpp,
+      speed: (set.input * g.n) / 1e6 / g.decode,
+      err: rms ? Math.sqrt(g.err / g.n) : g.err / g.n,
+    });
+  }
+  for (const c in out) out[c].sort((a, b) => a.bpp - b.bpp);
+  return out;
+}
+
+// One chart of the codecs' lines, both axes on log scales.
+function plot(box, set, data, o) {
+  const { codecs, georvq } = set;
+  const W = Math.max(300, box.clientWidth || 520);
+  const H = Math.round(Math.max(280, Math.min(420, W * 0.72)));
+  const L = 52, R = 18, T = 40, B = 50;
+  const all = Object.values(data).flat().filter(p => o.x(p) > 0 && o.y(p) > 0);
+  if (!all.length) { box.replaceChildren(); return; }
+  const xs = all.map(o.x), ys = all.map(o.y);
+  const x0 = Math.log10(Math.min(...xs) / 1.3), x1 = Math.log10(Math.max(...xs) * 1.3);
+  const y0 = Math.log10(Math.min(...ys) / 1.4), y1 = Math.log10(Math.max(...ys) * 1.4);
   const X = v => L + (Math.log10(v) - x0) / (x1 - x0) * (W - L - R);
   const Y = v => H - B - (Math.log10(v) - y0) / (y1 - y0) * (H - T - B);
-  const svg = el("svg", { class: "in", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Bits per pixel against ${label}` });
+  const svg = el("svg", { class: "in", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${o.ylabel} against ${o.xlabel}` });
   const axes = el("g", { class: "axes" });
-  for (const v of logTicks(10 ** x0, 10 ** x1)) {
+  const thin = t => (t.length > 7 ? t.filter(v => String(v)[0] !== "2") : t);
+  for (const v of thin(logTicks(10 ** x0, 10 ** x1))) {
     axes.append(el("line", { x1: X(v), x2: X(v), y1: T, y2: H - B, class: "grid" }));
-    axes.append(el("text", { x: X(v), y: H - B + 20, class: "tick", "text-anchor": "middle" }, v.toLocaleString("en")));
+    axes.append(el("text", { x: X(v), y: H - B + 20, class: "tick", "text-anchor": "middle" }, v.toLocaleString("en", { maximumSignificantDigits: 3 })));
   }
-  const yt = logTicks(10 ** y0, 10 ** y1);
-  for (const v of yt.length > 9 ? yt.filter(v => String(v)[0] !== "2") : yt) {
+  for (const v of thin(logTicks(10 ** y0, 10 ** y1))) {
     axes.append(el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: "grid" }));
-    axes.append(el("text", { x: L - 10, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, v.toLocaleString("en", { maximumSignificantDigits: 3 })));
+    axes.append(el("text", { x: L - 8, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, v.toLocaleString("en", { maximumSignificantDigits: 3 })));
   }
-  axes.append(el("text", { x: W - R, y: H - 8, class: "axis", "text-anchor": "end" }, "bits per pixel →"));
-  axes.append(el("text", { x: L, y: T - 14, class: "axis" }, `↓ ${label}${unit ? `, ${unit}` : ""}`));
+  axes.append(el("text", { x: W - R, y: H - 6, class: "axis", "text-anchor": "end" }, `${o.xlabel} →`));
+  axes.append(el("text", { x: L, y: T - 14, class: "axis" }, `${o.up ? "↑" : "↓"} ${o.ylabel}`));
   svg.append(axes);
-  if (rate) svg.append(el("line", { class: "now", x1: X(rate), x2: X(rate), y1: T, y2: H - B }));
-  const names = Object.keys(curves).sort((a, b) => (a === georvq) - (b === georvq));
+  if (o.vline) svg.append(el("line", { class: "now", x1: X(o.vline), x2: X(o.vline), y1: T, y2: H - B }));
+  const names = Object.keys(data).sort((a, b) => (a === georvq) - (b === georvq));
   for (const c of names) {
-    const points = curves[c].filter(p => p[metric] > 0);
+    const points = data[c].filter(p => o.x(p) > 0 && o.y(p) > 0);
     const g = el("g", { class: `series${c === georvq ? " lead" : ""}`, style: `--c:${codecs[c][1]}` });
-    g.append(el("polyline", { points: points.map(p => `${X(p.bpp)},${Y(p[metric])}`).join(" ") }));
+    g.append(el("polyline", { points: points.map(p => `${X(o.x(p))},${Y(o.y(p))}`).join(" ") }));
     for (const p of points) {
-      const dot = el("circle", { cx: X(p.bpp), cy: Y(p[metric]), r: c === georvq ? 4 : 3.5 });
-      dot.append(el("title", {}, `${codecs[c][0]} · ${p.setting} · ${p.bpp.toFixed(2)} bits per pixel · ${label} ${fmt(p[metric])}${unit ? " " + unit : ""} · decode ${p.decode_s.toFixed(2)} s`));
+      const dot = el("circle", { cx: X(o.x(p)), cy: Y(o.y(p)), r: c === georvq ? 4 : 3.5 });
+      dot.append(el("title", {}, `${codecs[c][0]} · ${p.setting} · ${p.ratio.toFixed(1)}× · decode ${Math.round(p.speed)} MB/s · ${o.errlabel} ${fmt(p.err)}`));
       g.append(dot);
     }
     svg.append(g);
   }
-  box.replaceChildren(legend(codecs, [georvq, ...names.filter(c => c !== georvq)]), svg);
+  box.replaceChildren(svg);
 }
 
 // How much of each sample's power the decode keeps, at each scale.
@@ -184,7 +212,7 @@ function viewer(panel, set, key, onRate) {
     const stop = set.stops[state.stop];
     const chosen = set.samples[state.sample].stops[String(stop)] || {};
     const lv = chosen[set.georvq], rv = other.value === "original" ? null : chosen[other.value];
-    out.textContent = `${stop} bits per pixel`;
+    out.textContent = `${stop} bpp · ${Math.round(set.original / stop)}×`;
     sampleBox.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === state.sample)));
     panel.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
     sl.textContent = caption(set.georvq, lv, stop);
@@ -244,11 +272,23 @@ function viewer(panel, set, key, onRate) {
 
 document.querySelectorAll(".panel.lossy").forEach(panel => {
   const key = panel.dataset.set, set = PAYLOAD[key];
-  const box = panel.querySelector(".chart.rd"), metric = panel.querySelector("select.metric");
+  const speedBox = panel.querySelector(".chart.speed"), rdBox = panel.querySelector(".chart.rd");
+  const metric = panel.querySelector("select.metric"), scene = panel.querySelector("select.scene");
+  const legendBox = document.createElement("div");
+  panel.querySelector(".lossy-charts").before(legendBox);
+  legendBox.replaceWith(legend(set.codecs, [set.georvq, ...Object.keys(set.codecs).filter(c => c !== set.georvq)]));
   let rate = set.start, width = 0;
-  const draw = () => { width = box.clientWidth; rd(box, set, metric.value, rate); };
+  const draw = () => {
+    width = rdBox.clientWidth;
+    const [label, unit] = set.metrics[metric.value];
+    const errlabel = `${label}${unit ? `, ${unit}` : ""}`;
+    const data = series(set, scene.value, metric.value);
+    plot(speedBox, set, data, { x: p => p.speed, y: p => p.ratio, xlabel: "decode MB/s", ylabel: "compression ratio", up: true, errlabel });
+    plot(rdBox, set, data, { x: p => p.ratio, y: p => p.err, xlabel: "compression ratio", ylabel: errlabel, errlabel, vline: set.original / rate });
+  };
   metric.addEventListener("change", draw);
-  new ResizeObserver(() => { if (Math.abs(box.clientWidth - width) > 40) draw(); }).observe(box);
+  scene.addEventListener("change", draw);
+  new ResizeObserver(() => { if (Math.abs(rdBox.clientWidth - width) > 40) draw(); }).observe(rdBox);
   viewer(panel, set, key, r => { if (r !== rate) { rate = r; draw(); } });
   draw();
 });

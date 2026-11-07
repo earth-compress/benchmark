@@ -667,6 +667,7 @@ LOSSY = (
         "corpus": "s2-l1c-10m-4",
         "rename": ("s2-l1c-10m-4", "s2-l1c"),
         "original": 89.3,
+        "side": 504,
         "pixel": "10 m pixel",
         "metrics": {
             "rmse_10m": ("RMSE of the 10 m bands", "DN", "rms"),
@@ -686,6 +687,7 @@ LOSSY = (
         "corpus": "alphaearth-v1-64",
         "rename": None,
         "original": 512,
+        "side": 512,
         "pixel": "pixel",
         "metrics": {
             "cos_mean": ("mean 1 − cos", "", "mean"),
@@ -730,33 +732,43 @@ def lossy_curves(rows: list[dict], metrics: dict) -> dict[str, list[dict]]:
     return out
 
 
-def rate_at(points: list[dict], key: str, target: float) -> str:
-    """The rate at which a curve first reaches ``target``, interpolated in log-log."""
+def rate_at(points: list[dict], key: str, target: float) -> tuple[float, bool] | None:
+    """The rate at which a curve first reaches ``target``, interpolated in log-log,
+    and whether its lowest rate already does."""
     if points[0][key] <= target:
-        return f"≤ {points[0]['bpp']:.2f}"
+        return points[0]["bpp"], True
     for a, b in zip(points, points[1:]):
         if a[key] > target >= b[key] and b[key] > 0:
             t = (math.log(a[key]) - math.log(target)) / (math.log(a[key]) - math.log(b[key]))
-            return f"{math.exp(math.log(a['bpp']) + t * (math.log(b['bpp']) - math.log(a['bpp']))):.2f}"
-    return "–"
+            return math.exp(math.log(a["bpp"]) + t * (math.log(b["bpp"]) - math.log(a["bpp"]))), False
+    return None
 
 
 def lossy_table(case: dict, curves: dict) -> str:
     key, targets, unit = case["targets"]
-    name = case["metrics"][key][0]
     head = "".join(f"<th>{unit.format(t)}</th>" for t in targets)
+
+    def cell(points: list[dict], target: float) -> str:
+        found = rate_at(points, key, target)
+        if found is None:
+            return "–"
+        rate, lowest = found
+        return f"{'≥ ' if lowest else ''}{case['original'] / rate:.1f}×"
+
+    def order(item) -> float:
+        found = rate_at(item[1], key, targets[1])
+        return found[0] if found else math.inf
+
     rows = []
-    for codec, points in sorted(
-        curves.items(), key=lambda kv: float(rate_at(kv[1], key, targets[1]).strip("≤ –") or 1e9)
-    ):
-        cells = "".join(f"<td>{rate_at(points, key, t)}</td>" for t in targets)
+    for codec, points in sorted(curves.items(), key=order):
         label, colour = LOSSY_CODECS[codec]
         rows.append(
-            f'<tr><td><span class="swatch" style="--c:{colour}"></span>{html.escape(label)} '
-            f"<code>{codec}</code></td>{cells}</tr>"
+            f'<tr><td><span class="swatch" style="--c:{colour}"></span>{html.escape(label)}</td>'
+            + "".join(f"<td>{cell(points, t)}</td>" for t in targets)
+            + "</tr>"
         )
-    return f"""<h3>Bits per {case["pixel"]} at equal error</h3>
-<p class="note">The rate each codec needs to reach a {html.escape(name)}, interpolated between its settings. The original takes {case["original"]:g} bits per {case["pixel"]}; – means no setting reaches that error.</p>
+    return f"""<h3>Compression ratio at equal error</h3>
+<p class="note">{html.escape(case["metrics"][key][0])}, over every sample. – means it never gets there.</p>
 <div class="scroll"><table class="numbers"><thead><tr><th>codec</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>"""
 
 
@@ -776,16 +788,37 @@ def lossy_page() -> None:
             sid = path.parent.name
             shutil.copytree(path.parent, OUT / "lossy" / case["key"] / sid)
             samples[sid] = {**json.loads(path.read_text()), "site": sites.get(sid, sid)}
-        count = len({r["sample_id"] for r in rows})
+        scenes = sorted({r["sample_id"] for r in rows})
+        codecs = [c for c in LOSSY_CODECS if c in curves]
+        metrics = list(case["metrics"])
         data[case["key"]] = {
-            "curves": curves,
-            "metrics": {key: [name, unit] for key, (name, unit, _) in case["metrics"].items()},
-            "codecs": {c: list(v) for c, v in LOSSY_CODECS.items() if c in curves},
+            "columns": ["scene", "codec", "setting", "bpp", "decode_s", *metrics],
+            "rows": [
+                [
+                    scenes.index(r["sample_id"]),
+                    codecs.index(r["codec"]),
+                    r["setting"],
+                    round(float(r["bits_per_pixel"]), 5),
+                    round(float(r["decode_s"]), 5),
+                    *(float(f"{float(r[m]):.5g}") for m in metrics),
+                ]
+                for r in rows
+                if r["codec"] in codecs
+            ],
+            "scenes": [[sid, sites.get(sid, sid)] for sid in scenes],
+            "original": case["original"],
+            "input": case["original"] * case["side"] ** 2 / 8,
+            "metrics": {key: list(v) for key, v in case["metrics"].items()},
+            "codecs": {c: list(LOSSY_CODECS[c]) for c in codecs},
             "georvq": case["georvq"],
             "stops": case["stops"],
             "start": case["start"],
             "samples": samples,
         }
+        scene_options = '<option value="all">All scenes</option>' + "".join(
+            f'<option value="{i}">{sid} · {html.escape(sites.get(sid, sid))}</option>'
+            for i, sid in enumerate(scenes)
+        )
         options = "".join(
             f'<option value="{key}">{html.escape(name)}</option>'
             for key, (name, _, _) in case["metrics"].items()
@@ -796,9 +829,9 @@ def lossy_page() -> None:
             f'aria-selected="{str(not k).lower()}">{case["title"]}</button>'
         )
         panels.append(f"""<div class="panel lossy" role="tabpanel" id="panel-{case["key"]}" data-set="{case["key"]}"{" hidden" if k else ""}>
-<div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
-<div class="chart rd"></div>
-<p class="chart-note">Each point is a setting of a codec, at its mean rate over the {count} samples and the error over all of them. A georvq curve is one file read to more and more depth; every other point is a separate file. The dashed line is the rate of the viewer below.</p>
+<div class="pick near-pick"><select class="scene" aria-label="Scene">{scene_options}</select><select class="metric" aria-label="Error">{options}</select></div>
+<div class="lossy-charts"><div class="chart speed"></div><div class="chart rd"></div></div>
+<p class="chart-note">Each point is a setting; a line joins the settings of one codec. All of a georvq line is one file.</p>
 <div class="viewer">
 <h3>Look at it</h3>
 <div class="viewer-controls">
@@ -822,17 +855,18 @@ def lossy_page() -> None:
 </div>""")
     body = f"""{crumbs("../", ("Lossy", None))}
 <h1>Lossy</h1>
-<p class="lead">Rate against error for georvq, a learned codec, and the lossy configurations of the benchmark, on the Sentinel-2 L1C and AlphaEarth corpora.</p>
+<p class="lead">georvq, a learned codec, against the lossy configurations of the benchmark on Sentinel-2 L1C and AlphaEarth.</p>
 <section class="results">
 <div class="controls"><div class="tabs" role="tablist" aria-label="Dataset">{"".join(tabs)}</div></div>
 {"".join(panels)}
 </section>
 <section class="measure"><h2>How it is measured</h2><div class="doc">
-<p><a href="https://github.com/earth-compress/georvq">georvq</a> is a pyramid of residual vector quantisers. One encode writes every depth, and a reader decodes to the depth it needs, so a single file serves every rate on its curve. The Sentinel-2 model is <code>georvq-s2-v1</code>, for the 13 L1C bands on their 10, 20 and 60 m grids in windows of 360 m; the AlphaEarth model is <code>georvq-ae-v2</code>, for the 64 int8 dimensions in windows of 64 pixels. Both run on the CPU in 32 bit floats.</p>
-<p>The rate of georvq is the bit count its bundle gives for each depth, times the number of windows. The rate of every other codec is the size of the file it wrote. Neither counts the model weights, which a reader holds once.</p>
-<p>The three Sentinel-2 corpora are the same 50 scenes. Each is cut to the footprint the three grids share, 504 pixels at 10 m, and every codec compresses the three grids; their sizes are summed and divided by the 10 m pixels. The AlphaEarth corpus is 15 samples of 512 by 512 pixels. Its error is the cosine distance between each pixel's embedding, dequantised as <code>(v / 127.5)² · sign(v)</code>, and the original, over pixels that are not NoData.</p>
-<p>The other codecs sweep a bound on the root-mean-square error: 2 to 320 DN on Sentinel-2 and 1 to 32 codes on AlphaEarth, with the AlphaEarth codes shifted by 128 to unsigned bytes. The viewer shows, for each rate, the setting of each codec nearest to it on that sample, and says so when that setting is far from it. The AlphaEarth similarity maps use the central 128 pixels of each sample.</p>
-<p>We have not checked whether these scenes were in georvq's training data.</p>
+<ul>
+<li><a href="https://github.com/earth-compress/georvq">georvq</a> writes every depth in one file and a reader stops at the depth it needs. Its size is the bit count of its bundle for that depth; model weights are not counted.</li>
+<li>Sentinel-2: the 50 scenes cut to the 504 px footprint the 10, 20 and 60 m grids share, all 13 bands. AlphaEarth: 15 samples of 512 px, error as the cosine distance of the dequantised embedding.</li>
+<li>Compression ratio is raw array bytes over compressed bytes. Decode speed is single threaded on one CPU.</li>
+<li>We have not checked whether these scenes were in georvq's training data.</li>
+</ul>
 <pre><code>git clone {REPO}
 cd benchmark
 uv run --extra learned python lossy/s2/run.py
