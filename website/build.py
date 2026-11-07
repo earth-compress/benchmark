@@ -350,7 +350,12 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-NEAR_NOTE = "Each point is a configuration at one budget level, and the line marks the best trade-offs."
+NEAR_NOTE = (
+    "Each point shows a configuration at this budget level. "
+    "The line shows the best observed trade-offs. "
+    "The All corpora view pools size and decode time across samples for configurations "
+    "completed on every corpus with results at this level. Broken promises are listed below."
+)
 
 
 NO_BUDGET = (
@@ -735,13 +740,13 @@ def build() -> None:
     budgeted = [cid for cid in measured if near_totals_by.get(cid)]
     budgeted_samples = sum(sample_counts[cid] for cid in budgeted)
     modes = (
-        ("Lossless", "lossless/", "Every value back exactly.",
+        ("Lossless", "lossless/", "Decoded values match the input exactly.",
          f"{len(measured)} corpora &middot; {samples} samples"),
-        ("Near-lossless", "near-lossless/", "Every value back within a budget, with zeros and NoData kept.",
+        ("Near-lossless", "near-lossless/", "Each valid value has an error bound. Zeros and NoData must be preserved.",
          f"{len(budgeted)} corpora &middot; {budgeted_samples} samples"),
-        ("Lossy", "lossy/", "A bound on the average error, the learned codec georvq against the classical codecs.",
+        ("Lossy", "lossy/", "Compare georvq with other codecs by size, decode speed and measured error.",
          "Sentinel-2 &middot; AlphaEarth"),
-        ("Use cases", "usecases/", "What compression changes in a real analysis.",
+        ("Use cases", "usecases/", "Compare analyses before and after compression.",
          "methane &middot; drainage &middot; change &middot; clouds"),
     )
     def large(cid: str, n: int = 0) -> tuple[str, str] | None:
@@ -781,7 +786,7 @@ def build() -> None:
     )
     intro = (
         '<div class="home-intro"><h1><img src="earth-compress.svg" alt="Earth Compress benchmark"></h1>'
-        f"<p>A compression benchmark of {samples} samples across {len(measured)} corpora of imagery, "
+        f"<p>Compression results for {samples} samples in {len(measured)} corpora of imagery, "
         "environmental fields and embeddings.</p></div>"
     )
     (OUT / "index.html").write_text(
@@ -792,7 +797,10 @@ def build() -> None:
             nav=False,
         )
     )
-    caption = "Each point is a configuration, and the line marks the best trade-offs."
+    caption = (
+        "Each point shows a codec configuration. "
+        "The line connects the best observed trade-offs."
+    )
     (OUT / "lossless").mkdir(exist_ok=True)
     (OUT / "lossless" / "index.html").write_text(
         layout(
@@ -800,7 +808,7 @@ def build() -> None:
             "Lossless · Earth Compress benchmark",
             f"""{crumbs("../", ("Lossless", None))}
 <h1>Lossless</h1>
-<p class="lead">Every value back exactly, on every corpus.</p>
+<p class="lead">Lossless decodes reproduce the input values exactly.</p>
 <section class="results"><div class="pick near-pick">{select}</div>
 <div class="chart" data-chart="all" data-select="corpus"></div><p class="chart-note">{caption}</p></section>
 <section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in measured)}</div></section>""",
@@ -818,7 +826,7 @@ def build() -> None:
             "Near-lossless · Earth Compress benchmark",
             f"""{crumbs("../", ("Near-lossless", None))}
 <h1>Near-lossless</h1>
-<p class="lead">Every value within the budget of its corpus, at four levels. See <a href="../tolerance/">Tolerance</a>.</p>
+<p class="lead">Every valid value has an error bound. Zeros and NoData must be preserved. Available levels depend on the corpus. See <a href="../tolerance/">Tolerance</a>.</p>
 <section class="results"><div class="pick near-pick">{near_select.replace('id="corpus"', 'id="near-corpus"')}<select id="near-level" aria-label="Budget level">{levels}</select></div>
 <div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>
 <section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"near-lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in budgeted)}</div></section>""",
@@ -930,8 +938,9 @@ def lossy_curves(rows: list[dict], metrics: dict) -> dict[str, list[dict]]:
 
 LOSSY_METHOD = f"""<section class="measure"><h2>How it is measured</h2><div class="doc">
 <ul>
-<li><a href="https://github.com/earth-compress/georvq">georvq</a> writes every depth in one file and a reader stops at the depth it needs. Its size is the bit count of its bundle for that depth; model weights are not counted.</li>
-<li>Sentinel-2: the 50 scenes cut to the 504 px footprint the 10, 20 and 60 m grids share, all 13 bands. AlphaEarth: 15 samples of 512 px, error as the cosine distance of the dequantised embedding.</li>
+<li><a href="https://github.com/earth-compress/georvq">georvq</a> stores every depth in one file. A reader stops at the depth it needs. Size is the bit count of the bundle for that depth. Model weights are not counted.</li>
+<li>The 50 Sentinel-2 scenes are cut to the 504 px footprint shared by the 10, 20 and 60 m grids. The comparison includes all 13 bands.</li>
+<li>AlphaEarth uses 15 samples of 512 px. Error is the cosine distance of the dequantised embedding.</li>
 <li>Compression ratio is raw array bytes over compressed bytes. Decode speed is single threaded on one CPU.</li>
 <li>We have not checked whether these scenes were in georvq's training data.</li>
 </ul>
@@ -953,7 +962,7 @@ def lossy_panel(case: dict, scene: str, viewer: str = "") -> str:
     return f"""<section class="results"><div class="panel lossy" data-set="{case["key"]}" data-scene="{scene}">
 <div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
 <div class="lossy-charts"><div class="chart speed"></div><div class="chart rd"></div></div>
-<p class="chart-note">Each point is a setting; a line joins the settings of one codec. All of a georvq line is one file.</p>
+<p class="chart-note">Each point shows a codec setting. Lines connect settings of the same codec. The georvq settings on a line come from one file.</p>
 {viewer}
 </div></section>"""
 
@@ -961,9 +970,9 @@ def lossy_panel(case: dict, scene: str, viewer: str = "") -> str:
 def lossy_viewer(case: dict, sample: str) -> str:
     modes = ("image", "error") + (("similarity",) if case["key"] == "alphaearth" else ())
     return f"""<div class="viewer" data-sample="{sample}">
-<h3>Look at it</h3>
+<h3>Compare decodes</h3>
 <div class="viewer-controls">
-<label class="rate">rate <input type="range" min="0" max="{len(case["stops"]) - 1}" step="1"><output></output></label>
+<label class="rate">Rate <input type="range" min="0" max="{len(case["stops"]) - 1}" step="1"><output></output></label>
 <select class="other" aria-label="Codec on the right"></select>
 <div class="modes" role="group" aria-label="View">{"".join(f'<button type="button" data-mode="{m}">{m}</button>' for m in modes)}</div>
 </div>
@@ -974,7 +983,7 @@ def lossy_viewer(case: dict, sample: str) -> str:
 <p class="mode-note note"></p>
 <h4>One georvq file</h4>
 <div class="onefile"><div class="bar"></div><p class="note"></p></div>
-{'<h4>Detail kept</h4><div class="chart spectrum"></div>' if case["key"] == "s2" else ""}
+{'<h4>Detail after decoding</h4><div class="chart spectrum"></div>' if case["key"] == "s2" else ""}
 </div>
 </div>
 </div>"""
@@ -1068,7 +1077,7 @@ def lossy_page() -> None:
 
     body = f"""{crumbs("../", ("Lossy", None))}
 <h1>Lossy</h1>
-<p class="lead">georvq, a learned codec, against the lossy configurations of the benchmark.</p>
+<p class="lead">Compare the learned codec georvq with the benchmark's lossy configurations.</p>
 <section><div class="grid">{"".join(dataset_cards)}</div></section>"""
     (OUT / "lossy" / "index.html").write_text(layout("../", "Lossy · Earth Compress benchmark", body))
 

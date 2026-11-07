@@ -2,11 +2,11 @@
 
 This protocol measures compression of Earth observation and environmental arrays in lossless, near-lossless, and lossy modes.
 
-Each measurement uses one array in memory. We report compressed size, decode time, distortion, and an indicative encode time. Storage layout, network transfer, partial reads, parallel or accelerated decoding, and downstream analyses are outside this protocol. Section 9 gives examples of separate analysis checks.
+Each measurement uses one array in memory. We report compressed size, decode time, distortion and indicative encode time. The protocol excludes storage layout, network transfer, partial reads, parallel or accelerated decoding, and downstream analyses. Section 9 gives examples of separate analysis checks.
 
 ## 1. Starting representation
 
-Compression ratio depends on the array a codec receives. For instance, ERA5 2 m temperature is archived as 16-bit integer codes with a step of 2^-9 K and an offset per hour. A float32 copy stores each value in 32 bits. Compressing that copy may remove bits the source never had, so its ratio describes the copy rather than the archived field.
+Compression ratio depends on the array a codec receives. ERA5 2 m temperature, for example, is archived as 16-bit integer codes with a step of 2^-9 K and an offset per hour. A float32 copy stores each value in 32 bits. Compressing the float32 copy can remove bits the source never had. The resulting ratio then describes the copy rather than the archived field.
 
 For each corpus, use integers when they reproduce the published values exactly.
 
@@ -14,7 +14,7 @@ For each corpus, use integers when they reproduce the published values exactly.
 2. Test whether an integer array plus a `(scale, offset)` pair reproduces it bit for bit.
 3. If it does, store the integers, scale, and offset. Otherwise, retain the published floating-point array.
 
-`DATASETS.md` gives the `scale` and `offset` of each corpus, and the `manifest.csv` of each corpus holds the exact values of every sample.
+`DATASETS.md` lists each corpus's `scale` and `offset`. Its `manifest.csv` holds the exact values for every sample.
 
 Data published as integers, including categorical codes, pass step 2 with `scale = 1` and `offset = 0` and are stored as published.
 
@@ -49,9 +49,9 @@ Every configuration declares a mode. The mode determines which properties the ru
 - **`sentinel`** means every NoData value remains in its original position, and no valid input value becomes a sentinel.
 - **`zero`** means every value equal to zero in native units decodes to zero.
 
-Lossy mode also runs the `zero` check and reports it in `zero_ok` and `zero_violations`. It is not a promise there, so it does not change `fidelity_ok`.
+Lossy mode also runs the `zero` check and reports it in `zero_ok` and `zero_violations`. In lossy mode, `zero` is not a promise and does not change `fidelity_ok`.
 
-A broken promise is a result. The row keeps every measurement, sets `fidelity_ok = false` and `status = violation`, and counts the elements that broke each promise, or the sample for `rms`. A configuration that raises an error, or decodes to the wrong shape or dtype, has `status = crash` and no measurements. A configuration that cannot take a corpus, for example one limited to 16-bit integers, does not run on it.
+A broken promise is a result. Its row keeps every measurement and sets `fidelity_ok = false` and `status = violation`. It counts the elements that broke each promise, or the sample for `rms`. A configuration has `status = crash` and no measurements if it raises an error or decodes to the wrong shape or dtype. Configurations that cannot take a corpus, such as those limited to 16-bit integers, do not run on it.
 
 ### 2.1 Error bound
 
@@ -66,13 +66,15 @@ An element decoded to exactly its input value has no error, including infinities
 
 ## 3. Error budgets
 
-Near-lossless and lossy configurations use the budgets in `TOLERANCE.md`, with the same `tau` in both modes. That page sets `conservative`, `matched`, and `aggressive` bounds from a reference error for each eligible corpus, and a `recommended` bound where domain experts have published one. Lossy uses a `recommended` bound only where the experts bound a mean error rather than every element. `budgets.csv` lists the modes of each budget. These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data they are rounded down to whole steps of the largest `scale` in the corpus. A level smaller than one step is 0, and the lossless result stands for it.
+Near-lossless and lossy configurations use the budgets in `TOLERANCE.md`. Both modes use the same `tau`. That page sets `conservative`, `matched` and `aggressive` bounds from a reference error for each eligible corpus. It also lists a `recommended` bound where domain experts have published one. Lossy uses a `recommended` bound only for expert limits on mean absolute error. `budgets.csv` lists the modes of each budget.
+
+These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data, they are rounded down to whole steps of the largest `scale` in the corpus. A level below one step becomes 0, and the lossless result stands for it.
 
 The same rules apply to every budget.
 
 1. **Fixed budget.** Each corpus has one `tau` per level, in native units. The codec receives that number and must keep every element, or in lossy mode the root-mean-square error, within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same `tau` would allow different errors in different parts of the same dataset. A wrapper may convert `tau` into the kind of target a codec takes, such as a PSNR, when the converted target is the same error over the sample.
 2. **NoData is not counted.** `tau` applies to valid elements. NoData positions must be preserved, and no new NoData values may appear.
-3. **Only adapters around a codec.** A codec receives `tau` in the units of the stored values, and the sentinel only where its interface takes one. A wrapper may change the type or layout of the data to one the codec accepts, and back; it may not correct the codec's output. Corrections belong to a separate configuration that declares them, such as a safeguarded one in `CODECS.md`.
+3. **Only adapters around a codec.** A codec receives `tau` in stored-value units. It receives the sentinel only if its interface accepts one. A wrapper may change the data type or layout to suit the codec and change it back. It may not correct the codec's output. Corrections belong to a separate configuration that declares them, such as a safeguarded one in `CODECS.md`.
 4. **A searched setting.** A codec with no error target of its own may have one setting searched on each sample. The wrapper encodes with several values of the setting and keeps one whose decoded sample meets the bound. Every trial is part of the encode, so the encode time includes the search.
 
 ### 3.1 Corpora without a budget
@@ -87,8 +89,8 @@ corpora/<corpus-id>/
 ├── build.py              sample selection, rebuild, and exactness assertions
 ├── manifest.csv          one row per sample
 ├── npz/<sample>.npz.zst  sample data
-├── png/<sample>.png      preview; never measured
-├── results.csv           generated by runs; never an input
+├── png/<sample>.png      preview, never measured
+├── results.csv           generated by runs, never an input
 └── environment.json      generated by a run
 ```
 
@@ -100,10 +102,10 @@ Each `manifest.csv` has one row per sample and the columns below.
 | --- | --- |
 | `id` | sample id |
 | `source` | collection or product, with its version |
-| `asset` | source scene, granule, tile, or file; several are separated by `|` |
+| `asset` | source scene, granule, tile, or file. Several are separated by `|` |
 | `crs` | EPSG code or WKT |
 | `transform` | six values of the affine geotransform, in GDAL order |
-| `datetime_start`, `datetime_end` | ISO 8601 UTC; for products without an acquisition time, the period they cover |
+| `datetime_start`, `datetime_end` | ISO 8601 UTC. For products without an acquisition time, the period they cover |
 | `bands` | source name of each plane, in array order |
 | `shape`, `dtype` | of `data` |
 | `unit` | native unit after `scale` and `offset` |
@@ -125,7 +127,7 @@ A rebuild runs `build` only.
 
 Each run measures its selected configurations under the same rules. `CODECS.md` describes the configurations the benchmark can run and identifies the separate reference. Published measurements are in each corpus's `results.csv`.
 
-- Each codec receives `data` as an in-memory array; corpus read time is excluded.
+- Each codec receives `data` as an in-memory array. Corpus read time is excluded.
 - Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.
 - A codec may use internal planes or blocks. Everything the codec does is timed.
 - Compressed bytes must contain everything needed for decoding except shape and dtype.
@@ -134,7 +136,7 @@ Each run measures its selected configurations under the same rules. `CODECS.md` 
 - **Decode time.** On every sample, call decode up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode of the previous step serves as the warm-up.
 - **Determinism.** The repeated decodes of each sample must return the same array. On three samples per corpus, the first, the middle, and the last in the manifest, encode once more and check that the bytes match the first encode.
 
-`environment.json` records the machine; quote it with any throughput.
+`environment.json` records the machine. Include it when quoting throughput.
 
 ## 6. Verification
 
@@ -168,7 +170,7 @@ rmse          = sqrt(mean (x-x̂)²)  mean_error = mean (x̂ - x)
 psnr_dB       = 20·log10(peak / rmse)
 ```
 
-`mean_error` detects bias. `peak` is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite `psnr_dB`; an inexact decode of a constant sample has no defined PSNR. In `lossless` mode, `max_abs_error`, `mae`, `rmse`, and `mean_error` are zero. `psnr_dB` is infinite, while `error_spread` and `error_lag1` are undefined.
+`mean_error` detects bias. `peak` is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite `psnr_dB`. An inexact decode of a constant sample has no defined PSNR. In `lossless` mode, `max_abs_error`, `mae`, `rmse`, and `mean_error` are zero. `psnr_dB` is infinite, while `error_spread` and `error_lag1` are undefined.
 
 Two additional metrics describe the distribution and spatial structure of error:
 

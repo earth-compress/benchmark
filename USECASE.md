@@ -1,6 +1,6 @@
 # Use cases
 
-These use cases check whether compression changes methane plume detection, drainage mapping, land change detection or cloud masks. Each analysis runs on original data and decoded copies, then we compare the outputs. Settings fitted on the original are reused; labels are never compressed. Each case names its codec configurations and error bounds.
+These use cases check whether compression changes methane plume detection, drainage mapping, land change detection or cloud masks. Each analysis runs on original data and decoded copies, then compares the outputs. Settings fitted on the original are reused. Labels are never compressed. Each case lists its codec configurations and error bounds.
 
 | use case | data | samples | metric |
 | --- | --- | ---: | --- |
@@ -23,7 +23,7 @@ Does compression change the plume a methane detector finds in Sentinel-2 and Lan
 
 ### Experiment
 
-We use 20 MethaneSET patches, ten from Sentinel-2 and ten from Landsat 8/9, at their native 20 m and 30 m grids. Each has a target image, backgrounds and a plume mask. We fit a band ratio detector on the original images, run it again after compression, and compare its overlap with the mask. That difference is `delta_iou`.
+We use 20 MethaneSET patches at their native grids, ten from Sentinel-2 at 20 m and ten from Landsat 8/9 at 30 m. Each has a target image, backgrounds and a plume mask. We fit a band ratio detector on the original images, run it after compression and compare each detection's overlap with the mask. The difference is `delta_iou`.
 
 ### Data
 
@@ -34,7 +34,7 @@ The patches come from [MethaneSET](https://huggingface.co/datasets/tacofoundatio
 | Sentinel-2 | `methaneset-s2-finetune` | B11, B12 | 20 m | 2 × 100 × 100 or one row or column less | 10 |
 | Landsat 8/9 | `methaneset-l89-finetune` | B6, B7 | 30 m | 2 × 66 × 66 | 10 |
 
-The target and backgrounds are separate uint16 arrays. The plume mask is never compressed. Landsat uses only `bg0` because `bg1` to `bg3` are stored in DN while the target is in reflectance. `build.py` converts the target to uint16 DN at 2e-5, as `l8-oli-8` does; the conversion moves no value by more than half a DN. In `methane-s2-08`, MethaneSET does not repeat `bg0`, so `build.py` keeps one value per 2 × 2 block. The patches retain MethaneSET's CC BY-NC-SA 4.0 licence.
+The target and backgrounds are separate uint16 arrays. The plume mask is never compressed. Landsat uses only `bg0` because `bg1` to `bg3` are stored in DN while the target is in reflectance. `build.py` converts the target to uint16 DN at 2e-5, as `l8-oli-8` does. The conversion moves no value by more than half a DN. In `methane-s2-08`, MethaneSET does not repeat `bg0`, so `build.py` keeps one value per 2 × 2 block. The patches retain MethaneSET's CC BY-NC-SA 4.0 licence.
 
 ### Detector
 
@@ -50,7 +50,7 @@ GeoZL PIVCO, GeoZL PFOR and JPEG XL compress the two shortwave infrared bands of
 
 ### Metric
 
-`delta_iou` is the intersection over union of the detection and the plume mask on the compressed copy, minus the same value on the original. A negative value means the decoded copy finds the plume worse, through missed plume pixels or through false alarms around it. On the originals the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
+`delta_iou` is the detection's intersection over union with the plume mask on the compressed copy, minus the same value on the original. A negative value means less overlap with the mask, from missed plume pixels or false alarms around it. On the originals, the median IoU is 0.59 in Sentinel-2 and 0.55 in Landsat.
 
 ## Drainage networks
 
@@ -58,7 +58,7 @@ Does compression move the streams that flow routing draws on a DEM?
 
 ### Experiment
 
-We run flow routing on ten DEM patches from `cop-dem-glo30`, first in their original form and then after compression. `stream_f1` compares the resulting stream networks within one cell.
+We run flow routing on ten DEM patches from `cop-dem-glo30`, before and after compression. `stream_f1` compares the resulting stream networks within one cell.
 
 ### Data
 
@@ -72,11 +72,11 @@ We take the first two samples from each regime in [`cop-dem-glo30`](https://hugg
 
 ### Compression
 
-The DEM goes through GeoZL PIVCO, GeoZL PFOR or JPEG XL at root-mean-square error limits from 0.1 to 6.4 m, doubling each step. The two GeoZL recipes (`geozl-med-pivco` and `geozl-planar-pfor`) use the same lossy quantiser and therefore decode to the same heights; only their compressed sizes differ. JPEG XL searches for the largest distance within the limit and falls back to lossless if none fits. On some flat DEMs its largest distance already meets the larger limits, so those limits give the same point.
+The DEM goes through GeoZL PIVCO, GeoZL PFOR or JPEG XL at root-mean-square error limits from 0.1 to 6.4 m, doubling each step. The GeoZL recipes `geozl-med-pivco` and `geozl-planar-pfor` use the same lossy quantiser. They decode to the same heights, but their compressed sizes differ. JPEG XL searches for the largest distance within the limit and falls back to lossless if none fits. On some flat DEMs, its largest distance already meets the larger limits, so those limits give the same point.
 
 ### Metric
 
-`stream_f1` is the F1 score of the compressed stream network against the original one. Its precision is the share of compressed stream cells within one cell of an original stream, its recall the share of original stream cells within one cell of a compressed stream. It is 1 when the two networks agree.
+`stream_f1` is the F1 score of the compressed stream network against the original one. Precision is the share of compressed stream cells within one cell of an original stream. Recall is the share of original stream cells within one cell of a compressed stream. `stream_f1` is 1 when the two networks agree.
 
 ## Change detection
 
@@ -84,7 +84,7 @@ Does compression change where AlphaEarth embeddings show change between 2017 and
 
 ### Experiment
 
-At 13 sites with known land change, we take matching AlphaEarth windows from 2017 and 2025. They include the Dixie Fire, the GERD reservoir and areas of new construction. We make a change map from the original embeddings, compress both years and make the map again. `change_iou` measures the overlap between the two maps.
+At 13 sites with known land change, we take matching AlphaEarth windows from 2017 and 2025. The sites include the Dixie Fire, the GERD reservoir and areas of new construction. We make a change map from the original embeddings, compress both years and make the map again. `change_iou` measures the overlap between the maps.
 
 ### Data
 
@@ -110,7 +110,7 @@ Does compression change the clouds that Clouds Decoded finds in Sentinel-2?
 
 ### Experiment
 
-We take 100 Sentinel-2 Level-1C products of one tile in the Bay of Bengal, sensed between 2017 and 2026. They were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and again on each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. Results are coming soon.
+We use 100 Sentinel-2 Level-1C products of one Bay of Bengal tile, sensed between 2017 and 2026. The products were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. Results are coming soon.
 
 ### Data
 
@@ -123,7 +123,7 @@ All products are of tile T44PNB, with the 13 bands at their native 10, 20 and 60
 
 ### Compression
 
-georvq, SZ3 and JPEG XL compress all 13 bands. georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at levels 8-8, 8-4 and 8-0. SZ3 codes each band separately with an absolute error limit of 45, 63, 90, 125 or 180 DN. JPEG XL codes each band separately as a 16-bit image at distances 0.094, 0.17, 0.33, 0.63 and 1.2, with effort 7. The SZ3 and JPEG XL settings were tuned on 4 products to match the georvq rates. Both cut each band into 10 × 10 tiles and store the zero mask of each tile losslessly. Rates are in bits per 10 m pixel; the 13 original bands take about 52 in lossless JPEG 2000.
+georvq, SZ3 and JPEG XL compress all 13 bands. georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at levels 8-8, 8-4 and 8-0. SZ3 codes each band separately with an absolute error limit of 45, 63, 90, 125 or 180 DN. JPEG XL codes each band separately as a 16-bit image at distances 0.094, 0.17, 0.33, 0.63 and 1.2, with effort 7. The SZ3 and JPEG XL settings were tuned on 4 products to match the georvq rates. Both cut each band into 10 × 10 tiles and store the zero mask of each tile losslessly. Rates are in bits per 10 m pixel. The 13 original bands take about 52 in lossless JPEG 2000.
 
 ### Metric
 

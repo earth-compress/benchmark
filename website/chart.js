@@ -121,7 +121,15 @@ function draw(box, totals, CODECS, groups, reference, empty = "No results yet") 
     svg.append(g);
   });
   if (!points.length) svg.append(el("text", { x: (W - R) / 2, y: H / 2, class: "axis", "text-anchor": "middle" }, empty));
-  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg);
+  const broken = points.filter(p => p.broken.length).sort((a, b) => a.id.localeCompare(b.id));
+  const notes = [];
+  if (broken.length) {
+    const note = document.createElement("p");
+    note.className = "chart-note";
+    note.textContent = "Broke a promise on at least one sample. " + broken.map(p => `${p.id} (${p.broken.join(", ")})`).join(", ") + ".";
+    notes.push(note);
+  }
+  box.replaceChildren(legend(groups, new Set(points.map(p => p.group))), svg, ...notes);
   const path = svg.querySelector(".pareto");
   if (path && !STILL) {
     const length = path.getTotalLength();

@@ -1,6 +1,6 @@
 # Codecs
 
-The tables list the configurations the benchmark can run, grouped by fidelity mode. `results.csv` shows which ones have been measured. `PROTOCOL.md` defines the fidelity checks and `TOLERANCE.md` the error budgets.
+The tables group the configurations the benchmark can run by fidelity mode. Each `results.csv` shows which configurations have been measured. `PROTOCOL.md` defines the fidelity checks. `TOLERANCE.md` defines the error budgets.
 
 ## Lossless
 
@@ -24,11 +24,11 @@ The tables list the configurations the benchmark can run, grouped by fidelity mo
 | `geozl-id-pfor` | GeoZL | `id>pfor` | geozl 0.31.0 on openzl 0.3.0 |
 | `jpeg2000` | Reference | JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components | imagecodecs (OpenJPEG 2.5.4) |
 
-`jpeg2000` is a separate reference, measured only when requested, on integer corpora of up to 16 bits.
+`jpeg2000` is a separate reference. It is measured only when requested and only on integer corpora of up to 16 bits.
 
 ## Near-lossless
 
-Near-lossless and lossy ids end with the budget level, as in `lerc-matched`. The `family` column describes how they use `tau`. `native` uses the codec's own error or quality setting, `quantized` uses the shared quantiser, `safeguarded` adds corrections, and `searched` tries settings on each sample. An empty NoData cell means no mask or sentinel is passed to the codec.
+Near-lossless and lossy ids end with the budget level, as in `lerc-matched`. The tables show base ids before that suffix is added. The `family` column shows how each configuration uses `tau`. `native` uses the codec's error or quality setting. `quantized` uses the shared quantiser. `safeguarded` adds corrections. `searched` tries settings on each sample. An empty NoData cell means no mask or sentinel is passed to the codec.
 
 | id | family | definition | NoData | software |
 | --- | --- | --- | --- | --- |
@@ -60,17 +60,17 @@ LERC, JPEG-LS, ZFP and GeoZL have no separate lossy configuration. A near-lossle
 
 ## The quantiser
 
-The quantiser rounds each value to a grid and passes the grid indices, in the narrowest unsigned type that holds them, to an unchanged lossless configuration. Quantised rows keep every promise by construction, and rows of one mode differ only by their lossless stage.
+The quantiser rounds values to a grid. It passes the grid indices to an unchanged lossless configuration in the narrowest unsigned type that holds them. Quantised rows keep every promise by construction. Rows in the same mode differ only in their lossless stage.
 
-Integer grids are `2k + 1` codes wide in each plane and anchored at the code of a native zero, so zeros stay exact. Near-lossless takes `k = floor(tau / scale)`. Lossy starts from the largest `k` with `k (k + 1) / 3 <= (tau / scale)²`, where a uniform rounding error has a root-mean-square of `tau`, the rule SZ3 uses for its L2-norm mode. A sentinel at the bottom of the type keeps index 0 to itself, and valid values decode above it.
+Integer grids are `2k + 1` codes wide in each plane. They are anchored at the code of a native zero, so zeros stay exact. Near-lossless takes `k = floor(tau / scale)`. Lossy starts from the largest `k` with `k (k + 1) / 3 <= (tau / scale)²`. At that width, a uniform rounding error has a root-mean-square of `tau`. SZ3 uses the same rule for its L2-norm mode. A sentinel at the bottom of the type keeps index 0 to itself. Valid values decode above it.
 
-Floats round to multiples of `2 tau` in near-lossless and of `2 sqrt(3) tau` in lossy, so zero stays exact. Values that rounding in the element type moves past the bound, and values that are not finite, are kept exactly beside the grid.
+Floats round to multiples of `2 tau` in near-lossless mode and `2 sqrt(3) tau` in lossy mode. Zero stays exact. Values that element-type rounding would move past the bound are kept exactly beside the grid, as are nonfinite values.
 
 In lossy mode, a sample whose error is still above `tau` gets a narrower grid until it is not, and the width is stored with the data. ClimateBenchPress found rounding followed by PCO a reliable baseline (Reichelt et al., 2026), so `pco` is the lossless stage in lossy mode.
 
 ## Compression Safeguards
 
-`sg-<id>` wraps a native near-lossless configuration in Compression Safeguards (Tyree et al., 2026), set to an absolute bound of `tau`, the sentinel kept to its own positions, and exact zeros kept. While encoding, the safeguards decode the native output and store the corrections that restore every promise, and decoding applies them. The native codec runs unchanged, so the difference from its own row is the cost of safety. In `sg-zero` every value comes from the corrections.
+`sg-<id>` wraps a native near-lossless configuration in Compression Safeguards (Tyree et al., 2026). It sets an absolute bound of `tau`, keeps the sentinel in its original positions and keeps exact zeros. During encoding, the safeguards decode the native output and store corrections that restore every promise. Decoding applies those corrections. The native codec runs unchanged. The difference from its own row shows the cost of the safeguards. In `sg-zero`, every value comes from the corrections.
 
 ## Settings
 
@@ -93,7 +93,7 @@ In lossy mode, a sample whose error is still above `tau` gets a narrower grid un
 
 ## Adding a configuration
 
-Add a module to `earthcompress/codecs/` that defines `CONFIGURATIONS` for lossless configurations, `FAMILIES` for a native near-lossless codec, or `LOSSY` for a lossy one. A configuration builds, from the `ArraySpec` of a sample, an object with `encode` and `decode`. A family is a function from a budget to a configuration, made with `near_lossless` or `lossy` in `earthcompress/codecs/base.py`. Every native near-lossless family also gets a safeguarded variant.
+Add a module to `earthcompress/codecs/`. Define `CONFIGURATIONS` for lossless configurations, `FAMILIES` for a native near-lossless codec, or `LOSSY` for a lossy one. A configuration uses a sample's `ArraySpec` to build an object with `encode` and `decode`. A family maps a budget to a configuration. Create it with `near_lossless` or `lossy` in `earthcompress/codecs/base.py`. Every native near-lossless family also gets a safeguarded variant.
 
 ```python
 import mycodec

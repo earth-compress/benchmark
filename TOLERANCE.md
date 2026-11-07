@@ -1,12 +1,12 @@
 # Tolerance
 
-Near-lossless and lossy runs use three error bounds for each eligible corpus, and the ERA5 corpora add a fourth recommended by experts.
+Near-lossless and lossy runs use three error bounds for each eligible corpus. The ERA5 corpora also have expert `recommended` bounds where the mode supports them.
 
-A near-lossless configuration declares `tau`, the largest absolute error allowed for any element in the sample's native units. A lossy configuration uses the same `tau` as the largest root-mean-square error of the sample. The three levels let us compare configurations on a corpus at the same error bound. They are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
+A near-lossless configuration declares `tau` as the largest absolute error allowed for any element, in the sample's native units. A lossy configuration uses the same `tau` as the largest allowed root-mean-square error for the sample. The three levels let us compare configurations on a corpus at the same bound. These are benchmark settings, not recommendations for scientific use. [PROTOCOL.md](PROTOCOL.md) v1.0 defines how the bound is checked.
 
 ## 1. The rule
 
-We use a reference error, `sigma`, to set the three bounds. It comes from instrument noise, retrieval error or model spread, depending on the product. For Sentinel-2 L1C at 10 m, `sigma` is about 10 DN of noise per pixel. The bounds are 2, 10 and 40 DN after rounding to whole DN.
+We use a reference error, `sigma`, to set the three bounds. Depending on the product, it comes from instrument noise, retrieval error or model spread. For Sentinel-2 L1C at 10 m, `sigma` is about 10 DN of noise per pixel. The bounds are 2, 10 and 40 DN after rounding to whole DN.
 
 | level | `tau` | `s2-l1c-10m-4` | error on a 2,000 DN pixel | relative to the noise |
 | --- | --- | ---: | ---: | --- |
@@ -14,9 +14,9 @@ We use a reference error, `sigma`, to set the three bounds. It comes from instru
 | `matched` | `sigma` | 10 DN | 0.5% | equal to it |
 | `aggressive` | `4 · sigma` | 40 DN | 2% | four times larger |
 
-If compression error is independent of the existing random error and has no overall bias, their mean squared errors add. Even if every compression error reaches `tau` in magnitude, the root-mean-square error across the array could rise by up to about 3% at `conservative` or 41% at `matched`. These percentages describe the array, not individual elements. They hold in lossy mode too, where `tau` bounds the root-mean-square error itself. The factors 1/4, 1 and 4 are choices for this benchmark.
+If compression error is independent of the existing random error and has no overall bias, their mean squared errors add. Even if every compression error reaches `tau` in magnitude, the array's root-mean-square error could rise by up to about 3% at `conservative` or 41% at `matched`. These percentages describe the array, not individual elements. They also apply in lossy mode, where `tau` bounds the root-mean-square error itself. The factors 1/4, 1 and 4 are choices for this benchmark.
 
-For integer corpora, we round each bound down to a multiple of the largest `scale` in the corpus. `scale` is the value of one stored integer step. In the Sentinel-2 example, `sigma / 4` is 2.5 DN and rounds to 2 DN. A bound below one step rounds to zero, so the lossless result stands for it. Floating-point bounds use `tau` as shown.
+For integer corpora, we round each bound down to a multiple of the largest `scale` in the corpus. `scale` is the value of one stored integer step. In the Sentinel-2 example, `sigma / 4` is 2.5 DN and rounds to 2 DN. A bound below one step rounds to zero. The lossless result stands for it. Floating-point bounds use `tau` as shown.
 
 `sigma` approximates the standard deviation of random error at a typical element. We leave out offsets and errors shared by neighbouring elements when the source lets us distinguish them. We choose `sigma` in this order.
 
@@ -67,7 +67,7 @@ For multiband corpora, `sigma` is a typical value across bands. Noise can also v
 
 ### The `recommended` level
 
-For the ERA5 corpora we add a fourth level, the bounds that ECMWF scientists recommend for these variables in the community recommendations for safe lossy compression (Tyree et al. 2026, version 0.1.0b1). It does not follow the rule of Section 1, so we report it as a separate level.
+For the ERA5 corpora, we add bounds recommended by ECMWF scientists in the community recommendations for safe lossy compression (Tyree et al. 2026, version 0.1.0b1). This is a fourth level where the mode supports it. It does not follow the rule of Section 1, so we report it separately.
 
 | corpus | recommendation | kind | `tau` |
 | --- | --- | --- | ---: |
@@ -86,16 +86,16 @@ These corpora have no budget, so they run in lossless mode only.
 | corpus | reason |
 | --- | --- |
 | `esa-wc-v200` | Land-cover class codes are unordered, so 95 is mangrove and 100 is moss. An error of one gives a different class. |
-| `tessera-v2-codes` | Embedding codes; the effect of an error on downstream tasks is not measured. |
-| `tessera-v2-scales` | A scale error multiplies all 128 dimensions of a pixel; the effect on downstream tasks is not measured. |
-| `alphaearth-v1-64` | Embedding codes; the effect of an error on downstream tasks is not measured. |
-| `clay-embeddings` | Embeddings; the effect of an error on downstream tasks is not measured. |
+| `tessera-v2-codes` | Embedding codes. The effect of an error on downstream tasks is not measured. |
+| `tessera-v2-scales` | A scale error multiplies all 128 dimensions of a pixel. The effect on downstream tasks is not measured. |
+| `alphaearth-v1-64` | Embedding codes. No error budget is specified. |
+| `clay-embeddings` | Embeddings. The effect of an error on downstream tasks is not measured. |
 | `goes-abi-16` | Each band has its own `scale` and mixes reflectance factor with brightness temperature, so one budget in native units does not apply to the whole array. |
 | `s1-grd-iw-2` | No per-element uncertainty of the linear backscatter is established. |
 
 ## 4. Limits of these budgets
 
-The bounds compare compression error with a reference error. They do not measure the effect on an analysis.
+The bounds compare compression error with a reference error. They do not measure its effect on an analysis.
 
 Compression error can be correlated with the signal, even when it is smaller than the noise. A derived quantity can also amplify it. A 10 DN bound on two similar reflectance bands allows a larger relative error in their normalised difference than in either band. A 1 m bound on DEM pixels allows up to 2 m of error in the height difference between neighbours.
 

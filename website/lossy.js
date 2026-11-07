@@ -246,10 +246,10 @@ function viewer(panel, set, key, onRate) {
     sr.textContent = caption(other.value, rv, stop);
     stage.classList.toggle("pixelated", ae);
     target.hidden = state.mode !== "similarity";
-    note.innerHTML = {
+    note.textContent = {
       image: ae ? "The first three principal components of the original embedding, as red, green and blue, applied to each decode. Drag to compare." : "True colour from B4, B3 and B2. Drag to compare.",
-      error: `Error at each pixel, ${ae ? "1 − cos" : "the RMSE of the four 10 m bands"}, on a scale from ${ae ? "0 to 0.05" : "0 to 250 DN"}, dark to light.`,
-      similarity: "The central 128 pixels. Click one, and each side shows the cosine of every pixel with it in that decode, from 0.4, dark, to 1, light: what a similarity search would find.",
+      error: `Pixel error is ${ae ? "1 − cos" : "the RMSE of the four 10 m bands"}. The scale runs from ${ae ? "0 to 0.05" : "0 to 250 DN"}, dark to light.`,
+      similarity: "The central 128 pixels. Click one. Each side shows the cosine of every pixel with the selected pixel in that decode, from 0.4, dark, to 1, light. This shows what a similarity search would find.",
     }[state.mode];
     await Promise.all([paint(cl, mine, set.georvq, lv), paint(cr, mine, other.value, rv)]);
     if (mine !== token) return;
@@ -265,8 +265,8 @@ function viewer(panel, set, key, onRate) {
     bar.style.setProperty("--read", `${(read / top) * 100}%`);
     bar.replaceChildren(...rungs.map(r => { const t = document.createElement("i"); t.style.left = `${(r.bits_per_pixel / top) * 100}%`; return t; }));
     text.textContent = lv
-      ? `One georvq file of ${top.toFixed(2)} bits per pixel holds all ${rungs.length} depths. At this rate a reader takes ${read.toFixed(2)} of them, ${Math.round((read / top) * 100)}% of the file. Every other codec writes a new file for each rate.`
-      : `One georvq file of ${top.toFixed(2)} bits per pixel holds all ${rungs.length} depths, and this rate is past its last one.`;
+      ? `One georvq file of ${top.toFixed(2)} bits per pixel holds all ${rungs.length} depths. At this rate, a reader uses ${read.toFixed(2)} bits per pixel, ${Math.round((read / top) * 100)}% of the file. Every other codec writes a new file for each rate.`
+      : `One georvq file of ${top.toFixed(2)} bits per pixel holds all ${rungs.length} depths. This rate is past the last depth.`;
   }
   function place() {
     cl.style.clipPath = `inset(0 ${(1 - state.split) * 100}% 0 0)`;
