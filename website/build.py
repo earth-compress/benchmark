@@ -220,7 +220,6 @@ def resized(source: Path | None, target: str, side: int, square: bool) -> str | 
 
 NAV = (
     ("Datasets", "datasets/"),
-    ("Lossy", "lossy/"),
     ("Protocol", "protocol/"),
     ("Codecs", "codecs/"),
     ("Use cases", "usecases/"),
@@ -611,21 +610,62 @@ def build() -> None:
     grid = "".join(
         card("", href, image, cid, meta) for cid, href, image, meta in corpus_cards
     )
+    samples = sum(sample_counts[cid] for cid in measured)
+    budgeted_count = sum(1 for cid in measured if near_totals_by.get(cid))
+    modes = (
+        ("Lossless", "lossless/", f"Every value back exactly. {len(measured)} corpora, {samples} samples."),
+        ("Near-lossless", "near-lossless/", f"Every value within a budget, with zeros and NoData kept. {budgeted_count} corpora with a budget."),
+        ("Lossy", "lossy/", "A bound on the average error. The learned codec georvq against the classical codecs on Sentinel-2 and AlphaEarth."),
+        ("Use cases", "usecases/", "What compression changes in a real analysis: methane plumes, drainage, change detection and clouds."),
+    )
+    entries = "".join(
+        f'<a class="mode" href="{href}"><span class="mode-name">{name}</span><span class="meta">{text}</span></a>'
+        for name, href, text in modes
+    )
     intro = (
         '<div class="home-intro"><h1>Earth Compress benchmark</h1>'
-        f"<p>Lossless compression results for {sum(sample_counts[cid] for cid in measured)} "
-        f"samples across {len(measured)} corpora of imagery, environmental fields and embeddings.</p></div>"
+        f"<p>Compression of {samples} samples across {len(measured)} corpora of imagery, "
+        "environmental fields and embeddings.</p></div>"
+    )
+    (OUT / "index.html").write_text(
+        layout(
+            "",
+            "Earth Compress benchmark",
+            f'{intro}<section class="modes-grid">{entries}</section>\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+        )
     )
     caption = (
         "Each point is a configuration. The line marks the best observed trade-offs. "
         "All corpora pools sizes and decode times across samples, so larger corpora "
         "carry more weight. Only configurations completed on every corpus appear."
     )
-    (OUT / "index.html").write_text(
+    (OUT / "lossless").mkdir(exist_ok=True)
+    (OUT / "lossless" / "index.html").write_text(
         layout(
-            "",
-            "Earth Compress benchmark",
-            f'{intro}{chart_block(select, caption=caption, near=near_select)}\n<section id="datasets"><h2>Datasets</h2><div class="grid">{grid}</div></section>',
+            "../",
+            "Lossless · Earth Compress benchmark",
+            f"""{crumbs("../", ("Lossless", None))}
+<h1>Lossless</h1>
+<p class="lead">Every value back exactly, on every corpus.</p>
+<section class="results"><div class="pick near-pick">{select}</div>
+<div class="chart" data-chart="all" data-select="corpus"></div><p class="chart-note">{caption}</p></section>""",
+            chart,
+        )
+    )
+    levels = "".join(
+        f'<option value="{level}"{" selected" if level == "matched" else ""}>{level}</option>'
+        for level in LEVELS
+    )
+    (OUT / "near-lossless").mkdir(exist_ok=True)
+    (OUT / "near-lossless" / "index.html").write_text(
+        layout(
+            "../",
+            "Near-lossless · Earth Compress benchmark",
+            f"""{crumbs("../", ("Near-lossless", None))}
+<h1>Near-lossless</h1>
+<p class="lead">Every value within the budget of its corpus, at four levels. See <a href="../tolerance/">Tolerance</a>.</p>
+<section class="results"><div class="pick near-pick">{near_select.replace('id="corpus"', 'id="near-corpus"')}<select id="near-level" aria-label="Budget level">{levels}</select></div>
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>""",
             chart,
         )
     )
@@ -732,46 +772,6 @@ def lossy_curves(rows: list[dict], metrics: dict) -> dict[str, list[dict]]:
     return out
 
 
-def rate_at(points: list[dict], key: str, target: float) -> tuple[float, bool] | None:
-    """The rate at which a curve first reaches ``target``, interpolated in log-log,
-    and whether its lowest rate already does."""
-    if points[0][key] <= target:
-        return points[0]["bpp"], True
-    for a, b in zip(points, points[1:]):
-        if a[key] > target >= b[key] and b[key] > 0:
-            t = (math.log(a[key]) - math.log(target)) / (math.log(a[key]) - math.log(b[key]))
-            return math.exp(math.log(a["bpp"]) + t * (math.log(b["bpp"]) - math.log(a["bpp"]))), False
-    return None
-
-
-def lossy_table(case: dict, curves: dict) -> str:
-    key, targets, unit = case["targets"]
-    head = "".join(f"<th>{unit.format(t)}</th>" for t in targets)
-
-    def cell(points: list[dict], target: float) -> str:
-        found = rate_at(points, key, target)
-        if found is None:
-            return "–"
-        rate, lowest = found
-        return f"{'≥ ' if lowest else ''}{case['original'] / rate:.1f}×"
-
-    def order(item) -> float:
-        found = rate_at(item[1], key, targets[1])
-        return found[0] if found else math.inf
-
-    rows = []
-    for codec, points in sorted(curves.items(), key=order):
-        label, colour = LOSSY_CODECS[codec]
-        rows.append(
-            f'<tr><td><span class="swatch" style="--c:{colour}"></span>{html.escape(label)}</td>'
-            + "".join(f"<td>{cell(points, t)}</td>" for t in targets)
-            + "</tr>"
-        )
-    return f"""<h3>Compression ratio at equal error</h3>
-<p class="note">{html.escape(case["metrics"][key][0])}, over every sample. – means it never gets there.</p>
-<div class="scroll"><table class="numbers"><thead><tr><th>codec</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>"""
-
-
 LOSSY_METHOD = f"""<section class="measure"><h2>How it is measured</h2><div class="doc">
 <ul>
 <li><a href="https://github.com/earth-compress/georvq">georvq</a> writes every depth in one file and a reader stops at the depth it needs. Its size is the bit count of its bundle for that depth; model weights are not counted.</li>
@@ -787,9 +787,9 @@ uv run --extra learned python lossy/views.py</code></pre>
 </div></section>"""
 
 
-def lossy_panel(case: dict, scene: str, viewer: str = "", table: str = "") -> str:
+def lossy_panel(case: dict, scene: str, viewer: str = "") -> str:
     """The charts of one scene, or of every scene with ``all``, with the viewer
-    and the table when given."""
+    when given."""
     options = "".join(
         f'<option value="{key}">{html.escape(name)}</option>'
         for key, (name, _, _) in case["metrics"].items()
@@ -798,7 +798,7 @@ def lossy_panel(case: dict, scene: str, viewer: str = "", table: str = "") -> st
 <div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
 <div class="lossy-charts"><div class="chart speed"></div><div class="chart rd"></div></div>
 <p class="chart-note">Each point is a setting; a line joins the settings of one codec. All of a georvq line is one file.</p>
-{viewer}{table}
+{viewer}
 </div></section>"""
 
 
@@ -904,7 +904,7 @@ def lossy_page() -> None:
         body = f"""{crumbs("../../", ("Lossy", "lossy/"), (case["title"], None))}
 <h1>{case["title"]}</h1>
 <p class="lead">{len(scenes)} samples of <a href="../../datasets/{case["corpus"]}/"><code>{case["corpus"]}</code></a>.</p>
-{lossy_panel(case, "all", table=lossy_table(case, curves))}
+{lossy_panel(case, "all")}
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
         target = OUT / "lossy" / key / "index.html"
         target.write_text(
