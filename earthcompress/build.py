@@ -208,7 +208,9 @@ def main(
     """Command line of a corpus ``build.py``."""
     parser = argparse.ArgumentParser(prog=f"{corpus.name}/build.py")
     sub = parser.add_subparsers(dest="step", required=True)
-    sub.add_parser("select", help="choose the samples and write manifest.csv")
+    sub.add_parser(
+        "select", help="re-read the samples listed in manifest.csv and rewrite it"
+    )
     run = sub.add_parser("build", help="fetch every sample listed in manifest.csv")
     run.add_argument("--only", nargs="*", help="sample ids to build")
     if preview is not None:

@@ -86,7 +86,7 @@ The corpora in the lossless-only table of `TOLERANCE.md` have no budget. That pa
 ```text
 corpora/<corpus-id>/
 ├── spec.md               sample definition, native unit, licence
-├── build.py              sample selection, rebuild, and exactness assertions
+├── build.py              manifest rewrite, rebuild, and exactness assertions
 ├── manifest.csv          one row per sample
 ├── npz/<sample>.npz.zst  sample data
 ├── png/<sample>.png      preview, never measured
