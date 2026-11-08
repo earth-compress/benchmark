@@ -165,17 +165,3 @@ document.querySelectorAll("[data-chart]").forEach(box => {
   const render = mountChart(box, () => (selects.length ? selects.map(s => s.value).join("|") : box.dataset.chart));
   selects.forEach(s => s.addEventListener("change", render));
 });
-
-const tabs = [...document.querySelectorAll('[role="tab"]')];
-tabs.forEach(tab => tab.addEventListener("click", () => {
-  tabs.forEach(t => {
-    const on = t === tab;
-    t.setAttribute("aria-selected", String(on));
-    document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
-  });
-  // A chart drawn while its panel was hidden had no width, so draw it again.
-  window.dispatchEvent(new Event("resize"));
-  document.getElementById(tab.getAttribute("aria-controls")).querySelectorAll("select").forEach(s => s.dispatchEvent(new Event("change")));
-  const pick = document.querySelector(".controls .pick");
-  if (pick) pick.style.visibility = tab === tabs[0] ? "visible" : "hidden";
-}));

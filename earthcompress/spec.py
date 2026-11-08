@@ -47,15 +47,6 @@ class ArraySpec:
             raise ValueError("per-plane offsets need per-plane scales")
         raise ValueError(f"{len(self.offset)} offsets for {len(self.scale)} scales")
 
-    def plane_scale(self) -> np.ndarray:
-        """The scale broadcastable against the array."""
-        values = np.asarray(self.scale, dtype=np.float64)
-        if values.size == 1:
-            return values.reshape(())
-        if not self.shape or values.size != self.shape[0]:
-            raise ValueError(f"{values.size} scales for an array of shape {self.shape}")
-        return values.reshape((-1,) + (1,) * (len(self.shape) - 1))
-
     @property
     def size(self) -> int:
         """Number of elements."""

@@ -247,13 +247,6 @@ def _describe(row: dict[str, Any]) -> str:
     return text
 
 
-def _status(row: dict[str, Any]) -> str:
-    """The status of a row; rows written before it was recorded either passed or crashed."""
-    if row.get("status"):
-        return str(row["status"])
-    return "ok" if str(row["fidelity_ok"]) == "True" else "crash"
-
-
 def _count(row: dict[str, Any]) -> int:
     """Element count of a result row."""
     return round(int(row["compressed_bytes"]) * 8 / float(row["bits_per_value"]))
@@ -266,7 +259,7 @@ def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, di
         selected = [
             row
             for row in rows
-            if row["configuration"] == configuration and _status(row) != "crash"
+            if row["configuration"] == configuration and row["status"] != "crash"
         ]
         if len(selected) != sample_count:
             totals[configuration] = {"complete": False}
@@ -299,7 +292,9 @@ def aggregate(rows: Sequence[dict[str, Any]], sample_count: int) -> dict[str, di
             "fidelity_ok": all(str(r["fidelity_ok"]) == "True" for r in selected),
             **{
                 f"{name}_violations": sum(
-                    int(r.get(f"{name}_violations") or 0) for r in selected
+                    int(r[f"{name}_violations"])
+                    for r in selected
+                    if r[f"{name}_violations"] != ""
                 )
                 for name in _VIOLATIONS
             },

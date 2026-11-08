@@ -56,13 +56,6 @@ def compress(
     return codec.decode(encoded), len(encoded)
 
 
-def roundtrip(
-    config: CodecConfiguration, array: np.ndarray, spec: ArraySpec
-) -> np.ndarray:
-    """``array`` as ``config`` decodes it."""
-    return compress(config, array, spec)[0]
-
-
 def lossy_codecs() -> tuple[Callable[[Budget], CodecConfiguration], ...]:
     """GeoZL with PIVCO and with PFOR behind the lossy quantiser, and JPEG XL with
     its distance searched, all holding the root-mean-square error of each array

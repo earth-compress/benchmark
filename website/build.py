@@ -105,7 +105,7 @@ def near_totals(rows: list[dict]) -> dict[str, dict[str, dict]]:
             broken = [
                 promise
                 for promise in ("bound", "sentinel", "zero")
-                if any(float(r[f"{promise}_violations"] or 0) > 0 for r in mine)
+                if any(r[f"{promise}_violations"] not in ("", "0") for r in mine)
             ]
             out.setdefault(level, {})[base(config)] = {**entry(mine), "broken": broken}
     return out
@@ -377,13 +377,6 @@ NEAR_NOTE = (
 )
 
 
-NO_BUDGET = (
-    '<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>This corpus '
-    "has no error budget, so it runs in lossless mode only. See "
-    '<a href="{root}tolerance/">Tolerance</a>.</p></div>'
-)
-
-
 def sample_links(
     cid: str,
     sid: str,
@@ -423,9 +416,7 @@ def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
         if not path.exists():
             continue
         with path.open(newline="") as stream:
-            for sid in sorted(
-                {r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}
-            ):
+            for sid in sorted({r["id"] for r in csv.DictReader(stream)}):
                 found.setdefault(sid, []).append((case["folder"], case["title"]))
     return found
 
@@ -458,45 +449,6 @@ def near_block(key: str, levels: tuple[str, ...]) -> str:
     )
     return f"""<section class="results"><div class="pick near-pick"><select id="near-corpus" hidden><option value="{key}">{key}</option></select><select id="near-level" aria-label="Budget level">{options}</select></div>
 <div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>"""
-
-
-def chart_block(
-    select: str = "",
-    key: str = "all",
-    caption: str = "",
-    near: str = "",
-    budget: bool = True,
-    root: str = "",
-    levels: tuple[str, ...] = LEVELS,
-) -> str:
-    pick = f'<label class="pick">{select}</label>' if select else ""
-    note = f'<p class="chart-note">{caption}</p>' if caption else ""
-    chosen = "matched" if "matched" in levels else (levels or ("",))[0]
-    levels = "".join(
-        f'<option value="{level}"{" selected" if level == chosen else ""}>{level}</option>'
-        for level in levels
-    )
-    corpus = (
-        near.replace('id="corpus"', 'id="near-corpus"')
-        if near
-        else f'<select id="near-corpus" hidden><option value="{key}">{key}</option></select>'
-    )
-    near_panel = f"""<div class="panel" role="tabpanel" id="panel-near" hidden>
-<div class="pick near-pick">{corpus}<select id="near-level" aria-label="Budget level">{levels}</select></div>
-<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></div>"""
-    if not budget:
-        near_panel = NO_BUDGET.format(root=root)
-    return f"""<section class="results">
-<div class="controls">
-<div class="tabs" role="tablist" aria-label="Fidelity mode">
-<button type="button" role="tab" aria-controls="panel-lossless" aria-selected="true">Lossless</button>
-<button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless</button>
-</div>
-{pick}
-</div>
-<div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div>{note}</div>
-{near_panel}
-</section>"""
 
 
 def families(corpora: Path) -> dict[str, str]:
