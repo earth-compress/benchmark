@@ -53,6 +53,7 @@ def select() -> list[dict[str, str]]:
                 "scale": b.join(repr(f["scale"]) for f in found),
                 "offset": b.join(repr(f["offset"]) for f in found),
                 "nodata": "",
+                "input_sha256": sample["input_sha256"],
                 "variable": VARIABLE,
                 "grib_short_name": SHORT,
                 "bits_per_value": b.join(sorted({f["bits"] for f in found})),

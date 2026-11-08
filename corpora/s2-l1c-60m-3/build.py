@@ -40,6 +40,7 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "0",
+                "input_sha256": sample["input_sha256"],
                 "site": sample["site"],
                 "regime": sample["regime"],
                 "lon": sample["lon"],
