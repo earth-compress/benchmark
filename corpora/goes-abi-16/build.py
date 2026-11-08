@@ -17,21 +17,21 @@ GAMMA = 2.2
 def select() -> list[dict[str, str]]:
     ee = src.ee_init()
     rows = []
-    for old in b.legacy(CORPUS):
-        asset = f"{COLLECTION}/{old['asset']}"
+    for sample in b.read_manifest(CORPUS):
+        asset = sample["asset"]
         image = ee.Image(asset)
         info = image.select(BANDS[0]).projection().getInfo()
         step, x0, y0 = info["transform"][0], info["transform"][2], info["transform"][5]
         # Earth Engine delivers the fixed grid south up; the window is read north up.
-        west = x0 + int(old["grid_column"]) * step
-        north = y0 + (int(old["grid_row"]) + SIZE) * step
+        west = x0 + int(sample["grid_column"]) * step
+        north = y0 + (int(sample["grid_row"]) + SIZE) * step
         keys = ["system:time_start"] + [
             f"{band}_{k}" for band in BANDS for k in ("scale", "offset")
         ]
         props = image.toDictionary(keys).getInfo()
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": f"{COLLECTION} (GOES-16 ABI L2 Cloud and Moisture Imagery, full disk)",
                 "asset": asset,
                 "crs": re.sub(r",\s+", ",", info["wkt"]),
@@ -45,14 +45,14 @@ def select() -> list[dict[str, str]]:
                 "scale": b.join(props[f"{band}_scale"] for band in BANDS),
                 "offset": b.join(props[f"{band}_offset"] for band in BANDS),
                 "nodata": "",
-                "input_sha256": old["input_sha256"],
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
-                "grid_column": old["grid_column"],
-                "grid_row": old["grid_row"],
-                "sun_elevation": old["sun_elevation"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "grid_column": sample["grid_column"],
+                "grid_row": sample["grid_row"],
+                "sun_elevation": sample["sun_elevation"],
             }
         )
     return rows

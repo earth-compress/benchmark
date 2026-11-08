@@ -10,7 +10,6 @@ CORPUS = Path(__file__).resolve().parent
 COLLECTION = "NASA/GPM_L3/IMERG_V07"
 BAND = "precipitation"
 STEPS = 12
-CELL = 0.1
 SIZE = 512
 SCALE = float(np.float32(0.01))  # IMERG rates are float32 counts times float32 0.01
 
@@ -18,8 +17,8 @@ SCALE = float(np.float32(0.01))  # IMERG rates are float32 counts times float32 
 def select() -> list[dict[str, str]]:
     ee = src.ee_init()
     rows = []
-    for old in b.legacy(CORPUS):
-        start = dt.datetime.fromisoformat(old["start_utc"])
+    for sample in b.read_manifest(CORPUS):
+        start = dt.datetime.fromisoformat(sample["datetime_start"])
         end = start + dt.timedelta(minutes=30 * STEPS)
         found = (
             ee.ImageCollection(COLLECTION)
@@ -29,16 +28,14 @@ def select() -> list[dict[str, str]]:
             .getInfo()
         )
         if len(found) != STEPS:
-            raise ValueError(f"{old['id']}: {len(found)} half-hours found")
+            raise ValueError(f"{sample['id']}: {len(found)} half-hours found")
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": f"{COLLECTION} (GPM IMERG Final Run V07, half-hourly)",
                 "asset": b.join(f"{COLLECTION}/{index}" for index in found),
                 "crs": "EPSG:4326",
-                "transform": b.transform_text(
-                    float(old["west"]), CELL, float(old["north"]), -CELL
-                ),
+                "transform": sample["transform"],
                 "datetime_start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "datetime_end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "bands": b.join([BAND] * STEPS),
@@ -48,13 +45,13 @@ def select() -> list[dict[str, str]]:
                 "scale": repr(SCALE),
                 "offset": "0",
                 "nodata": "",
-                "input_sha256": old["input_sha256"],
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["center_lon"],
-                "lat": old["center_lat"],
-                "grid_column": old["grid_column"],
-                "grid_row": old["grid_row"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "grid_column": sample["grid_column"],
+                "grid_row": sample["grid_row"],
             }
         )
     return rows

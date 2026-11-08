@@ -16,15 +16,15 @@ def url(tile: str) -> str:
 
 def select() -> list[dict[str, str]]:
     rows = []
-    for old in b.legacy(CORPUS):
+    for sample in b.read_manifest(CORPUS):
         crs, transform = src.cog_centre(
-            url(old["tile"]), float(old["lon"]), float(old["lat"]), SIZE
+            url(sample["tile"]), float(sample["lon"]), float(sample["lat"]), SIZE
         )
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": "Copernicus DEM GLO-30 (2021 release), AWS open data",
-                "asset": f"{BUCKET}/{old['tile']}/{old['tile']}.tif",
+                "asset": f"{BUCKET}/{sample['tile']}/{sample['tile']}.tif",
                 "crs": crs,
                 "transform": " ".join(repr(float(v)) for v in transform),
                 "datetime_start": "2011-01-01T00:00:00Z",
@@ -36,11 +36,11 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
-                "tile": old["tile"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "tile": sample["tile"],
             }
         )
     return rows

@@ -55,17 +55,6 @@ def parse_shape(value: str) -> tuple[int, ...]:
     return tuple(int(v) for v in value.split("x"))
 
 
-def legacy(corpus: Path, name: str | None = None) -> list[dict[str, str]]:
-    """Rows of the prototype manifest, so that ``select`` keeps the same samples."""
-    import os
-
-    root = Path(
-        os.environ.get("EC_LEGACY", corpus.parents[2] / "ec-benchmark" / "corpora")
-    )
-    with (root / (name or corpus.name) / "manifest.csv").open(newline="") as stream:
-        return list(csv.DictReader(stream))
-
-
 def cast(data: np.ndarray, dtype: str) -> np.ndarray:
     """Cast to the manifest dtype, refusing any change of value."""
     out = data.astype(dtype)

@@ -7,6 +7,7 @@ from earthcompress import sources as src
 
 CORPUS = Path(__file__).resolve().parent
 ROOT = "https://storage.googleapis.com/alphaearth_foundations/satellite_embedding/v1/annual"
+BUCKET = "gs://alphaearth_foundations/satellite_embedding/v1/annual"
 BANDS = [f"A{i:02d}" for i in range(64)]
 PIXEL = 10
 SIZE = 512
@@ -29,33 +30,30 @@ def index() -> list[dict[str, str]]:
 def select() -> list[dict[str, str]]:
     files = index()
     rows = []
-    for old in b.legacy(CORPUS):
-        x0, y0 = float(old["translate_x"]), float(old["translate_y"])
+    for sample in b.read_manifest(CORPUS):
+        x0, _, _, y0, _, _ = b.parse_transform(sample["transform"])
         x1, y1 = x0 + SIZE * PIXEL, y0 - SIZE * PIXEL
         found = [
             f
             for f in files
-            if old["image_id"] in f["path"]
-            and f["year"] == old["year"]
+            if f["path"].replace(BUCKET, ROOT) == sample["asset"]
+            and f["year"] == sample["year"]
             and float(f["utm_west"]) <= x0
             and x1 <= float(f["utm_east"])
             and float(f["utm_south"]) <= y1
             and y0 <= float(f["utm_north"])
         ]
         if len(found) != 1:
-            raise ValueError(f"{old['id']}: {len(found)} files hold the window")
-        asset = found[0]["path"].replace(
-            "gs://alphaearth_foundations/satellite_embedding/v1/annual", ROOT
-        )
+            raise ValueError(f"{sample['id']}: {len(found)} files hold the window")
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": "AlphaEarth Foundations Satellite Embedding V1 annual, int8 COGs",
-                "asset": asset,
+                "asset": sample["asset"],
                 "crs": found[0]["crs"],
                 "transform": b.transform_text(x0, PIXEL, y0, -PIXEL),
-                "datetime_start": f"{old['year']}-01-01T00:00:00Z",
-                "datetime_end": f"{old['year']}-12-31T23:59:59Z",
+                "datetime_start": f"{sample['year']}-01-01T00:00:00Z",
+                "datetime_end": f"{sample['year']}-12-31T23:59:59Z",
                 "bands": b.join(BANDS),
                 "shape": f"{len(BANDS)}x{SIZE}x{SIZE}",
                 "dtype": "int8",
@@ -63,12 +61,12 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "-128",
-                "input_sha256": old["input_sha256"],
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
-                "year": old["year"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "year": sample["year"],
             }
         )
     return rows

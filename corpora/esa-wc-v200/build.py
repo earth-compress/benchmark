@@ -25,14 +25,14 @@ COLOURS = {
 
 def select() -> list[dict[str, str]]:
     rows = []
-    for old in b.legacy(CORPUS):
-        asset = f"{BASE}/{old['tile']}.tif"
+    for sample in b.read_manifest(CORPUS):
+        asset = f"{BASE}/{sample['tile']}.tif"
         crs, transform = src.cog_centre(
-            "/vsicurl/" + asset, float(old["lon"]), float(old["lat"]), SIZE
+            "/vsicurl/" + asset, float(sample["lon"]), float(sample["lat"]), SIZE
         )
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": "ESA WorldCover 10 m 2021 v200, AWS open data",
                 "asset": asset,
                 "crs": crs,
@@ -46,12 +46,12 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "0",
-                "input_sha256": old["input_sha256"],
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
-                "tile": old["tile"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "tile": sample["tile"],
             }
         )
     return rows

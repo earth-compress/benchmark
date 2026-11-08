@@ -4,9 +4,7 @@ from earthcompress import build as b
 from earthcompress import sources as src
 
 CORPUS = Path(__file__).resolve().parent
-COLLECTION = "COPERNICUS/S2"
 BANDS = ["B1", "B9", "B10"]
-PIXEL = 60
 SIZE = 512
 PREVIEW = (0, 1, 2)
 
@@ -14,8 +12,8 @@ PREVIEW = (0, 1, 2)
 def select() -> list[dict[str, str]]:
     ee = src.ee_init()
     rows = []
-    for old in b.legacy(CORPUS):
-        asset = f"{COLLECTION}/{old['image_id']}"
+    for sample in b.read_manifest(CORPUS):
+        asset = sample["asset"]
         image = ee.Image(asset)
         keys = [
             "system:time_start",
@@ -28,13 +26,11 @@ def select() -> list[dict[str, str]]:
         when = src.utc(props["system:time_start"])
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": "COPERNICUS/S2 (Sentinel-2 MSI Level-1C)",
                 "asset": asset,
-                "crs": old["crs"],
-                "transform": b.transform_text(
-                    float(old["translate_x"]), PIXEL, float(old["translate_y"]), -PIXEL
-                ),
+                "crs": sample["crs"],
+                "transform": sample["transform"],
                 "datetime_start": when,
                 "datetime_end": when,
                 "bands": b.join(BANDS),
@@ -44,10 +40,10 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "0",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
                 "spacecraft": props.get("SPACECRAFT_NAME", ""),
                 "mgrs_tile": props.get("MGRS_TILE", ""),
                 "processing_baseline": props.get("PROCESSING_BASELINE", ""),
