@@ -6,6 +6,7 @@ on:
     paths:
       - "corpora/**"
       - "usecases/**"
+      - "lossy/**"
       - "website/**"
       - "earthcompress/**"
       - "*.md"

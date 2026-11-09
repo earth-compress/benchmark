@@ -8,6 +8,7 @@ import math
 import re
 import shutil
 import statistics
+import tarfile
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -193,6 +194,28 @@ def usecase_png(folder: str, sample: str, name: str) -> Path | None:
     results = (ROOT / "usecases" / folder / "results.csv").read_bytes()
     run = hashlib.sha256(results).hexdigest()[:10]
     return fetched(ROOT / path, path, f"usecases/{folder}/{run}/{sample}/{name}.png")
+
+
+def lossy_views(key: str) -> Path | None:
+    """The page pictures of a lossy case: made locally by ``lossy/views.py``,
+    or fetched from Hugging Face as one archive.
+
+    The cache keeps them by the digest of the case's ``results.csv``.
+    """
+    local = ROOT / "lossy" / key / "views"
+    if local.exists():
+        return local
+    results = (ROOT / "lossy" / key / "results.csv").read_bytes()
+    run = hashlib.sha256(results).hexdigest()[:10]
+    folder = CACHE / "lossy" / key / run
+    if not (folder / "views").exists():
+        archive = fetched(local, f"lossy/{key}/views.tar", f"lossy/{key}/{run}.tar")
+        if archive is None:
+            return None
+        with tarfile.open(archive) as tar:
+            tar.extractall(folder, filter="data")
+        archive.unlink()
+    return folder / "views"
 
 
 def resized(source: Path | None, target: str, side: int, square: bool) -> str | None:
@@ -1133,8 +1156,9 @@ def lossy_page() -> None:
         for s in manifest(ROOT / "corpora" / case["corpus"]):
             sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
             corpus_rows[sid] = s
+        views = lossy_views(key)
         samples = {}
-        for path in sorted((folder / "views").glob("*/sample.json")):
+        for path in sorted(views.glob("*/sample.json")) if views else []:
             sid = path.parent.name
             shutil.copytree(path.parent, OUT / "lossy" / key / sid)
             samples[sid] = json.loads(path.read_text())
@@ -1144,9 +1168,9 @@ def lossy_page() -> None:
         cards = []
         first = None
         for i, sid in enumerate(scenes):
-            source = folder / "views" / sid / "original.webp"
+            source = views / sid / "original.webp" if views else None
             thumb = resized(
-                source if source.exists() else None,
+                source if source and source.exists() else None,
                 f"img/lossy/{key}/{sid}.webp",
                 THUMB,
                 True,
