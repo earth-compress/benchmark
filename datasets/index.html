@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets · Earth Compress benchmark</title>
+<link rel="icon" href="../earth-compress.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css?v=b9459788f7">
+</head>
+<body>
+<header><div class="wrap bar">
+<a class="brand" href="../"><img src="../earth-compress.svg" alt="Earth Compress benchmark" height="30"></a>
+<nav class="modes-switch" aria-label="Results"><a href="../lossless/" aria-label="Lossless" data-label="Lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/><path d="M7.6 7h.8M7.6 9h.8"/></svg></a><a href="../near-lossless/" aria-label="Near-lossless" data-label="Near-lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/><path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/></svg></a><a href="../lossy/" aria-label="Lossy" data-label="Lossy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/><rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/></svg></a><a href="../usecases/" aria-label="Use cases" data-label="Use cases"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/></svg></a></nav>
+<nav><a href="../datasets/">Datasets</a><a href="../protocol/">Protocol</a><a href="../codecs/">Codecs</a><a href="../tolerance/">Tolerance</a><a class="icon" href="https://github.com/earth-compress/benchmark" title="GitHub" aria-label="GitHub"><svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a><a class="icon" href="https://huggingface.co/datasets/earth-compress/benchmark" title="Hugging Face" aria-label="Hugging Face"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><circle cx="16" cy="15" r="12" fill="#FFD21E"/><circle cx="11.5" cy="12.5" r="1.6" fill="#3A3B45"/><circle cx="20.5" cy="12.5" r="1.6" fill="#3A3B45"/><path d="M10.5 17.5c1.2 2.4 3.2 3.6 5.5 3.6s4.3-1.2 5.5-3.6" fill="none" stroke="#3A3B45" stroke-width="1.8" stroke-linecap="round"/><path d="M4.5 22.5c1.5-1.8 3.5-2 4.6-.6l1.6 2.1c.7 1-.1 2.4-1.3 2.3l-3.4-.4c-1.4-.2-2.2-2.1-1.5-3.4zM27.5 22.5c-1.5-1.8-3.5-2-4.6-.6l-1.6 2.1c-.7 1 .1 2.4 1.3 2.3l3.4-.4c1.4-.2 2.2-2.1 1.5-3.4z" fill="#FF9D0B"/></svg></a></nav>
+</div></header><main class="wrap">
+<p class="crumbs"><a href="../">Benchmark</a> / <span>Datasets</span></p><h1>Datasets</h1><div class="grid"><a class="card" href="../datasets/s2-l1c-10m-4/"><img src="../img/s2-l1c-10m-4/s2-l1c-10m-4-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">s2-l1c-10m-4</span><span class="meta">4×512×512 · uint16</span></a><a class="card" href="../datasets/s2-l1c-20m-6/"><img src="../img/s2-l1c-20m-6/s2-l1c-20m-6-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">s2-l1c-20m-6</span><span class="meta">6×512×512 · uint16</span></a><a class="card" href="../datasets/s2-l1c-60m-3/"><img src="../img/s2-l1c-60m-3/s2-l1c-60m-3-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">s2-l1c-60m-3</span><span class="meta">3×512×512 · uint16</span></a><a class="card" href="../datasets/lm-mss-4/"><img src="../img/lm-mss-4/lm-mss-4-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">lm-mss-4</span><span class="meta">4×512×512 · uint8</span></a><a class="card" href="../datasets/l5-tm-6/"><img src="../img/l5-tm-6/l5-tm-6-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l5-tm-6</span><span class="meta">6×512×512 · uint8</span></a><a class="card" href="../datasets/l5-tm-tir/"><img src="../img/l5-tm-tir/l5-tm-tir-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l5-tm-tir</span><span class="meta">512×512 · uint8</span></a><a class="card" href="../datasets/l7-etm-6/"><img src="../img/l7-etm-6/l7-etm-6-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l7-etm-6</span><span class="meta">6×512×512 · uint8</span></a><a class="card" href="../datasets/l7-etm-pan/"><img src="../img/l7-etm-pan/l7-etm-pan-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l7-etm-pan</span><span class="meta">1024×1024 · uint8</span></a><a class="card" href="../datasets/l7-etm-tir-2/"><img src="../img/l7-etm-tir-2/l7-etm-tir-2-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l7-etm-tir-2</span><span class="meta">2×512×512 · uint8</span></a><a class="card" href="../datasets/l8-oli-8/"><img src="../img/l8-oli-8/l8-oli-8-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l8-oli-8</span><span class="meta">8×512×512 · uint16</span></a><a class="card" href="../datasets/l8-oli-pan/"><img src="../img/l8-oli-pan/l8-oli-pan-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l8-oli-pan</span><span class="meta">1024×1024 · uint16</span></a><a class="card" href="../datasets/l8-tirs-2/"><img src="../img/l8-tirs-2/l8-tirs-2-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">l8-tirs-2</span><span class="meta">2×512×512 · uint16</span></a><a class="card" href="../datasets/goes-abi-16/"><img src="../img/goes-abi-16/goes-abi-16-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">goes-abi-16</span><span class="meta">16×512×512 · uint16</span></a><a class="card" href="../datasets/s1-grd-iw-2/"><img src="../img/s1-grd-iw-2/s1-grd-iw-2-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">s1-grd-iw-2</span><span class="meta">2×512×512 · float32</span></a><a class="card" href="../datasets/emit-l2a-285/"><img src="../img/emit-l2a-285/emit-l2a-285-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">emit-l2a-285</span><span class="meta">285×128×128 · float32</span></a><a class="card" href="../datasets/cop-dem-glo30/"><img src="../img/cop-dem-glo30/cop-dem-glo30-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">cop-dem-glo30</span><span class="meta">512×512 · float32</span></a><a class="card" href="../datasets/esa-wc-v200/"><img src="../img/esa-wc-v200/esa-wc-v200-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">esa-wc-v200</span><span class="meta">512×512 · uint8</span></a><a class="card" href="../datasets/imerg-pcp-12/"><img src="../img/imerg-pcp-12/imerg-pcp-12-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">imerg-pcp-12</span><span class="meta">12×512×512 · uint16</span></a><a class="card" href="../datasets/era5-msl-1h/"><img src="../img/era5-msl-1h/era5-msl-1h-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">era5-msl-1h</span><span class="meta">24×721×1440 · uint16</span></a><a class="card" href="../datasets/era5-t2m-1h/"><img src="../img/era5-t2m-1h/era5-t2m-1h-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">era5-t2m-1h</span><span class="meta">24×721×1440 · uint16</span></a><a class="card" href="../datasets/era5-tcc-1h/"><img src="../img/era5-tcc-1h/era5-tcc-1h-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">era5-tcc-1h</span><span class="meta">24×721×1440 · uint16</span></a><a class="card" href="../datasets/era5-tp-1h/"><img src="../img/era5-tp-1h/era5-tp-1h-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">era5-tp-1h</span><span class="meta">24×721×1440 · uint16</span></a><a class="card" href="../datasets/era5-u10-1h/"><img src="../img/era5-u10-1h/era5-u10-1h-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">era5-u10-1h</span><span class="meta">24×721×1440 · uint16</span></a><a class="card" href="../datasets/alphaearth-v1-64/"><img src="../img/alphaearth-v1-64/alphaearth-v1-64-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">alphaearth-v1-64</span><span class="meta">64×512×512 · int8</span></a><a class="card" href="../datasets/tessera-v2-codes/"><img src="../img/tessera-v2-codes/tessera-v2-codes-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">tessera-v2-codes</span><span class="meta">128×512×512 · int8</span></a><a class="card" href="../datasets/tessera-v2-scales/"><img src="../img/tessera-v2-scales/tessera-v2-scales-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">tessera-v2-scales</span><span class="meta">512×512 · float32</span></a><a class="card" href="../datasets/clay-embeddings/"><img src="../img/clay-embeddings/clay-embeddings-00.webp" alt="" loading="lazy" width="192" height="192"><span class="cid">clay-embeddings</span><span class="meta">1024×32×32 · float32</span></a></div><article class="doc wide">
+<p>The benchmark contains 585 samples in 27 corpora. The samples are hosted in the Hugging Face dataset <a href="https://huggingface.co/datasets/earth-compress/benchmark">earth-compress/benchmark</a> and downloaded on first use. Each corpus directory has a build script, description and manifest.</p>
+<p>Most samples are windows from published products. ERA5 samples are complete global fields. Clay samples are blocks of MajorTOM cells. For samples with several planes, the first axis holds bands, time steps or embedding dimensions.</p>
+<h2>Corpora</h2>
+<table>
+<thead>
+<tr>
+<th>corpus</th>
+<th>contents</th>
+<th>shape</th>
+<th>dtype</th>
+<th><code>scale</code>, <code>offset</code></th>
+<th style="text-align: right;">samples</th>
+<th style="text-align: right;">raw MB, all samples</th>
+<th>source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s2-l1c-10m-4</code></td>
+<td>Sentinel-2 L1C, bands B2, B3, B4, B8 at 10 m</td>
+<td>4×512×512</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">104.9</td>
+<td><code>COPERNICUS/S2</code></td>
+</tr>
+<tr>
+<td><code>s2-l1c-20m-6</code></td>
+<td>Sentinel-2 L1C, red-edge, narrow NIR and SWIR bands at 20 m</td>
+<td>6×512×512</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">157.3</td>
+<td><code>COPERNICUS/S2</code></td>
+</tr>
+<tr>
+<td><code>s2-l1c-60m-3</code></td>
+<td>Sentinel-2 L1C, aerosol, water vapour and cirrus bands at 60 m</td>
+<td>3×512×512</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">78.6</td>
+<td><code>COPERNICUS/S2</code></td>
+</tr>
+<tr>
+<td><code>lm-mss-4</code></td>
+<td>Landsat 1–5 MSS, four bands at 60 m</td>
+<td>4×512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">15.7</td>
+<td><code>LANDSAT/LM01</code>–<code>LM05</code> C2 L1</td>
+</tr>
+<tr>
+<td><code>l5-tm-6</code></td>
+<td>Landsat 5 TM, six reflective bands at 30 m</td>
+<td>6×512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">23.6</td>
+<td><code>LANDSAT/LT05/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l5-tm-tir</code></td>
+<td>Landsat 5 TM, thermal band B6</td>
+<td>512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">3.9</td>
+<td><code>LANDSAT/LT05/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l7-etm-6</code></td>
+<td>Landsat 7 ETM+, six reflective bands at 30 m</td>
+<td>6×512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">23.6</td>
+<td><code>LANDSAT/LE07/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l7-etm-pan</code></td>
+<td>Landsat 7 ETM+, panchromatic band at 15 m</td>
+<td>1024×1024</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">15.7</td>
+<td><code>LANDSAT/LE07/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l7-etm-tir-2</code></td>
+<td>Landsat 7 ETM+, thermal band at low and high gain</td>
+<td>2×512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">7.9</td>
+<td><code>LANDSAT/LE07/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l8-oli-8</code></td>
+<td>Landsat 8 OLI, eight reflective bands at 30 m</td>
+<td>8×512×512</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">62.9</td>
+<td><code>LANDSAT/LC08/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l8-oli-pan</code></td>
+<td>Landsat 8 OLI, panchromatic band at 15 m</td>
+<td>1024×1024</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">31.5</td>
+<td><code>LANDSAT/LC08/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>l8-tirs-2</code></td>
+<td>Landsat 8 TIRS, thermal bands B10 and B11</td>
+<td>2×512×512</td>
+<td>uint16</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">15.7</td>
+<td><code>LANDSAT/LC08/C02/T1</code></td>
+</tr>
+<tr>
+<td><code>goes-abi-16</code></td>
+<td>GOES-16 ABI, sixteen bands as counts with per-band scale and offset</td>
+<td>16×512×512</td>
+<td>uint16</td>
+<td>per channel, from the product</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">125.8</td>
+<td><code>NOAA/GOES/16/MCMIPF</code></td>
+</tr>
+<tr>
+<td><code>s1-grd-iw-2</code></td>
+<td>Sentinel-1 GRD IW, VV and VH backscatter, linear</td>
+<td>2×512×512</td>
+<td>float32</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">104.9</td>
+<td><code>COPERNICUS/S1_GRD_FLOAT</code></td>
+</tr>
+<tr>
+<td><code>emit-l2a-285</code></td>
+<td>EMIT L2A reflectance, 285 bands at 60 m</td>
+<td>285×128×128</td>
+<td>float32</td>
+<td>1, 0</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">186.8</td>
+<td><code>NASA/EMIT/L2A/RFL</code></td>
+</tr>
+<tr>
+<td><code>cop-dem-glo30</code></td>
+<td>Copernicus DEM GLO-30 elevation</td>
+<td>512×512</td>
+<td>float32</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">52.4</td>
+<td><code>copernicus-dem-30m</code> on AWS</td>
+</tr>
+<tr>
+<td><code>esa-wc-v200</code></td>
+<td>ESA WorldCover 2021 land-cover class codes at 10 m</td>
+<td>512×512</td>
+<td>uint8</td>
+<td>1, 0</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">13.1</td>
+<td><code>esa-worldcover</code> v200 on AWS</td>
+</tr>
+<tr>
+<td><code>imerg-pcp-12</code></td>
+<td>GPM IMERG precipitation rate, 12 half-hourly fields</td>
+<td>12×512×512</td>
+<td>uint16</td>
+<td>0.01 mm/h, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">94.4</td>
+<td><code>NASA/GPM_L3/IMERG_V07</code></td>
+</tr>
+<tr>
+<td><code>era5-msl-1h</code></td>
+<td>ERA5 mean sea-level pressure, 24 hourly global fields</td>
+<td>24×721×1440</td>
+<td>uint16</td>
+<td>2^-2 Pa, offset per hour</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">498.4</td>
+<td>ERA5 GRIB, Copernicus Climate Data Store</td>
+</tr>
+<tr>
+<td><code>era5-t2m-1h</code></td>
+<td>ERA5 2 m temperature, 24 hourly global fields</td>
+<td>24×721×1440</td>
+<td>uint16</td>
+<td>2^-9 K, offset per hour</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">498.4</td>
+<td>ERA5 GRIB, Copernicus Climate Data Store</td>
+</tr>
+<tr>
+<td><code>era5-tcc-1h</code></td>
+<td>ERA5 total cloud cover, 24 hourly global fields</td>
+<td>24×721×1440</td>
+<td>uint16</td>
+<td>2^-15, 0</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">498.4</td>
+<td>ERA5 GRIB, Copernicus Climate Data Store</td>
+</tr>
+<tr>
+<td><code>era5-tp-1h</code></td>
+<td>ERA5 total precipitation, 24 hourly global fields</td>
+<td>24×721×1440</td>
+<td>uint16</td>
+<td>2^-21 to 2^-19 m (varies by hour), 0</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">498.4</td>
+<td>ERA5 GRIB, Copernicus Climate Data Store</td>
+</tr>
+<tr>
+<td><code>era5-u10-1h</code></td>
+<td>ERA5 10 m eastward wind, 24 hourly global fields</td>
+<td>24×721×1440</td>
+<td>uint16</td>
+<td>2^-10 m/s, offset per hour</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">498.4</td>
+<td>ERA5 GRIB, Copernicus Climate Data Store</td>
+</tr>
+<tr>
+<td><code>alphaearth-v1-64</code></td>
+<td>AlphaEarth Foundations embeddings, 64 dimensions at 10 m</td>
+<td>64×512×512</td>
+<td>int8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">251.7</td>
+<td>AlphaEarth int8 COGs on Google Cloud</td>
+</tr>
+<tr>
+<td><code>tessera-v2-codes</code></td>
+<td>TESSERA v2 embedding codes, 128 dimensions</td>
+<td>128×512×512</td>
+<td>int8</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">503.3</td>
+<td>GeoTessera 2.0</td>
+</tr>
+<tr>
+<td><code>tessera-v2-scales</code></td>
+<td>TESSERA v2 per-pixel scale of the codes</td>
+<td>512×512</td>
+<td>float32</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">15.7</td>
+<td>GeoTessera 2.0</td>
+</tr>
+<tr>
+<td><code>clay-embeddings</code></td>
+<td>Clay v1.5 Sentinel-2 embeddings, 1024 dimensions on 32×32 MajorTOM cells of 2560 m</td>
+<td>1024×32×32</td>
+<td>float32</td>
+<td>1, 0</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">62.9</td>
+<td>LGND Clay v1.5 Sentinel-2 L2A</td>
+</tr>
+</tbody>
+</table>
+<p>Raw MB is the total uncompressed size in decimal megabytes. In the <code>scale</code>, <code>offset</code> column, <code>1, 0</code> means <code>scale = 1</code> and <code>offset = 0</code>.</p>
+<p>Catalog IDs such as <code>COPERNICUS/S2</code> refer to Earth Engine collections. Each corpus's <code>spec.md</code> records its source, sample definition, representation and licence.</p>
+<h2>Rebuilding</h2>
+<p>Each <code>manifest.csv</code> lists every sample's source asset, CRS, geotransform, dates and bands. To rebuild a corpus, run</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>corpus<span class="w"> </span>python<span class="w"> </span>corpora/&lt;corpus-id&gt;/build.py<span class="w"> </span>build
+</code></pre></div>
+
+<p>The command checks each sample against its <code>input_sha256</code>. Earth Engine collections require an authenticated account. ERA5 requires a Climate Data Store account that has accepted the ERA5 licence.</p></article>
+</main>
+<footer><div class="wrap"><p>Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="https://github.com/earth-compress/benchmark/blob/main/LICENSE">Apache 2.0</a>.</p></div></footer>
+
+<script>document.querySelectorAll(".modes-switch a").forEach(a => { if (location.pathname.startsWith(new URL(a.href).pathname)) a.setAttribute("aria-current", "page"); });</script>
+</body>
+</html>

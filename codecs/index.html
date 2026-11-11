@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codecs · Earth Compress benchmark</title>
+<link rel="icon" href="../earth-compress.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css?v=b9459788f7">
+</head>
+<body>
+<header><div class="wrap bar">
+<a class="brand" href="../"><img src="../earth-compress.svg" alt="Earth Compress benchmark" height="30"></a>
+<nav class="modes-switch" aria-label="Results"><a href="../lossless/" aria-label="Lossless" data-label="Lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/><path d="M7.6 7h.8M7.6 9h.8"/></svg></a><a href="../near-lossless/" aria-label="Near-lossless" data-label="Near-lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/><path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/></svg></a><a href="../lossy/" aria-label="Lossy" data-label="Lossy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/><rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/></svg></a><a href="../usecases/" aria-label="Use cases" data-label="Use cases"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/></svg></a></nav>
+<nav><a href="../datasets/">Datasets</a><a href="../protocol/">Protocol</a><a href="../codecs/">Codecs</a><a href="../tolerance/">Tolerance</a><a class="icon" href="https://github.com/earth-compress/benchmark" title="GitHub" aria-label="GitHub"><svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a><a class="icon" href="https://huggingface.co/datasets/earth-compress/benchmark" title="Hugging Face" aria-label="Hugging Face"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><circle cx="16" cy="15" r="12" fill="#FFD21E"/><circle cx="11.5" cy="12.5" r="1.6" fill="#3A3B45"/><circle cx="20.5" cy="12.5" r="1.6" fill="#3A3B45"/><path d="M10.5 17.5c1.2 2.4 3.2 3.6 5.5 3.6s4.3-1.2 5.5-3.6" fill="none" stroke="#3A3B45" stroke-width="1.8" stroke-linecap="round"/><path d="M4.5 22.5c1.5-1.8 3.5-2 4.6-.6l1.6 2.1c.7 1-.1 2.4-1.3 2.3l-3.4-.4c-1.4-.2-2.2-2.1-1.5-3.4zM27.5 22.5c-1.5-1.8-3.5-2-4.6-.6l-1.6 2.1c-.7 1 .1 2.4 1.3 2.3l3.4-.4c1.4-.2 2.2-2.1 1.5-3.4z" fill="#FF9D0B"/></svg></a></nav>
+</div></header><main class="wrap">
+<article class="doc"><h1>Codecs</h1>
+<p>The tables group the configurations the benchmark can run by fidelity mode. Each <code>results.csv</code> shows which configurations have been measured. <a href="../protocol/"><code>PROTOCOL.md</code></a> defines the fidelity checks. <a href="../tolerance/"><code>TOLERANCE.md</code></a> defines the error budgets.</p>
+<h2>Lossless</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>group</th>
+<th>definition</th>
+<th>software</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zstd-c3</code></td>
+<td>Array stores</td>
+<td>Zstandard level 3 over the raw bytes</td>
+<td>python-zstandard</td>
+</tr>
+<tr>
+<td><code>blosc-zstd3-bitshuffle</code></td>
+<td>Array stores</td>
+<td>Blosc with Zstandard level 3 and bit shuffle, the setting of the EOPF Sentinel Zarr products</td>
+<td>numcodecs (c-blosc)</td>
+</tr>
+<tr>
+<td><code>pco</code></td>
+<td>Array stores</td>
+<td>Pcodec level 8 over the flattened array, a lossless codec for numerical sequences</td>
+<td>imagecodecs (pcodec 1.0.4)</td>
+</tr>
+<tr>
+<td><code>deflate-c6</code></td>
+<td>Raster files</td>
+<td>DEFLATE level 6 over the raw bytes</td>
+<td>Python zlib</td>
+</tr>
+<tr>
+<td><code>lzw</code></td>
+<td>Raster files</td>
+<td>LZW over the raw bytes, as in a TIFF written with LZW and no predictor</td>
+<td>imagecodecs</td>
+</tr>
+<tr>
+<td><code>hdiff-zstd9</code></td>
+<td>Raster files</td>
+<td>Horizontal differencing as TIFF <code>PREDICTOR=2</code>, then Zstandard level 9 as GDAL writes a ZSTD GeoTIFF</td>
+<td>NumPy and python-zstandard</td>
+</tr>
+<tr>
+<td><code>openzl-generic</code></td>
+<td>OpenZL</td>
+<td><code>compress_generic</code> at level 7</td>
+<td>openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>openzl-delta-fieldlz</code></td>
+<td>OpenZL</td>
+<td><code>delta&gt;field_lz</code></td>
+<td>openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>openzl-delta-pivco</code></td>
+<td>OpenZL</td>
+<td><code>delta&gt;zigzag&gt;transpose&gt;huffman_pivco</code></td>
+<td>openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-planar-pfor</code></td>
+<td>GeoZL</td>
+<td><code>planar&gt;zigzag&gt;pfor</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-planar-pivco</code></td>
+<td>GeoZL</td>
+<td><code>planar&gt;zigzag&gt;transpose&gt;pivco</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-med-pivco</code></td>
+<td>GeoZL</td>
+<td><code>med&gt;zigzag&gt;transpose&gt;pivco</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-planar-entropy</code></td>
+<td>GeoZL</td>
+<td><code>planar&gt;zigzag&gt;transpose&gt;entropy</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-med-entropy</code></td>
+<td>GeoZL</td>
+<td><code>med&gt;zigzag&gt;transpose&gt;entropy</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-average-entropy</code></td>
+<td>GeoZL</td>
+<td><code>average&gt;zigzag&gt;transpose&gt;entropy</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-id-pfor</code></td>
+<td>GeoZL</td>
+<td><code>id&gt;pfor</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>jpeg2000</code></td>
+<td>Reference</td>
+<td>JPEG 2000 lossless with the reversible 5/3 wavelet, bands as components</td>
+<td>imagecodecs (OpenJPEG 2.5.4)</td>
+</tr>
+</tbody>
+</table>
+<p><code>jpeg2000</code> is a separate reference. It is measured only when requested and only on integer corpora of up to 16 bits.</p>
+<h2>Near-lossless</h2>
+<p>Near-lossless and lossy ids end with the budget level, as in <code>lerc-matched</code>. The tables show base ids before that suffix is added. The <code>family</code> column shows how each configuration uses <code>tau</code>. <code>native</code> uses the codec's error or quality setting. <code>quantized</code> uses the shared quantiser. <code>safeguarded</code> adds corrections. <code>searched</code> tries settings on each sample. An empty NoData cell means no mask or sentinel is passed to the codec.</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>family</th>
+<th>definition</th>
+<th>NoData</th>
+<th>software</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geozl-med-entropy-linear</code></td>
+<td>native</td>
+<td>GeoZL <code>med&gt;zigzag&gt;transpose&gt;entropy</code> with its <code>LINEAR</code> quantiser, <code>tau</code> as <code>error</code></td>
+<td><code>nodata</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-planar-pfor-linear</code></td>
+<td>native</td>
+<td>GeoZL <code>planar&gt;zigzag&gt;pfor</code> with its <code>LINEAR</code> quantiser, <code>tau</code> as <code>error</code></td>
+<td><code>nodata</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>geozl-planar-pivco-linear</code></td>
+<td>native</td>
+<td>GeoZL <code>planar&gt;zigzag&gt;transpose&gt;pivco</code> with its <code>LINEAR</code> quantiser, <code>tau</code> as <code>error</code></td>
+<td><code>nodata</code></td>
+<td>geozl 0.31.0 on openzl 0.3.0</td>
+</tr>
+<tr>
+<td><code>lerc</code></td>
+<td>native</td>
+<td>LERC with <code>tau</code> as <code>maxZError</code>, as GDAL writes it</td>
+<td>valid mask</td>
+<td>imagecodecs (LERC 4.2.0)</td>
+</tr>
+<tr>
+<td><code>jpegls-near</code></td>
+<td>native</td>
+<td>JPEG-LS with <code>tau</code> as <code>NEAR</code>, one stream per plane</td>
+<td></td>
+<td>imagecodecs (CharLS 2.4.4)</td>
+</tr>
+<tr>
+<td><code>sz3-abs</code></td>
+<td>native</td>
+<td>SZ3 with <code>tau</code> as its absolute bound</td>
+<td></td>
+<td>imagecodecs (SZ3 3.4.0)</td>
+</tr>
+<tr>
+<td><code>zfp-accuracy</code></td>
+<td>native</td>
+<td>ZFP in fixed-accuracy mode, <code>tau</code> as the tolerance</td>
+<td></td>
+<td>imagecodecs (zfp 1.0.1)</td>
+</tr>
+<tr>
+<td><code>sperr-pwe</code></td>
+<td>native</td>
+<td>SPERR in point-wise error mode</td>
+<td></td>
+<td>imagecodecs (SPERR 0.8.5)</td>
+</tr>
+<tr>
+<td><code>quant-&lt;id&gt;</code></td>
+<td>quantized</td>
+<td>The quantiser, then the lossless configuration <code>&lt;id&gt;</code></td>
+<td>bottom of the type</td>
+<td>that of <code>&lt;id&gt;</code></td>
+</tr>
+<tr>
+<td><code>sg-&lt;id&gt;</code></td>
+<td>safeguarded</td>
+<td>The native configuration <code>&lt;id&gt;</code> inside Compression Safeguards</td>
+<td>kept</td>
+<td>compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5</td>
+</tr>
+<tr>
+<td><code>sg-zero</code></td>
+<td>safeguarded</td>
+<td>Compression Safeguards around a codec that decodes to zeros</td>
+<td>kept</td>
+<td>compression-safeguards 1.0.0rc5 and numcodecs-safeguards 0.1.0rc5</td>
+</tr>
+</tbody>
+</table>
+<p>The quantiser can feed <code>zstd-c3</code>, <code>pco</code>, <code>blosc-zstd3-bitshuffle</code>, <code>hdiff-zstd9</code>, <code>openzl-generic</code> or <code>geozl-med-entropy</code>.</p>
+<h2>Lossy</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>family</th>
+<th>definition</th>
+<th>NoData</th>
+<th>software</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jpeg2000-psnr</code></td>
+<td>native</td>
+<td>JPEG 2000 with the irreversible 9/7 wavelet and no colour transform, at the PSNR whose root-mean-square error is <code>tau</code></td>
+<td></td>
+<td>imagecodecs (OpenJPEG 2.5.4)</td>
+</tr>
+<tr>
+<td><code>sperr-psnr</code></td>
+<td>native</td>
+<td>SPERR in PSNR mode, at the PSNR whose root-mean-square error is <code>tau</code></td>
+<td></td>
+<td>imagecodecs (SPERR 0.8.5)</td>
+</tr>
+<tr>
+<td><code>sz3-l2norm</code></td>
+<td>native</td>
+<td>SZ3 in its L2-norm mode</td>
+<td></td>
+<td>imagecodecs (SZ3 3.4.0)</td>
+</tr>
+<tr>
+<td><code>jpegxl-distance</code></td>
+<td>searched</td>
+<td>JPEG XL at effort 7, one grayscale frame per plane, the distance searched</td>
+<td></td>
+<td>imagecodecs (libjxl 0.12.0)</td>
+</tr>
+<tr>
+<td><code>quant-pco-rms</code></td>
+<td>quantized</td>
+<td>The quantiser with its lossy grid, then <code>pco</code></td>
+<td>bottom of the type</td>
+<td>imagecodecs (pcodec 1.0.4)</td>
+</tr>
+</tbody>
+</table>
+<p>LERC, JPEG-LS, ZFP and GeoZL have no separate lossy configuration. A near-lossless row that meets its pointwise bound also meets the lossy bound at the same <code>tau</code>.</p>
+<h2>The quantiser</h2>
+<p>The quantiser rounds values to a grid. It passes the grid indices to an unchanged lossless configuration in the narrowest unsigned type that holds them. Quantised rows keep every promise by construction. Rows in the same mode differ only in their lossless stage.</p>
+<p>Integer grids are <code>2k + 1</code> codes wide in each plane. They are anchored at the code of a native zero, so zeros stay exact. Near-lossless takes <code>k = floor(tau / scale)</code>. Lossy starts from the largest <code>k</code> with <code>k (k + 1) / 3 &lt;= (tau / scale)²</code>. At that width, a uniform rounding error has a root-mean-square of <code>tau</code>. SZ3 uses the same rule for its L2-norm mode. A sentinel at the bottom of the type keeps index 0 to itself. Valid values decode above it.</p>
+<p>Floats round to multiples of <code>2 tau</code> in near-lossless mode and <code>2 sqrt(3) tau</code> in lossy mode. Zero stays exact. Values that element-type rounding would move past the bound are kept exactly beside the grid, as are nonfinite values.</p>
+<p>In lossy mode, a sample whose error is still above <code>tau</code> gets a narrower grid until it is not, and the width is stored with the data. ClimateBenchPress found rounding followed by PCO a reliable baseline (Reichelt et al., 2026), so <code>pco</code> is the lossless stage in lossy mode.</p>
+<h2>Compression Safeguards</h2>
+<p><code>sg-&lt;id&gt;</code> wraps a native near-lossless configuration in Compression Safeguards (Tyree et al., 2026). It sets an absolute bound of <code>tau</code>, keeps the sentinel in its original positions and keeps exact zeros. During encoding, the safeguards decode the native output and store corrections that restore every promise. Decoding applies those corrections. The native codec runs unchanged. The difference from its own row shows the cost of the safeguards. In <code>sg-zero</code>, every value comes from the corrections.</p>
+<h2>Settings</h2>
+<ul>
+<li>One thread for every codec.</li>
+<li>A codec receives <code>tau</code> in stored units, which for integers is whole steps of the largest <code>scale</code>, and the sentinel only where its interface takes one.</li>
+<li>SZ3, ZFP and SPERR take floats only. Integer codes reach them as floats that hold every code exactly, and their output is rounded to the nearest code and clipped to the type. Rounding cannot widen an error that is within a whole number of codes, but it can raise a root-mean-square error.</li>
+<li>Checksums are off for Zstandard and OpenZL. GeoZL writes a frame checksum that its Python API cannot turn off, and decoding skips its verification.</li>
+<li>Library versions not given here are pinned in <code>uv.lock</code>.</li>
+</ul>
+<h2>Notes by codec</h2>
+<ul>
+<li><code>hdiff-zstd9</code> reproduces the codec inside a GeoTIFF, not the file. There is no TIFF container, each sample is one tile, bands are pixel-interleaved before differencing, and floating-point values are differenced as integers of the same width.</li>
+<li>GeoZL recipes drop <code>transpose</code> for one-byte elements. GeoZL takes its lossy domain from the raster a graph is built from, so the <code>-linear</code> configurations build the graph from each sample while encoding it. Their integer grid is <code>2k</code> codes wide where <code>2k + 1</code> would fit. GeoZL decodes lossless <code>planar&gt;zigzag&gt;pfor</code> and <code>planar&gt;zigzag&gt;transpose&gt;pivco</code> frames of one- and two-byte elements on a GPU, while quantized frames still decode on the host. The two planar <code>-linear</code> configurations measure the ratio of those graphs at each budget.</li>
+<li>LERC floors the bound for integers and reads 777 as a request for another mode, so a budget of 777 codes is passed as 777.5.</li>
+<li>CharLS accepts <code>NEAR</code> up to 127 for 8-bit and 255 for 16-bit data. Above that, <code>jpegls-near</code> does not run.</li>
+<li>SZ3 runs its L2-norm mode as an absolute bound of <code>sqrt(3 / n)</code> times the norm, which for a root-mean-square error of <code>tau</code> is <code>sqrt(3) tau</code>. imagecodecs exposes only the absolute mode, so <code>sz3-l2norm</code> passes that bound.</li>
+<li>SPERR takes two- and three-dimensional arrays only. It measures PSNR over the range of the data it receives and rejects a target of zero, so a sample whose range is within <code>tau</code> gets 0.001 dB.</li>
+<li>JPEG 2000 has no bounded mode, so it has no near-lossless configuration. OpenJPEG measures PSNR over all components together, against the largest value of the type. Both JPEG 2000 configurations take integers of up to 16 bits.</li>
+<li>JPEG XL takes a perceptual distance rather than an error. On each sample, <code>jpegxl-distance</code> tries 25, the largest distance libjxl accepts, then halves the logarithmic interval down to 0.01 eight times. It keeps the largest distance whose root-mean-square error over the whole sample, in stored units, is within <code>tau</code>, and falls back to lossless JPEG XL when none is. Every trial counts in the encode time. It takes 8- and 16-bit unsigned integers.</li>
+</ul>
+<h2>Adding a configuration</h2>
+<p>Add a module to <code>earthcompress/codecs/</code>. Define <code>CONFIGURATIONS</code> for lossless configurations, <code>FAMILIES</code> for a native near-lossless codec, or <code>LOSSY</code> for a lossy one. A configuration uses a sample's <code>ArraySpec</code> to build an object with <code>encode</code> and <code>decode</code>. A family maps a budget to a configuration. Create it with <code>near_lossless</code> or <code>lossy</code> in <code>earthcompress/codecs/base.py</code>. Every native near-lossless family also gets a safeguarded variant.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">mycodec</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..spec</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArraySpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">lossless</span><span class="p">,</span> <span class="n">unpack</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyCodec</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ArraySpec</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mycodec</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">unpack</span><span class="p">(</span><span class="n">mycodec</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">)</span>
+
+
+<span class="n">CONFIGURATIONS</span> <span class="o">=</span> <span class="p">(</span><span class="n">lossless</span><span class="p">(</span><span class="s2">"mycodec"</span><span class="p">,</span> <span class="s2">"mycodec"</span><span class="p">,</span> <span class="n">mycodec</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span> <span class="n">MyCodec</span><span class="p">),)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>earthcompress<span class="w"> </span>corpora/s2-l1c-10m-4<span class="w"> </span>--codec<span class="w"> </span>mycodec
+</code></pre></div>
+
+<h2>References</h2>
+<ul>
+<li>Reichelt, T., et al. (2026). ClimateBenchPress (v1.0), a benchmark for lossy compression of climate data. <em>Geosci. Model Dev.</em>, 19, 5933–5960.</li>
+<li>Tyree, J., et al. (2026). <a href="https://egusphere.copernicus.org/preprints/2026/egusphere-2026-4266/">Compression Safeguards, building trust into lossy data compression</a>. <em>EGUsphere</em> preprint, egusphere-2026-4266.</li>
+</ul></article>
+</main>
+<footer><div class="wrap"><p>Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="https://github.com/earth-compress/benchmark/blob/main/LICENSE">Apache 2.0</a>.</p></div></footer>
+
+<script>document.querySelectorAll(".modes-switch a").forEach(a => { if (location.pathname.startsWith(new URL(a.href).pathname)) a.setAttribute("aria-current", "page"); });</script>
+</body>
+</html>
