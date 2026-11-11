@@ -1458,10 +1458,10 @@ def height_figure() -> str:
 {arrow("compress,", "decode,", "run CD")}
 <g transform="translate(316 0)"><text class="h" x="0" y="16">From compressed data</text>{"".join(after)}</g>
 <g transform="translate(566 0)">
-<text class="m" x="0" y="20">2. cth_mae  = mean(|change|)</text>
-<text class="m" x="0" y="38">            = {mae:.2f} km</text>
-<text class="m" x="0" y="62">3. cth_bias = mean(change)</text>
-<text class="m" x="0" y="80">            = {bias:+.2f} km</text>
+<text class="m" x="0" y="20">cth_mae  = mean(|change|)</text>
+<text class="m" x="0" y="38">         = {mae:.2f} km</text>
+<text class="m" x="0" y="62">cth_bias = mean(change)</text>
+<text class="m" x="0" y="80">         = {bias:+.2f} km</text>
 <rect x="0" y="102" width="12" height="12" rx="2" fill="#b2182b"/><text x="20" y="112">higher than the original</text>
 <rect x="0" y="124" width="12" height="12" rx="2" fill="#2166ac"/><text x="20" y="134">lower than the original</text>
 <rect x="0" y="146" width="12" height="12" rx="2" fill="#f7f7f7" stroke="#8aa09f"/><text x="20" y="156">unchanged</text>
@@ -1489,7 +1489,7 @@ def tau_figure() -> str:
 <text x="0" y="164">Only pixels with τ above 0 from both are used.</text></g>
 <text class="h" x="0" y="46">Original τ</text><text class="h" x="0" y="92">Compressed τ</text><text x="0" y="126">relative change</text>
 <g transform="translate(484 0)">
-<text class="h" x="0" y="16">4. tau_median_rel_error</text>
+<text class="h" x="0" y="16">tau_median_rel_error</text>
 <text class="m" x="0" y="44">= median(|compressed / original − 1|)</text>
 <text class="m" x="0" y="64">= {100 * median:.1f}%</text>
 </g>
@@ -1537,7 +1537,7 @@ def radius_figure() -> str:
 <text x="0" y="182">Products with fewer than 1000 such pixels have no value.</text></g>
 <text class="h" x="0" y="46">Original rₑ</text><text class="h" x="0" y="92">Compressed rₑ</text>
 <g transform="translate(484 0)">
-<text class="h" x="0" y="16">5. re_ice_mae</text>
+<text class="h" x="0" y="16">re_ice_mae</text>
 <text class="m" x="0" y="44">= mean(|compressed − original|)</text>
 <text class="m" x="0" y="64">= ({" + ".join(str(k) for k in kept)}) / {len(kept)} = {sum(kept) / len(kept):.2f} µm</text>
 <rect x="0" y="86" width="12" height="12" rx="2" fill="#7dd3fc"/><text x="20" y="96">ice in both: used</text>
@@ -1573,9 +1573,9 @@ def texture_figure() -> str:
 <g transform="translate(112 0)">{row(original, a, 12)}{row(copy, b, 88)}</g>
 <text class="h" x="0" y="32">Original rₑ</text><text x="0" y="62">steps</text>
 <text class="h" x="0" y="108">Compressed rₑ</text><text x="0" y="138">steps</text>
-<text x="0" y="180">Colour shows the value. Neighbours are taken along rows and columns, on the same ice pixels as metric 5.</text>
+<text x="0" y="180">Colour shows the value. Neighbours are taken along rows and columns, on the same ice pixels as re_ice_mae.</text>
 <g transform="translate(484 0)">
-<text class="h" x="0" y="16">6. re_ice_texture</text>
+<text class="h" x="0" y="16">re_ice_texture</text>
 <text class="m" x="0" y="44">= mean(compressed steps)</text>
 <text class="m" x="0" y="60">  / mean(original steps)</text>
 <text class="m" x="0" y="80">= {sum(b) / len(b):.2f} / {sum(a) / len(a):.2f} = {sum(b) / sum(a):.2f}</text>
@@ -1645,7 +1645,6 @@ USECASES = (
         {
             "folder": "clouds-decoded",
             "shared": "Clouds Decoded",
-            "figure": "",
             "samples": 16,
             "group": None,
             "groups": {},
@@ -1672,17 +1671,15 @@ USECASES = (
                 "thumbnail": "mask",
                 "original": "The crop in true colour, with clouds identified by Clouds Decoded in orange.",
                 "caption": "Sentinel-2 over the Bay of Bengal on 29 April 2026, with clouds identified by Clouds Decoded in orange.",
-                "explained": {
-                    ("cloud_iou",): change_figure(
-                        "cloud_iou",
-                        "cloud mask",
-                        ("clouds found by", "Clouds Decoded"),
-                        ("compress,", "decode,", "mask again"),
-                        "cloud on both",
-                        "From compressed data",
-                        "From original data",
-                    ),
-                },
+                "figure": change_figure(
+                    "cloud_iou",
+                    "cloud mask",
+                    ("clouds found by", "Clouds Decoded"),
+                    ("compress,", "decode,", "mask again"),
+                    "cloud on both",
+                    "From compressed data",
+                    "From original data",
+                ),
                 "heading": "cloud mask",
                 "metrics": {"cloud_iou": ("Cloud mask IoU", 1.0)},
                 "maps": "Change in cloud mask",
@@ -1695,7 +1692,7 @@ USECASES = (
                 "thumbnail": "height",
                 "original": "Cloud top height retrieved by Clouds Decoded, from 0 km in purple to 15 km in yellow, over the true-colour crop.",
                 "caption": "Cloud top height retrieved by Clouds Decoded over the Bay of Bengal on 17 November 2018, from 0 km in purple to 15 km in yellow.",
-                "explained": {("cth_mae", "cth_bias"): height_figure()},
+                "figure": height_figure(),
                 "heading": "cloud top height",
                 "metrics": {
                     "cth_mae": ("Cloud top height MAE (m)", 0.0),
@@ -1713,7 +1710,7 @@ USECASES = (
                 "thumbnail": "thickness",
                 "original": "Optical thickness retrieved by Clouds Decoded, from 0.1 in black to 100 in pale yellow on a log scale, over the true-colour crop.",
                 "caption": "Cloud optical thickness retrieved by Clouds Decoded over the Bay of Bengal on 19 July 2021, from 0.1 in black to 100 in pale yellow.",
-                "explained": {("tau_median_rel_error",): tau_figure()},
+                "figure": tau_figure(),
                 "heading": "optical thickness",
                 "metrics": {
                     "tau_median_rel_error": (
@@ -1731,10 +1728,7 @@ USECASES = (
                 "thumbnail": "ice",
                 "original": "Ice effective radius retrieved by Clouds Decoded where the cloud is ice, from 15 µm in blue to 45 µm in yellow, over the true-colour crop.",
                 "caption": "Ice effective radius retrieved by Clouds Decoded in deep convection over the Bay of Bengal on 28 August 2021, from 15 µm in blue to 45 µm in yellow.",
-                "explained": {
-                    ("re_ice_mae",): radius_figure(),
-                    ("re_ice_texture",): texture_figure(),
-                },
+                "figure": radius_figure() + texture_figure(),
                 "heading": "ice effective radius",
                 "metrics": {
                     "re_ice_mae": ("Ice effective radius MAE (µm)", 0.0),
@@ -2105,31 +2099,6 @@ def results_pages(case: dict, lead: str, about: str) -> str:
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
 
 
-def explained_rows(text: str, figures: dict[tuple, str]) -> str:
-    """The metric table of ``text``, each group of rows opening on its figure.
-
-    ``text`` starts with a blank line and then the table.
-    """
-    rows = {plain(row["metric"]): row for row in table(text, "\n")}
-
-    def line(row: dict[str, str]) -> str:
-        return (
-            f'<span class="metric-line"><span>{html.escape(row[""])}</span>'
-            f"<span>{inline(row['metric'])}</span><span>{inline(row['meaning'])}</span>"
-            f"<span>{inline(row['no change'])}</span></span>"
-        )
-
-    groups = "".join(
-        f'<details class="metric-row"><summary>{"".join(line(rows[m]) for m in metrics)}'
-        f"</summary>{figure}</details>"
-        for metrics, figure in figures.items()
-    )
-    return (
-        '<div class="metric-table"><div class="metric-line metric-head"><span></span>'
-        f"<span>metric</span><span>meaning</span><span>no change</span></div>{groups}</div>"
-    )
-
-
 def usecases() -> None:
     _, *parts = (ROOT / "USECASE.md").read_text().split("\n## ")
     sections = {p.split("\n", 1)[0]: p.split("\n", 1)[1] for p in parts}
@@ -2176,13 +2145,7 @@ def usecases() -> None:
         target = OUT / "usecases" / slug / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
-        metric_text = blocks["Metric"]
-        if "explained" in case:
-            case = {**case, "figure": explained_rows(metric_text, case["explained"])}
-            metric_text = "\n".join(
-                line for line in metric_text.splitlines() if not line.startswith("|")
-            )
-        about = md(metric_text, "../../../") + (
+        about = md(blocks["Metric"], "../../../") + (
             f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
         )
         target = OUT / "usecases" / slug / "results" / "index.html"

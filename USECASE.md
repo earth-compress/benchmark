@@ -154,9 +154,7 @@ We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8
 
 ### Metric
 
-| | metric | meaning | no change |
-| ---: | --- | --- | ---: |
-| 1 | `cloud_iou` | Intersection over union of the two cloud masks | 1 |
+`cloud_iou` is the intersection over union of the cloud mask from the compressed copy and the one from the original. It is 1 when the two masks agree.
 
 ## Cloud top height
 
@@ -168,10 +166,7 @@ We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8
 
 ### Metric
 
-| | metric | meaning | no change |
-| ---: | --- | --- | ---: |
-| 1 | `cth_mae` | Mean absolute change in cloud top height, in metres | 0 |
-| 2 | `cth_bias` | Mean change in cloud top height, in metres | 0 |
+`cth_mae` is the mean absolute change in cloud top height, in metres, over the pixels with a height in both. `cth_bias` is the mean change, so a negative value means the compressed copy puts clouds lower. Both are 0 when the heights agree.
 
 ## Cloud optical thickness
 
@@ -183,9 +178,7 @@ We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8
 
 ### Metric
 
-| | metric | meaning | no change |
-| ---: | --- | --- | ---: |
-| 1 | `tau_median_rel_error` | Median of the absolute relative change in optical thickness, in % | 0 |
+`tau_median_rel_error` is the median absolute relative change in optical thickness, in %, over the pixels where both are positive. It is 0 when the two agree.
 
 ## Ice effective radius
 
@@ -197,9 +190,6 @@ We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8
 
 ### Metric
 
-| | metric | meaning | no change |
-| ---: | --- | --- | ---: |
-| 1 | `re_ice_mae` | Mean absolute change in ice effective radius, in µm | 0 |
-| 2 | `re_ice_texture` | Mean difference between neighbouring pixels of ice effective radius, compressed over original | 1 |
+`re_ice_mae` is the mean absolute change in ice effective radius, in µm. `re_ice_texture` is the mean difference between neighbouring pixels of ice effective radius on the compressed copy, divided by the same on the original. It is 1 with no change, above 1 when the field gets rougher and below 1 when it gets smoother.
 
 When fewer than 1000 pixels remain ice, a crop has no radius metrics. This leaves 11 crops.
