@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth Compress Measurement Protocol v1.0 · Earth Compress benchmark</title>
+<link rel="icon" href="../earth-compress.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css?v=7f5483eae4">
+</head>
+<body>
+<header><div class="wrap bar">
+<a class="brand" href="../"><img src="../earth-compress.svg" alt="Earth Compress benchmark" height="30"></a>
+<nav class="modes-switch" aria-label="Results"><a href="../lossless/" aria-label="Lossless" data-label="Lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="5" height="9" rx="1"/><rect x="9.5" y="3.5" width="5" height="9" rx="1"/><path d="M7.6 7h.8M7.6 9h.8"/></svg></a><a href="../near-lossless/" aria-label="Near-lossless" data-label="Near-lossless"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M3.5 8h9" stroke-dasharray="1.5 1.5"/><path d="M5 6.5v3M8 7.2v1.6M11 6.2v3.6"/></svg></a><a href="../lossy/" aria-label="Lossy" data-label="Lossy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="1"/><path d="M8 1.5v13M1.5 8h13"/><rect x="2.5" y="2.5" width="4.5" height="4.5" class="fill"/><rect x="9" y="9" width="4.5" height="4.5" class="fill"/></svg></a><a href="../usecases/" aria-label="Use cases" data-label="Use cases"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14.5 14.5"/><path d="M5 7.5l1.5 1.5L9.2 5.5"/></svg></a></nav>
+<nav><a href="../datasets/">Datasets</a><a href="../protocol/">Protocol</a><a href="../codecs/">Codecs</a><a href="../tolerance/">Tolerance</a><a class="icon" href="https://github.com/earth-compress/benchmark" title="GitHub" aria-label="GitHub"><svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a><a class="icon" href="https://huggingface.co/datasets/earth-compress/benchmark" title="Hugging Face" aria-label="Hugging Face"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><circle cx="16" cy="15" r="12" fill="#FFD21E"/><circle cx="11.5" cy="12.5" r="1.6" fill="#3A3B45"/><circle cx="20.5" cy="12.5" r="1.6" fill="#3A3B45"/><path d="M10.5 17.5c1.2 2.4 3.2 3.6 5.5 3.6s4.3-1.2 5.5-3.6" fill="none" stroke="#3A3B45" stroke-width="1.8" stroke-linecap="round"/><path d="M4.5 22.5c1.5-1.8 3.5-2 4.6-.6l1.6 2.1c.7 1-.1 2.4-1.3 2.3l-3.4-.4c-1.4-.2-2.2-2.1-1.5-3.4zM27.5 22.5c-1.5-1.8-3.5-2-4.6-.6l-1.6 2.1c-.7 1 .1 2.4 1.3 2.3l3.4-.4c1.4-.2 2.2-2.1 1.5-3.4z" fill="#FF9D0B"/></svg></a></nav>
+</div></header><main class="wrap">
+<article class="doc"><h1>Earth Compress Measurement Protocol v1.0</h1>
+<p>This protocol measures compression of Earth observation and environmental arrays in lossless, near-lossless, and lossy modes.</p>
+<p>Each measurement uses one array in memory. We report compressed size, decode time, distortion and indicative encode time. The protocol excludes storage layout, network transfer, partial reads, parallel or accelerated decoding, and downstream analyses. Section 9 gives examples of separate analysis checks.</p>
+<h2>1. Starting representation</h2>
+<p>Compression ratio depends on the array a codec receives. ERA5 2 m temperature, for example, is archived as 16-bit integer codes with a step of 2^-9 K and an offset per hour. A float32 copy stores each value in 32 bits. Compressing the float32 copy can remove bits the source never had. The resulting ratio then describes the copy rather than the archived field.</p>
+<p>For each corpus, use integers when they reproduce the published values exactly.</p>
+<ol>
+<li>Start with the array as published by the producer.</li>
+<li>Test whether an integer array plus a <code>(scale, offset)</code> pair reproduces it bit for bit.</li>
+<li>If it does, store the integers, scale, and offset. Otherwise, retain the published floating-point array.</li>
+</ol>
+<p><a href="../datasets/"><code>DATASETS.md</code></a> lists each corpus's <code>scale</code> and <code>offset</code>. Its <code>manifest.csv</code> holds the exact values for every sample.</p>
+<p>Data published as integers, including categorical codes, pass step 2 with <code>scale = 1</code> and <code>offset = 0</code> and are stored as published.</p>
+<p>Step 2 uses this exactness test.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">plane_shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="n">codes</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">plane_shape</span><span class="p">)</span>
+<span class="n">offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">plane_shape</span><span class="p">)</span>
+<span class="n">back</span> <span class="o">=</span> <span class="p">(</span><span class="n">codes</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">published</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">back</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">published</span><span class="o">.</span><span class="n">shape</span>
+<span class="k">assert</span> <span class="n">back</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s2">"C"</span><span class="p">)</span> <span class="o">==</span> <span class="n">published</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s2">"C"</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Preparing the starting representation does not add quantisation. Quantisation already applied by the producer is part of the published data. A near-lossless codec may quantise during compression.</p>
+<h2>2. Fidelity modes</h2>
+<p>Every configuration declares a mode. The mode determines which properties the run checks.</p>
+<table>
+<thead>
+<tr>
+<th>mode</th>
+<th>promises</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lossless</code></td>
+<td><code>structure</code>, <code>determinism</code>, <code>exactness</code></td>
+</tr>
+<tr>
+<td><code>near-lossless</code></td>
+<td><code>structure</code>, <code>determinism</code>, <code>bound</code>, <code>sentinel</code>, <code>zero</code></td>
+</tr>
+<tr>
+<td><code>lossy</code></td>
+<td><code>structure</code>, <code>determinism</code>, <code>rms</code>, <code>sentinel</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>structure</code></strong> means decoded shape and dtype match the input.</li>
+<li><strong><code>determinism</code></strong> means the same input produces the same bytes, and the same bytes decode to the same array.</li>
+<li><strong><code>exactness</code></strong> means the decoded array is identical to the input, bit for bit.</li>
+<li><strong><code>bound</code></strong> means every valid element meets the error bound of Section 2.1.</li>
+<li><strong><code>rms</code></strong> means the root-mean-square error of the valid elements meets the error bound of Section 2.1.</li>
+<li><strong><code>sentinel</code></strong> means every NoData value remains in its original position, and no valid input value becomes a sentinel.</li>
+<li><strong><code>zero</code></strong> means every value equal to zero in native units decodes to zero.</li>
+</ul>
+<p>Lossy mode also runs the <code>zero</code> check and reports it in <code>zero_ok</code> and <code>zero_violations</code>. In lossy mode, <code>zero</code> is not a promise and does not change <code>fidelity_ok</code>.</p>
+<p>A broken promise is a result. Its row keeps every measurement and sets <code>fidelity_ok = false</code> and <code>status = violation</code>. It counts the elements that broke each promise, or the sample for <code>rms</code>. A configuration has <code>status = crash</code> and no measurements if it raises an error or decodes to the wrong shape or dtype. Configurations that cannot take a corpus, such as those limited to 16-bit integers, do not run on it.</p>
+<h3>2.1 Error bound</h3>
+<p>A near-lossless or lossy configuration declares an absolute bound <code>tau</code> in the sample's native unit. Near-lossless holds every valid element within it. Lossy holds the root-mean-square error of the valid elements of each sample within it.</p>
+<div class="codehilite"><pre><span></span><code>near-lossless   |x - x̂| &lt;= tau              for every valid element
+lossy           sqrt(mean (x - x̂)²) &lt;= tau  over the valid elements
+</code></pre></div>
+
+<p>An element decoded to exactly its input value has no error, including infinities. Any other element with an error that is not finite breaks both bounds. Errors within <code>tau</code> have a root-mean-square within <code>tau</code>, so every near-lossless result also meets the lossy bound at the same <code>tau</code>. The lossy bound does not limit the error of a single element.</p>
+<h2>3. Error budgets</h2>
+<p>Near-lossless and lossy configurations use the budgets in <a href="../tolerance/"><code>TOLERANCE.md</code></a>. Both modes use the same <code>tau</code>. That page sets <code>conservative</code>, <code>matched</code> and <code>aggressive</code> bounds from a reference error for each eligible corpus. It also lists a <code>recommended</code> bound where domain experts have published one. Lossy uses a <code>recommended</code> bound only for expert limits on mean absolute error. <code>budgets.csv</code> lists the modes of each budget.</p>
+<p>These are benchmark settings, not recommendations for scientific use. Budgets are in native units. For integer data, they are rounded down to whole steps of the largest <code>scale</code> in the corpus. A level below one step becomes 0, and the lossless result stands for it.</p>
+<p>The same rules apply to every budget.</p>
+<ol>
+<li><strong>Fixed budget.</strong> Each corpus has one <code>tau</code> per level, in native units. The codec receives that number and must keep every element, or in lossy mode the root-mean-square error, within it. A codec mode that rescales the bound from the data it receives, for example by the range of each block, does not meet this rule, because the same <code>tau</code> would allow different errors in different parts of the same dataset. A wrapper may convert <code>tau</code> into the kind of target a codec takes, such as a PSNR, when the converted target is the same error over the sample.</li>
+<li><strong>NoData is not counted.</strong> <code>tau</code> applies to valid elements. NoData positions must be preserved, and no new NoData values may appear.</li>
+<li><strong>Only adapters around a codec.</strong> A codec receives <code>tau</code> in stored-value units. It receives the sentinel only if its interface accepts one. A wrapper may change the data type or layout to suit the codec and change it back. It may not correct the codec's output. Corrections belong to a separate configuration that declares them, such as a safeguarded one in <a href="../codecs/"><code>CODECS.md</code></a>.</li>
+<li><strong>A searched setting.</strong> A codec with no error target of its own may have one setting searched on each sample. The wrapper encodes with several values of the setting and keeps one whose decoded sample meets the bound. Every trial is part of the encode, so the encode time includes the search.</li>
+</ol>
+<h3>3.1 Corpora without a budget</h3>
+<p>The corpora in the lossless-only table of <a href="../tolerance/"><code>TOLERANCE.md</code></a> have no budget. That page gives the reason for each corpus. They are measured in lossless mode only.</p>
+<h2>4. Corpus layout</h2>
+<div class="codehilite"><pre><span></span><code>corpora/&lt;corpus-id&gt;/
+├── spec.md               sample definition, native unit, licence
+├── build.py              manifest rewrite, rebuild, and exactness assertions
+├── manifest.csv          one row per sample
+├── npz/&lt;sample&gt;.npz.zst  sample data
+├── png/&lt;sample&gt;.png      preview, never measured
+├── results.csv           generated by runs, never an input
+└── environment.json      generated by a run
+</code></pre></div>
+
+<p>Each sample is an uncompressed NumPy <code>.npz</code> inside a Zstandard wrapper. It contains <code>data</code>, plus <code>scale</code> and <code>offset</code> when they are not 1 and 0, and <code>nodata</code> where applicable. <code>scale</code> and <code>offset</code> may be arrays, with one value per band or field.</p>
+<p>Each <code>manifest.csv</code> has one row per sample and the columns below.</p>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>sample id</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>collection or product, with its version</td>
+</tr>
+<tr>
+<td><code>asset</code></td>
+<td>source scene, granule, tile, or file. Several are separated by <code>|</code></td>
+</tr>
+<tr>
+<td><code>crs</code></td>
+<td>EPSG code or WKT</td>
+</tr>
+<tr>
+<td><code>transform</code></td>
+<td>six values of the affine geotransform, in GDAL order</td>
+</tr>
+<tr>
+<td><code>datetime_start</code>, <code>datetime_end</code></td>
+<td>ISO 8601 UTC. For products without an acquisition time, the period they cover</td>
+</tr>
+<tr>
+<td><code>bands</code></td>
+<td>source name of each plane, in array order</td>
+</tr>
+<tr>
+<td><code>shape</code>, <code>dtype</code></td>
+<td>of <code>data</code></td>
+</tr>
+<tr>
+<td><code>unit</code></td>
+<td>native unit after <code>scale</code> and <code>offset</code></td>
+</tr>
+<tr>
+<td><code>scale</code>, <code>offset</code></td>
+<td>as stored in the sample</td>
+</tr>
+<tr>
+<td><code>nodata</code></td>
+<td>sentinel value, empty if none</td>
+</tr>
+<tr>
+<td><code>input_sha256</code></td>
+<td>SHA-256 of <code>data</code></td>
+</tr>
+<tr>
+<td><code>npz_path</code>, <code>png_path</code></td>
+<td>relative paths</td>
+</tr>
+</tbody>
+</table>
+<p>Values that differ by plane, such as <code>bands</code>, <code>scale</code>, and <code>offset</code>, are separated by <code>|</code>. Other source metadata may follow as extra columns. These columns are enough to write each sample as a georeferenced raster with its date, except <code>clay-embeddings</code>, whose cells are listed in <code>cells/</code>.</p>
+<p>Each corpus's <code>build.py</code> has two steps.</p>
+<ol>
+<li><code>select</code> rewrites <code>manifest.csv</code> for the samples it already lists, reading their metadata again from the source.</li>
+<li><code>build</code> uses the existing <code>manifest.csv</code> to fetch each <code>asset</code> over the window given by <code>transform</code> and <code>shape</code>, write the sample, and check <code>input_sha256</code>.</li>
+</ol>
+<p>A rebuild runs <code>build</code> only.</p>
+<h2>5. Measurement</h2>
+<p>Each run measures its selected configurations under the same rules. <a href="../codecs/"><code>CODECS.md</code></a> describes the configurations the benchmark can run and identifies the separate reference. Published measurements are in each corpus's <code>results.csv</code>.</p>
+<ul>
+<li>Each codec receives <code>data</code> as an in-memory array. Corpus read time is excluded.</li>
+<li>Encode and decode the whole array in one call. Partial, tiled, and windowed access are outside this protocol.</li>
+<li>A codec may use internal planes or blocks. Everything the codec does is timed.</li>
+<li>Compressed bytes must contain everything needed for decoding except shape and dtype.</li>
+<li>Use one thread.</li>
+<li><strong>Size, error, and encode time.</strong> Encode each sample and decode the result. The compressed size and the encode time come from the encode, and the distortion from the decode. The encode time is a single call without warm-up, so it is indicative.</li>
+<li><strong>Decode time.</strong> On every sample, call decode up to 10 times, stopping after 0.5 s, with at least 3 calls. Report the median, minimum, and maximum time per call. The decode of the previous step serves as the warm-up.</li>
+<li><strong>Determinism.</strong> The repeated decodes of each sample must return the same array. On three samples per corpus, the first, the middle, and the last in the manifest, encode once more and check that the bytes match the first encode.</li>
+</ul>
+<p><code>environment.json</code> records the machine. Include it when quoting throughput.</p>
+<h2>6. Verification</h2>
+<p>Each promised property has a check. The failures below were observed by Reichelt et al. (2026) in released compressors.</p>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>assertion</th>
+<th>observed precedent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bound</code></td>
+<td>Every valid element meets the bound</td>
+<td>SPERR exceeded its stated bound</td>
+</tr>
+<tr>
+<td><code>rms</code></td>
+<td>The root-mean-square error of the valid elements meets the bound</td>
+<td>None, as Reichelt et al. checked pointwise bounds only</td>
+</tr>
+<tr>
+<td><code>sentinel</code></td>
+<td>Sentinels remain in place and appear nowhere else</td>
+<td>SZ3 3.2.2 replaced NaNs with interpolated values, and ZFP filled in values at NaN boundaries, without raising an error</td>
+</tr>
+<tr>
+<td><code>zero</code></td>
+<td>Exact zeros survive</td>
+<td>ZFP, ZFP-ROUND, and SPERR turned zeros in a biomass field into nonzero values</td>
+</tr>
+</tbody>
+</table>
+<p>Checks that do not apply, such as the sentinel check when a sample has no sentinel, leave their result field empty rather than report a pass.</p>
+<h2>7. Metrics</h2>
+<div class="codehilite"><pre><span></span><code>compression_ratio = input_bytes / compressed_bytes
+bits_per_value    = compressed_bytes * 8 / element count
+encode_MB_s       = input_bytes / encode_ns * 1000
+decode_MB_s       = input_bytes / decode_ns * 1000
+</code></pre></div>
+
+<p><code>input_bytes</code> is the size of <code>data</code> in its starting representation, excluding metadata and container overhead. <code>MB</code> uses decimal units.</p>
+<p>For near-lossless and lossy modes, distortion is computed over the valid elements of the sample, in float64 and native units.</p>
+<div class="codehilite"><pre><span></span><code>max_abs_error = max |x - x̂|        mae        = mean |x - x̂|
+rmse          = sqrt(mean (x-x̂)²)  mean_error = mean (x̂ - x)
+psnr_dB       = 20·log10(peak / rmse)
+</code></pre></div>
+
+<p><code>mean_error</code> detects bias. <code>peak</code> is the range of the valid reference values, not the range of the dtype. Exact decoding gives infinite <code>psnr_dB</code>. An inexact decode of a constant sample has no defined PSNR. In <code>lossless</code> mode, <code>max_abs_error</code>, <code>mae</code>, <code>rmse</code>, and <code>mean_error</code> are zero. <code>psnr_dB</code> is infinite, while <code>error_spread</code> and <code>error_lag1</code> are undefined.</p>
+<p>Two additional metrics describe the distribution and spatial structure of error:</p>
+<div class="codehilite"><pre><span></span><code>error_spread = p99(|x - x̂|) / max(|x - x̂|)
+error_lag1   = autocorrelation of (x - x̂) at lag 1 along the last axis
+</code></pre></div>
+
+<p><code>results.csv</code> has one row per sample and configuration: <code>sample_id</code>, <code>codec</code>, <code>codec_version</code>, <code>configuration</code>, <code>mode</code>, <code>family</code>, <code>tau</code>, <code>budget_level</code>, <code>input_bytes</code>, <code>compressed_bytes</code>, <code>compression_ratio</code>, <code>bits_per_value</code>, <code>encode_ns</code>, <code>decode_ns</code>, <code>decode_ns_min</code>, <code>decode_ns_max</code>, <code>encode_MB_s</code>, <code>decode_MB_s</code>, <code>max_abs_error</code>, <code>mae</code>, <code>rmse</code>, <code>mean_error</code>, <code>psnr_dB</code>, <code>error_spread</code>, <code>error_lag1</code>, <code>sentinel_ok</code>, <code>zero_ok</code>, <code>bound_violations</code>, <code>rms_violations</code>, <code>sentinel_violations</code>, <code>zero_violations</code>, <code>fidelity_ok</code>, and <code>status</code>. A run replaces the rows of the configurations it measures and keeps the others.</p>
+<h2>8. Aggregation and comparability</h2>
+<p>Compute aggregate rates from totals across samples, not from averages of per-sample rates. <code>count</code> is the number of elements:</p>
+<div class="codehilite"><pre><span></span><code>compression_ratio = sum(input_bytes) / sum(compressed_bytes)
+bits_per_value    = sum(compressed_bytes) * 8 / sum(count)
+encode_MB_s       = sum(input_bytes) / sum(encode_ns) * 1000
+decode_MB_s       = sum(input_bytes) / sum(decode_ns) * 1000
+max_abs_error     = max over samples
+rmse              = sqrt(sum(rmse² · count) / sum(count))
+</code></pre></div>
+
+<p>Do not aggregate <code>psnr_dB</code>, because its peak differs by sample. Include a configuration in aggregate results only if every sample has measurements, and report its violations beside its ratio. Crashed rows remain in <code>results.csv</code>.</p>
+<p>Results should show operating points and curves rather than name an overall winner. Comparisons follow these rules:</p>
+<ul>
+<li>Two <code>lossless</code> configurations can be compared directly.</li>
+<li>Two <code>near-lossless</code> configurations can be compared at the same <code>tau</code>, and so can two <code>lossy</code> ones.</li>
+<li>A <code>near-lossless</code> configuration and a <code>lossy</code> one can be compared at the same <code>tau</code>, with the difference in their guarantees stated. Their ratio is the cost of holding every element rather than the root-mean-square.</li>
+<li>Ratios computed from different starting representations of the same data do not isolate codec performance.</li>
+</ul>
+<p>Any quoted near-lossless or lossy ratio must include its mode, <code>tau</code>, <code>budget_level</code>, and whether every promise held. A quoted lossy ratio should also give <code>max_abs_error</code>, which the lossy bound does not limit.</p>
+<h2>9. Task validation</h2>
+<p>Neither an elementwise bound nor a root-mean-square one guarantees that a derived result is stable. Subtracting two nearly equal fields, for example, amplifies their compression errors (Baker et al., 2016).</p>
+<p>Task validation is outside this protocol. The tasks below are examples of checks that could compare an analysis on the original and decoded arrays.</p>
+<table>
+<thead>
+<tr>
+<th>task</th>
+<th>corpus</th>
+<th>effect tested</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NDVI</td>
+<td><code>s2-l1c-10m-4</code></td>
+<td>Difference between two similar bands</td>
+</tr>
+<tr>
+<td>slope</td>
+<td><code>cop-dem-glo30</code></td>
+<td>Sensitivity of a spatial derivative</td>
+</tr>
+<tr>
+<td>rain mask</td>
+<td><code>imerg-pcp-12</code></td>
+<td>Threshold crossing</td>
+</tr>
+</tbody>
+</table>
+<h2>References</h2>
+<ul>
+<li>Baker, A. H., et al. (2016). <a href="https://gmd.copernicus.org/articles/9/4381/2016/">Evaluating lossy data compression on climate simulation data within a large ensemble</a>. <em>Geosci. Model Dev.</em>, 9, 4381–4403.</li>
+<li>Reichelt, T., et al. (2026). <a href="https://gmd.copernicus.org/articles/19/5933/2026/index.html">ClimateBenchPress (v1.0): a benchmark for lossy compression of climate data</a>. <em>Geosci. Model Dev.</em>, 19, 5933–5960.</li>
+</ul><h2 id="lossy">Lossy</h2>
+<ul>
+<li><a href="https://github.com/earth-compress/georvq">georvq</a> stores every depth in one file. A reader stops at the depth it needs. Size is the bit count of the bundle for that depth. Model weights are not counted.</li>
+<li>The 50 Sentinel-2 scenes are cut to the 504 px footprint shared by the 10, 20 and 60 m grids. The comparison includes all 13 bands.</li>
+<li>AlphaEarth uses 15 samples of 512 px. Error is the cosine distance of the dequantised embedding.</li>
+<li>Compression ratio is raw array bytes over compressed bytes. Decode speed is single threaded on one CPU.</li>
+<li>We have not checked whether these scenes were in georvq's training data.</li>
+</ul>
+<pre><code>git clone https://github.com/earth-compress/benchmark
+cd benchmark
+uv run --extra learned python lossy/s2/run.py
+uv run --extra learned python lossy/alphaearth/run.py
+uv run --extra learned python lossy/views.py</code></pre>
+</article>
+</main>
+<footer><div class="wrap"><p>Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="https://github.com/earth-compress/benchmark/blob/main/LICENSE">Apache 2.0</a>.</p></div></footer>
+
+<script>document.querySelectorAll(".modes-switch a").forEach(a => { if (location.pathname.startsWith(new URL(a.href).pathname)) a.setAttribute("aria-current", "page"); });</script>
+</body>
+</html>
