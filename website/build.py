@@ -426,7 +426,9 @@ def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
             for sid in sorted(
                 {r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}
             ):
-                found.setdefault(sid, []).append((case["folder"], case["title"]))
+                found.setdefault(sid, []).append(
+                    (case.get("slug", case["folder"]), case["title"])
+                )
     return found
 
 
@@ -899,7 +901,7 @@ def build() -> None:
                 ("methane", "methane"),
                 ("drainage", "drainage"),
                 ("change-detection", "change detection"),
-                ("clouds-decoded", "clouds"),
+                ("cloud-top-height", "clouds"),
             )
         ],
     )
@@ -1663,62 +1665,109 @@ USECASES = (
         "maps": "Decoded change maps",
         "keys": ("changed on both", "lost", "new"),
     },
-    {
-        "title": "Clouds Decoded",
-        "folder": "clouds-decoded",
-        "metric": "cloud_iou",
-        "caption": "Sentinel-2 over the Bay of Bengal on 21 November 2021, decoded from JPEG XL at distance 0.094.",
-        "figure": "",
-        "explained": {
-            ("cloud_iou",): change_figure(
-                "cloud_iou",
-                "cloud mask",
-                ("cloud where Clouds Decoded", "finds it"),
-                ("compress,", "decode,", "mask again"),
-                "cloud on both",
-                "From compressed data",
-                "From original data",
-            ),
-            ("cth_mae", "cth_bias"): height_figure(),
-            ("tau_median_rel_error",): tau_figure(),
-            ("re_ice_mae",): radius_figure(),
-            ("re_ice_texture",): texture_figure(),
-        },
-        "samples": 100,
-        "group": None,
-        "groups": {},
-        "unit": "",
-        "short": "",
-        "card": "{date} · {satellite} · cloud {cloud_fraction}",
-        "original": "The scene in true colour.",
-        "maps": "Change in cloud mask",
-        "keys": ("cloud on both", "lost", "new"),
-        "levels": True,
-        "thumbnail": "rgb",
-        "heading": "cloud mask and property retrievals",
-        "codecs": {
-            "jpegxl": ("JPEG XL", "#d0892a"),
-            "georvq": ("georvq", "#c0456a"),
-            "sz3": ("SZ3", "#2e8c8c"),
-        },
-        "metrics": {
-            "cloud_iou": ("1. Cloud mask IoU", 1.0),
-            "cth_mae": ("2. Cloud top height MAE (m)", 0.0),
-            "cth_bias": ("3. Cloud top height bias (m)", 0.0),
-            "tau_median_rel_error": (
-                "4. Optical thickness median relative error (%)",
-                0.0,
-            ),
-            "re_ice_mae": ("5. Ice effective radius MAE (µm)", 0.0),
-            "re_ice_texture": ("6. Ice effective radius texture ratio", 1.0),
-        },
-        "more_maps": (
-            "-cth",
-            "cth_mae",
-            "Change in cloud top height",
-            HEIGHT_LEGEND,
-        ),
-    },
+    *(
+        {
+            "folder": "clouds-decoded",
+            "shared": "Clouds Decoded",
+            "figure": "",
+            "samples": 16,
+            "group": None,
+            "groups": {},
+            "unit": "DN",
+            "short": "DN",
+            "card": "{regime} · {surface}",
+            "keys": ("cloud on both", "lost", "new"),
+            "levels": True,
+            "labels": False,
+            "codecs": {
+                "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
+                "quant-geozl-planar-pfor-rms": ("GeoZL PFOR", "#7a68c2"),
+                "jpegxl-distance": ("JPEG XL", "#d0892a"),
+                "georvq-s2-v1": ("georvq", "#d6456b"),
+            },
+            **case,
+        }
+        for case in (
+            {
+                "title": "Cloud mask",
+                "slug": "cloud-mask",
+                "metric": "cloud_iou",
+                "preview": "preview.png",
+                "thumbnail": "mask",
+                "original": "The crop in true colour, with clouds identified by Clouds Decoded in orange.",
+                "caption": "Sentinel-2 over the Bay of Bengal on 29 April 2026, with clouds identified by Clouds Decoded in orange.",
+                "explained": {
+                    ("cloud_iou",): change_figure(
+                        "cloud_iou",
+                        "cloud mask",
+                        ("clouds found by", "Clouds Decoded"),
+                        ("compress,", "decode,", "mask again"),
+                        "cloud on both",
+                        "From compressed data",
+                        "From original data",
+                    ),
+                },
+                "heading": "cloud mask",
+                "metrics": {"cloud_iou": ("Cloud mask IoU", 1.0)},
+                "maps": "Change in cloud mask",
+            },
+            {
+                "title": "Cloud top height",
+                "slug": "cloud-top-height",
+                "metric": "cth_mae",
+                "preview": "preview-height.png",
+                "thumbnail": "height",
+                "original": "Cloud top height retrieved by Clouds Decoded, from 0 km in purple to 15 km in yellow, over the true-colour crop.",
+                "caption": "Cloud top height retrieved by Clouds Decoded over the Bay of Bengal on 17 November 2018, from 0 km in purple to 15 km in yellow.",
+                "explained": {("cth_mae", "cth_bias"): height_figure()},
+                "heading": "cloud top height",
+                "metrics": {
+                    "cth_mae": ("Cloud top height MAE (m)", 0.0),
+                    "cth_bias": ("Cloud top height bias (m)", 0.0),
+                },
+                "maps": "Change in cloud top height",
+                "suffix": "-cth",
+                "keys_legend": HEIGHT_LEGEND,
+            },
+            {
+                "title": "Cloud optical thickness",
+                "slug": "cloud-optical-thickness",
+                "metric": "tau_median_rel_error",
+                "preview": "preview-thickness.png",
+                "thumbnail": "thickness",
+                "original": "Optical thickness retrieved by Clouds Decoded, from 0.1 in black to 100 in pale yellow on a log scale, over the true-colour crop.",
+                "caption": "Cloud optical thickness retrieved by Clouds Decoded over the Bay of Bengal on 19 July 2021, from 0.1 in black to 100 in pale yellow.",
+                "explained": {("tau_median_rel_error",): tau_figure()},
+                "heading": "optical thickness",
+                "metrics": {
+                    "tau_median_rel_error": (
+                        "Optical thickness median relative error (%)",
+                        0.0,
+                    ),
+                },
+                "maps": None,
+            },
+            {
+                "title": "Ice effective radius",
+                "slug": "ice-effective-radius",
+                "metric": "re_ice_mae",
+                "preview": "preview-ice.png",
+                "thumbnail": "ice",
+                "original": "Ice effective radius retrieved by Clouds Decoded where the cloud is ice, from 15 µm in blue to 45 µm in yellow, over the true-colour crop.",
+                "caption": "Ice effective radius retrieved by Clouds Decoded in deep convection over the Bay of Bengal on 28 August 2021, from 15 µm in blue to 45 µm in yellow.",
+                "explained": {
+                    ("re_ice_mae",): radius_figure(),
+                    ("re_ice_texture",): texture_figure(),
+                },
+                "heading": "ice effective radius",
+                "metrics": {
+                    "re_ice_mae": ("Ice effective radius MAE (µm)", 0.0),
+                    "re_ice_texture": ("Ice effective radius texture ratio", 1.0),
+                },
+                "maps": None,
+            },
+        )
+    ),
 )
 HIDDEN_META = {"id", "npz_path", "asset", "asset_2017", "asset_2025", "nodata"}
 
@@ -1809,9 +1858,10 @@ def scatter(
     short: str,
     rules: list | None = None,
     bound: str = "RMSE ≤ ",
+    labels: bool = True,
 ) -> str:
     """Each codec at each error bound, its compression ratio against the metric,
-    with the bound next to each point."""
+    with the bound next to each point where ``labels`` is set."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
     measured = "measured" if rules is None else "RMSE"
     (x0, x1), (low, high) = xs, ys
@@ -1859,6 +1909,7 @@ def scatter(
             f"{group[0]['bound']:g}{'–' + format(group[-1]['bound'], 'g') if len(group) > 1 else ''}"
             f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
             for group in spots.values()
+            if labels
         )
         out.append(
             f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
@@ -1872,7 +1923,8 @@ def scatter(
 def results_pages(case: dict, lead: str, about: str) -> str:
     """The results page of a use case, and the page of each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
-    header = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
+    slug = case.get("slug", folder)
+    header = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{slug}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
 <section class="measure"><h2>How it is measured</h2>{case["figure"]}<div class="doc">{about}</div></section>"""
@@ -1886,14 +1938,16 @@ def results_pages(case: dict, lead: str, about: str) -> str:
     levels = case.get("levels", False)
     heading = case.get("heading", metric)
     points = (
-        "Each point is one level of a codec, with the number of the level next to it"
+        "Each point is one level of a codec, named when you point at it"
+        if not case.get("labels", True)
+        else "Each point is one level of a codec, with the number of the level next to it"
         if levels
         else "Each point is a bound on the root-mean-square error, written next to "
         f"it in {case['unit']}"
     )
     where = "at each level" if levels else f"at each error bound, in {case['unit']}"
     with path.open(newline="") as stream:
-        rows = list(csv.DictReader(stream))
+        rows = [r for r in csv.DictReader(stream) if r[metric]]
     measured = {r["id"] for r in rows}
     samples = [s for s in manifest(ROOT / "usecases" / folder) if s["id"] in measured]
 
@@ -1946,6 +2000,7 @@ def results_pages(case: dict, lead: str, about: str) -> str:
                 short,
                 rules,
                 "level " if levels else "RMSE ≤ ",
+                case.get("labels", True),
             )
             for g, found in curves.items()
         )
@@ -2009,13 +2064,13 @@ def results_pages(case: dict, lead: str, about: str) -> str:
     for k, s in enumerate(samples):
         sid = s["id"]
         source = usecase_png(folder, sid, case.get("thumbnail", "original"))
-        thumb = resized(source, f"img/usecases/{folder}/{sid}.webp", THUMB, True)
-        large = resized(source, f"img/usecases/{folder}/{sid}-large.webp", LARGE, False)
+        thumb = resized(source, f"img/usecases/{slug}/{sid}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{slug}/{sid}-large.webp", LARGE, False)
         fields = {**s, **({group: label(s)} if group else {})}
         cards.append(
             card(
                 "../../../",
-                f"usecases/{folder}/results/{sid}/",
+                f"usecases/{slug}/results/{sid}/",
                 thumb,
                 sid,
                 html.escape(case["card"].format(**fields)),
@@ -2044,7 +2099,7 @@ def results_pages(case: dict, lead: str, about: str) -> str:
             for key, value in fields.items()
             if key not in HIDDEN_META and value
         )
-        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", f"usecases/{folder}/results/"), (sid, None))}
+        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{slug}/"), ("Results", f"usecases/{slug}/results/"), (sid, None))}
 <h1>{html.escape(sid)}</h1>
 <div class="sample">
 <div class="figure">{f'<img src="{root}{large}" alt="{html.escape(case["original"])}">' if large else '<div class="noimg"></div>'}
@@ -2054,15 +2109,15 @@ def results_pages(case: dict, lead: str, about: str) -> str:
 <section class="results"><h2>Compression ratio and {heading}</h2>
 <p class="note">{points}, on this sample.</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, sid)}</div></section>
-{map_section(case["maps"], f'<p class="note">The result {"from compressed data" if levels else "on the compressed copy"} {where}.{keys}</p>', gallery(sid, found, "", metric))}{more}
+{map_section(case["maps"], case.get("keys_legend") or f'<p class="note">The result {"from compressed data" if levels else "on the compressed copy"} {where}.{keys}</p>', gallery(sid, found, case.get("suffix", ""), metric)) if case["maps"] else ""}{more}
 <p class="pager">{prev_link}{next_link}</p>"""
-        target = OUT / "usecases" / folder / "results" / sid / "index.html"
+        target = OUT / "usecases" / slug / "results" / sid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout(root, f"{sid} · Earth Compress benchmark", body))
 
     note = f"{points}, at the compression ratio over all the samples of the panel " + (
-        "and the median of the metric. These codecs are not set to a root-mean-square "
-        "error limit, so a point has no bound to compare with the other use cases."
+        "and the median of the metric. GeoZL and JPEG XL levels are root-mean-square "
+        f"error limits in {case['unit']}, and georvq levels are its rungs."
         if levels
         else f"and the median <code>{metric}</code>. Where JPEG XL finds no distance "
         "within the bound it stores the array losslessly, so those bounds share one "
@@ -2105,8 +2160,13 @@ def usecases() -> None:
     cards = []
     for case in USECASES:
         title, folder, metric = case["title"], case["folder"], case["metric"]
+        slug = case.get("slug", folder)
         lead, *blocks = sections[title].split("\n### ")
-        blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
+        # Cases cut from one experiment take what they leave out from its section.
+        shared = (
+            sections[case["shared"]].split("\n### ")[1:] if "shared" in case else []
+        )
+        blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in shared + blocks}
 
         def md(text: str, root: str = "../../") -> str:
             return linked(markdown.markdown(text, extensions=["tables"]), root)
@@ -2114,13 +2174,13 @@ def usecases() -> None:
         path = ROOT / "usecases" / folder / "results.csv"
         if path.exists():
             with path.open(newline="") as stream:
-                count = len({r["id"] for r in csv.DictReader(stream)})
+                count = len({r["id"] for r in csv.DictReader(stream) if r[metric]})
         else:
             count = case["samples"]
-        source = ROOT / "usecases" / folder / "preview.png"
+        source = ROOT / "usecases" / folder / case.get("preview", "preview.png")
         source = source if source.exists() else None
-        thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
-        large = resized(source, f"img/usecases/{folder}-large.webp", LARGE, False)
+        thumb = resized(source, f"img/usecases/{slug}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{slug}-large.webp", LARGE, False)
         # The picture fills the height of the text beside it, so both columns end
         # together.
         figure = (
@@ -2137,7 +2197,7 @@ def usecases() -> None:
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
 <p><a class="button primary" href="results/">Results</a></p></div>
 </div>"""
-        target = OUT / "usecases" / folder / "index.html"
+        target = OUT / "usecases" / slug / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
         metric_text = blocks["Metric"]
@@ -2149,7 +2209,7 @@ def usecases() -> None:
         about = md(metric_text, "../../../") + (
             f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
         )
-        target = OUT / "usecases" / folder / "results" / "index.html"
+        target = OUT / "usecases" / slug / "results" / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
             layout(
@@ -2161,13 +2221,13 @@ def usecases() -> None:
         cards.append(
             card(
                 "../",
-                f"usecases/{folder}/",
+                f"usecases/{slug}/",
                 thumb,
                 title,
                 f"{count} samples · "
                 + (
                     f"{len(case['metrics'])} metrics"
-                    if "metrics" in case
+                    if len(case.get("metrics", ())) > 1
                     else f"<code>{metric}</code>"
                 ),
             )

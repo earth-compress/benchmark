@@ -162,14 +162,15 @@ SHA-256.
 ```
 usecases/{use-case}/npz/{sample}.npz
 usecases/{use-case}/png/{sample}/{configuration}.png
-usecases/clouds-decoded/tif/{sample}/{level}/{output}.tif
+usecases/clouds-decoded/crops/{sample}.zip
+usecases/clouds-decoded/reference/{sample}.npz
 ```
 
 `methane` holds 20 MethaneSET patches and `change-detection` 13 AlphaEarth
 windows in 2017 and 2025. The drainage use case reads `cop-dem-glo30`, so its
-folder holds only maps. `clouds-decoded` holds the outputs of Clouds Decoded on
-100 Sentinel-2 products, at the original and at each compression level, with its
-maps and an image of each product. Each PNG shows the result of the analysis on the
+folder holds only maps. `clouds-decoded` holds 16 Sentinel-2 L1C crops, each
+a `.SAFE` directory with the 13 bands of the crop and the metadata Clouds Decoded
+reads, and the outputs of Clouds Decoded on each original crop. Each PNG shows the result of the analysis on the
 original sample or on its copy decoded by one configuration. The `run.py` of
 each use case in the benchmark repository downloads the samples it needs.
 
