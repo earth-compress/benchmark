@@ -55,17 +55,6 @@ def parse_shape(value: str) -> tuple[int, ...]:
     return tuple(int(v) for v in value.split("x"))
 
 
-def legacy(corpus: Path, name: str | None = None) -> list[dict[str, str]]:
-    """Rows of the prototype manifest, so that ``select`` keeps the same samples."""
-    import os
-
-    root = Path(
-        os.environ.get("EC_LEGACY", corpus.parents[2] / "ec-benchmark" / "corpora")
-    )
-    with (root / (name or corpus.name) / "manifest.csv").open(newline="") as stream:
-        return list(csv.DictReader(stream))
-
-
 def cast(data: np.ndarray, dtype: str) -> np.ndarray:
     """Cast to the manifest dtype, refusing any change of value."""
     out = data.astype(dtype)
@@ -219,7 +208,9 @@ def main(
     """Command line of a corpus ``build.py``."""
     parser = argparse.ArgumentParser(prog=f"{corpus.name}/build.py")
     sub = parser.add_subparsers(dest="step", required=True)
-    sub.add_parser("select", help="choose the samples and write manifest.csv")
+    sub.add_parser(
+        "select", help="re-read the samples listed in manifest.csv and rewrite it"
+    )
     run = sub.add_parser("build", help="fetch every sample listed in manifest.csv")
     run.add_argument("--only", nargs="*", help="sample ids to build")
     if preview is not None:

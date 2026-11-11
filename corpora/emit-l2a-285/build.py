@@ -15,16 +15,16 @@ PREVIEW = (35, 23, 12)  # near 640, 550 and 470 nm
 def select() -> list[dict[str, str]]:
     ee = src.ee_init()
     rows = []
-    for old in b.legacy(CORPUS):
-        asset = f"{COLLECTION}/{old['scene_id']}"
+    for sample in b.read_manifest(CORPUS):
+        asset = sample["asset"]
         image = ee.Image(asset)
         crs, pixel, x0, y0 = src.ee_centre(
-            image.select(BANDS[0]), float(old["lon"]), float(old["lat"]), SIZE
+            image.select(BANDS[0]), float(sample["lon"]), float(sample["lat"]), SIZE
         )
         when = src.utc(image.get("system:time_start").getInfo())
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": f"{COLLECTION} (EMIT L2A Estimated Surface Reflectance V001)",
                 "asset": asset,
                 "crs": crs,
@@ -38,10 +38,11 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
             }
         )
     return rows

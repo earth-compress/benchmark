@@ -86,7 +86,7 @@ The corpora in the lossless-only table of `TOLERANCE.md` have no budget. That pa
 ```text
 corpora/<corpus-id>/
 ├── spec.md               sample definition, native unit, licence
-├── build.py              sample selection, rebuild, and exactness assertions
+├── build.py              manifest rewrite, rebuild, and exactness assertions
 ├── manifest.csv          one row per sample
 ├── npz/<sample>.npz.zst  sample data
 ├── png/<sample>.png      preview, never measured
@@ -118,7 +118,7 @@ Values that differ by plane, such as `bands`, `scale`, and `offset`, are separat
 
 Each corpus's `build.py` has two steps.
 
-1. `select` chooses the samples and writes `manifest.csv`. It runs once.
+1. `select` rewrites `manifest.csv` for the samples it already lists, reading their metadata again from the source.
 2. `build` uses the existing `manifest.csv` to fetch each `asset` over the window given by `transform` and `shape`, write the sample, and check `input_sha256`.
 
 A rebuild runs `build` only.

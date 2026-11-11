@@ -129,8 +129,8 @@ def nearest_block(table, lon: float, lat: float, step_lon: float, step_lat: floa
 def select() -> list[dict[str, str]]:
     rows = []
     (CORPUS / "cells").mkdir(exist_ok=True)
-    for old in b.legacy(CORPUS, "alphaearth-v1-64"):
-        lon, lat = float(old["lon"]), float(old["lat"])
+    for sample in b.read_manifest(CORPUS):
+        lon, lat = float(sample["lon"]), float(sample["lat"])
         dlat = CELLS * CELL_KM / 111.0
         dlon = dlat / math.cos(math.radians(lat))
         partitions = sorted(
@@ -142,7 +142,7 @@ def select() -> list[dict[str, str]]:
         )
         urls = [url for p in partitions for url in files(p)]
         table = read(urls, ["cell_id", "chips_id", "stac_item_id", "datetime", "bbox"])
-        sid = old["id"].replace("alphaearth-v1-64", CORPUS.name)
+        sid = sample["id"]
         cells, centre = nearest_block(table, lon, lat, dlon / CELLS, dlat / CELLS)
         bbox = table.column("bbox").to_pylist()
         records = []
@@ -190,10 +190,11 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
                 "centre_lon": repr(centre[0]),
                 "centre_lat": repr(centre[1]),
                 "cells_path": f"cells/{sid}.csv",

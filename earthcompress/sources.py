@@ -235,15 +235,6 @@ def ee_row(row: dict[str, str], expression=None) -> np.ndarray:
     return data.reshape(shape) if len(shape) == 2 else data
 
 
-def ee_snap(image, x: float, y: float) -> tuple[str, float, float, float]:
-    """Move a window corner onto the native grid of a single-band image."""
-    info = image.projection().getInfo()
-    a, _, c, _, e, f = info["transform"]
-    col = round((x - c) / a)
-    row = round((y - f) / e)
-    return info["crs"], a, c + col * a, f + row * e
-
-
 def ee_centre(
     image, lon: float, lat: float, size: int
 ) -> tuple[str, float, float, float]:

@@ -14,16 +14,16 @@ SIZE = 512
 def select() -> list[dict[str, str]]:
     ee = src.ee_init()
     rows = []
-    for old in b.legacy(CORPUS):
-        asset = f"{COLLECTION}/{old['scene_id']}"
+    for sample in b.read_manifest(CORPUS):
+        asset = sample["asset"]
         image = ee.Image(asset)
         crs, pixel, x0, y0 = src.ee_centre(
-            image.select(BANDS[0]), float(old["lon"]), float(old["lat"]), SIZE
+            image.select(BANDS[0]), float(sample["lon"]), float(sample["lat"]), SIZE
         )
         when = src.utc(image.get("system:time_start").getInfo())
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": f"{COLLECTION} (Sentinel-1 GRD IW, Earth Engine preprocessing)",
                 "asset": asset,
                 "crs": crs,
@@ -37,12 +37,13 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
-                "orbit_pass": old["orbit_pass"],
-                "relative_orbit": old["relative_orbit"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "orbit_pass": sample["orbit_pass"],
+                "relative_orbit": sample["relative_orbit"],
             }
         )
     return rows

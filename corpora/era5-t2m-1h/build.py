@@ -23,8 +23,8 @@ def fields(day: str) -> list[dict]:
 
 def select() -> list[dict[str, str]]:
     rows = []
-    for old in b.legacy(CORPUS):
-        day = old["date"]
+    for sample in b.read_manifest(CORPUS):
+        day = sample["datetime_start"][:10]
         found = fields(day)
         first = found[0]
         if (
@@ -37,7 +37,7 @@ def select() -> list[dict[str, str]]:
         start = dt.datetime.fromisoformat(day).replace(tzinfo=dt.UTC)
         rows.append(
             {
-                "id": old["id"],
+                "id": sample["id"],
                 "source": "ERA5 hourly data on single levels, Copernicus Climate Data Store, GRIB",
                 "asset": f"{DATASET}?variable={VARIABLE}&date={day}&time=00:00/23:00&format=grib",
                 "crs": "EPSG:4326",
@@ -53,6 +53,7 @@ def select() -> list[dict[str, str]]:
                 "scale": b.join(repr(f["scale"]) for f in found),
                 "offset": b.join(repr(f["offset"]) for f in found),
                 "nodata": "",
+                "input_sha256": sample["input_sha256"],
                 "variable": VARIABLE,
                 "grib_short_name": SHORT,
                 "bits_per_value": b.join(sorted({f["bits"] for f in found})),

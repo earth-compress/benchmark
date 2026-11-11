@@ -7,6 +7,7 @@ from earthcompress import sources as src
 
 CORPUS = Path(__file__).resolve().parent
 ROOT = "https://data.source.coop/tessera/tessera"
+MODEL = "TESSERA-V-2.0-2B-L"
 VARIANT = "v2-2B-L~beta1"
 PIXEL = 10
 SIZE = 512
@@ -16,17 +17,17 @@ def select() -> list[dict[str, str]]:
     import rasterio
 
     rows = []
-    for old in b.legacy(CORPUS, "tessera-v2-128"):
-        tile, year = old["source_tile"], old["year"]
+    for sample in b.read_manifest(CORPUS):
+        tile, year = sample["source_tile"], sample["datetime_start"][:4]
         with rasterio.open(f"/vsicurl/{ROOT}/landmasks/v2/{tile}.tiff") as mask:
             t, crs = mask.transform, mask.crs.to_string()
         if (abs(t.a) != PIXEL) or t.b or t.d:
             raise ValueError(f"{tile}: unexpected landmask grid")
-        top, left = int(old["crop_row"]), int(old["crop_col"])
+        top, left = int(sample["crop_row"]), int(sample["crop_col"])
         rows.append(
             {
-                "id": old["id"].replace("tessera-v2-128", CORPUS.name),
-                "source": f"TESSERA {old['model']} embeddings, {VARIANT}",
+                "id": sample["id"],
+                "source": f"TESSERA {MODEL} embeddings, {VARIANT}",
                 "asset": f"{ROOT}/npy/{VARIANT}/{year}/{tile}/{tile}_scales.npy",
                 "crs": crs,
                 "transform": b.transform_text(
@@ -41,13 +42,14 @@ def select() -> list[dict[str, str]]:
                 "scale": "1",
                 "offset": "0",
                 "nodata": "",
-                "site": old["site"],
-                "regime": old["regime"],
-                "lon": old["lon"],
-                "lat": old["lat"],
+                "input_sha256": sample["input_sha256"],
+                "site": sample["site"],
+                "regime": sample["regime"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
                 "source_tile": tile,
-                "crop_row": old["crop_row"],
-                "crop_col": old["crop_col"],
+                "crop_row": sample["crop_row"],
+                "crop_col": sample["crop_col"],
             }
         )
     return rows

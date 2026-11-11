@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T18:39:59+00:00",
+  "generated_at": "2026-11-08T20:39:30+00:00",
   "earthcompress_version": "0.1.0",
   "cpu": "Apple M5",
   "cpu_count": 10,
@@ -10,9 +10,9 @@
   "python_version": "3.13.12",
   "threads": 1,
   "load_average": [
-    2.63,
-    2.7,
-    2.56
+    1.24,
+    1.5,
+    2.18
   ],
   "encode_calls": 1,
   "decode_calls": "3 to 10, stopping after 0.5 s"

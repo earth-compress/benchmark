@@ -8,6 +8,7 @@ import math
 import re
 import shutil
 import statistics
+import tarfile
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -105,7 +106,7 @@ def near_totals(rows: list[dict]) -> dict[str, dict[str, dict]]:
             broken = [
                 promise
                 for promise in ("bound", "sentinel", "zero")
-                if any(float(r[f"{promise}_violations"] or 0) > 0 for r in mine)
+                if any(r[f"{promise}_violations"] not in ("", "0") for r in mine)
             ]
             out.setdefault(level, {})[base(config)] = {**entry(mine), "broken": broken}
     return out
@@ -193,6 +194,28 @@ def usecase_png(folder: str, sample: str, name: str) -> Path | None:
     results = (ROOT / "usecases" / folder / "results.csv").read_bytes()
     run = hashlib.sha256(results).hexdigest()[:10]
     return fetched(ROOT / path, path, f"usecases/{folder}/{run}/{sample}/{name}.png")
+
+
+def lossy_views(key: str) -> Path | None:
+    """The page pictures of a lossy case: made locally by ``lossy/views.py``,
+    or fetched from Hugging Face as one archive.
+
+    The cache keeps them by the digest of the case's ``results.csv``.
+    """
+    local = ROOT / "lossy" / key / "views"
+    if local.exists():
+        return local
+    results = (ROOT / "lossy" / key / "results.csv").read_bytes()
+    run = hashlib.sha256(results).hexdigest()[:10]
+    folder = CACHE / "lossy" / key / run
+    if not (folder / "views").exists():
+        archive = fetched(local, f"lossy/{key}/views.tar", f"lossy/{key}/{run}.tar")
+        if archive is None:
+            return None
+        with tarfile.open(archive) as tar:
+            tar.extractall(folder, filter="data")
+        archive.unlink()
+    return folder / "views"
 
 
 def resized(source: Path | None, target: str, side: int, square: bool) -> str | None:
@@ -377,13 +400,6 @@ NEAR_NOTE = (
 )
 
 
-NO_BUDGET = (
-    '<div class="panel soonpanel" role="tabpanel" id="panel-near" hidden><p>This corpus '
-    "has no error budget, so it runs in lossless mode only. See "
-    '<a href="{root}tolerance/">Tolerance</a>.</p></div>'
-)
-
-
 def sample_links(
     cid: str,
     sid: str,
@@ -423,9 +439,7 @@ def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
         if not path.exists():
             continue
         with path.open(newline="") as stream:
-            for sid in sorted(
-                {r.get("sample_id") or r["id"] for r in csv.DictReader(stream)}
-            ):
+            for sid in sorted({r["id"] for r in csv.DictReader(stream)}):
                 found.setdefault(sid, []).append(
                     (case.get("slug", case["folder"]), case["title"])
                 )
@@ -460,45 +474,6 @@ def near_block(key: str, levels: tuple[str, ...]) -> str:
     )
     return f"""<section class="results"><div class="pick near-pick"><select id="near-corpus" hidden><option value="{key}">{key}</option></select><select id="near-level" aria-label="Budget level">{options}</select></div>
 <div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>"""
-
-
-def chart_block(
-    select: str = "",
-    key: str = "all",
-    caption: str = "",
-    near: str = "",
-    budget: bool = True,
-    root: str = "",
-    levels: tuple[str, ...] = LEVELS,
-) -> str:
-    pick = f'<label class="pick">{select}</label>' if select else ""
-    note = f'<p class="chart-note">{caption}</p>' if caption else ""
-    chosen = "matched" if "matched" in levels else (levels or ("",))[0]
-    levels = "".join(
-        f'<option value="{level}"{" selected" if level == chosen else ""}>{level}</option>'
-        for level in levels
-    )
-    corpus = (
-        near.replace('id="corpus"', 'id="near-corpus"')
-        if near
-        else f'<select id="near-corpus" hidden><option value="{key}">{key}</option></select>'
-    )
-    near_panel = f"""<div class="panel" role="tabpanel" id="panel-near" hidden>
-<div class="pick near-pick">{corpus}<select id="near-level" aria-label="Budget level">{levels}</select></div>
-<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></div>"""
-    if not budget:
-        near_panel = NO_BUDGET.format(root=root)
-    return f"""<section class="results">
-<div class="controls">
-<div class="tabs" role="tablist" aria-label="Fidelity mode">
-<button type="button" role="tab" aria-controls="panel-lossless" aria-selected="true">Lossless</button>
-<button type="button" role="tab" aria-controls="panel-near" aria-selected="false">Near-lossless</button>
-</div>
-{pick}
-</div>
-<div class="panel" role="tabpanel" id="panel-lossless"><div class="chart" data-chart="{key}"{' data-select="corpus"' if select else ""}></div>{note}</div>
-{near_panel}
-</section>"""
 
 
 def families(corpora: Path) -> dict[str, str]:
@@ -1183,8 +1158,9 @@ def lossy_page() -> None:
         for s in manifest(ROOT / "corpora" / case["corpus"]):
             sid = s["id"].replace(*case["rename"]) if case["rename"] else s["id"]
             corpus_rows[sid] = s
+        views = lossy_views(key)
         samples = {}
-        for path in sorted((folder / "views").glob("*/sample.json")):
+        for path in sorted(views.glob("*/sample.json")) if views else []:
             sid = path.parent.name
             shutil.copytree(path.parent, OUT / "lossy" / key / sid)
             samples[sid] = json.loads(path.read_text())
@@ -1194,9 +1170,9 @@ def lossy_page() -> None:
         cards = []
         first = None
         for i, sid in enumerate(scenes):
-            source = folder / "views" / sid / "original.webp"
+            source = views / sid / "original.webp" if views else None
             thumb = resized(
-                source if source.exists() else None,
+                source if source and source.exists() else None,
                 f"img/lossy/{key}/{sid}.webp",
                 THUMB,
                 True,
