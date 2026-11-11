@@ -11,41 +11,62 @@ on:
       - "earthcompress/**"
       - "*.md"
       - "docs/assets/**"
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    paths:
+      - "corpora/**"
+      - "usecases/**"
+      - "lossy/**"
+      - "website/**"
+      - "earthcompress/**"
+      - "*.md"
+      - "docs/assets/**"
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+  pull-requests: write
 
+# A newer push replaces the site of main or the preview of its pull request. The
+# deploy actions rebase and retry when another run pushed to gh-pages first.
 concurrency:
-  group: pages
+  group: website-${{ github.event.pull_request.number || 'main' }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  site:
+    # A pull request from a fork cannot push a preview.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        if: github.event.action != 'closed'
       - name: Reuse the previews and maps fetched from Hugging Face
+        if: github.event.action != 'closed'
         uses: actions/cache@v4
         with:
           path: .cache/site
           key: previews-${{ hashFiles('corpora/*/manifest.csv', 'usecases/*/results.csv') }}
           restore-keys: previews-
       - name: Build the site from the repository
-        run: uv run --extra site python website/build.py
-      - uses: actions/upload-pages-artifact@v3
+        if: github.event.action != 'closed'
+        run: |
+          uv run --extra site python website/build.py
+          touch website/dist/.nojekyll
+      - name: Publish the site of main
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: website/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          folder: website/dist
+          branch: gh-pages
+          clean-exclude: pr-preview/
+      # Publishes the site under pr-preview/pr-<number>/, comments its link on the
+      # pull request and removes it when the pull request closes.
+      - name: Publish the preview of this pull request
+        if: github.event_name == 'pull_request'
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: website/dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
