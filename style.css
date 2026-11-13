@@ -56,7 +56,6 @@ h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
 .note { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 
 .results { padding: 28px 0 40px; }
-.chart-note { max-width: 900px; margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .pick { display: flex; align-items: center; gap: 12px; }
 select { font: 14px var(--mono); color: var(--ink); background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .chart svg { display: block; width: 100%; height: auto; }
@@ -137,9 +136,15 @@ h1 + .pick { margin: 0; justify-content: flex-end; }
 .decoded h3 { margin: 24px 0 10px; font-size: 16px; }
 .decoded .maps { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .decoded .maps figcaption { font-size: 12px; line-height: 1.45; }
+.uc-panel .series { transition: opacity 0.15s ease; }
 .uc-panel .series polyline { stroke-width: 1.2; stroke-opacity: 0.55; }
-.uc-panel .series circle { stroke: var(--page); stroke-width: 1; }
+.uc-panel .series .dot { stroke: var(--page); stroke-width: 1; transform-box: fill-box; transform-origin: center; transition: transform 0.15s ease; }
+.uc-panel .series .hit { fill: transparent; }
+.uc-panel .series .label { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+.uc-panel svg:has(.series:hover) .series:not(:hover) { opacity: 0.3; }
 .uc-panel .series:hover polyline { stroke-width: 2.4; stroke-opacity: 1; }
+.uc-panel .pt:hover .dot { transform: scale(1.9); }
+.uc-panel .pt:hover .label { opacity: 1; }
 .maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
 .maps figure { margin: 0; }
 .maps img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--tint); }
@@ -156,8 +161,13 @@ h1 + .pick { margin: 0; justify-content: flex-end; }
 .experiment li { margin: 8px 0; }
 .results .doc { padding: 16px 0 0; }
 
-footer { border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 13px; color: var(--muted); }
-footer p { margin: 0 0 8px; }
+/* The footer of the GeoZL site, with the Earth Compress partners */
+footer { border-top: 1px solid var(--line); padding: 28px 0 32px; font-size: 12px; line-height: 1.2; color: var(--faint); }
+.colophon .wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.colophon .partners { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px 40px; }
+.colophon .partners a { display: inline-flex; opacity: .72; filter: grayscale(1); transition: opacity 160ms ease, filter 160ms ease; }
+.colophon .partners a:hover, .colophon .partners a:focus-visible { opacity: 1; filter: none; }
+.colophon .partners img { display: block; width: auto; }
 
 @media (max-width: 760px) {
   nav { gap: 12px; font-size: 13px; }
@@ -292,7 +302,6 @@ footer p { margin: 0 0 8px; }
 .home-page .mode-name { font-size: 22px; }
 .home-page .mode-text { font-size: 14px; }
 .home-page .mode-stat { padding-top: 10px; font-size: 12px; }
-.home-page footer p { margin: 0; }
 @media (max-width: 1000px) { .home-page .modes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .home-page .modes-grid { grid-template-columns: minmax(0, 1fr); } }
 .home-page footer { padding: 14px 0 18px; }
@@ -317,6 +326,18 @@ footer p { margin: 0 0 8px; }
 ::view-transition-group(ec-logo) { animation-duration: 0.65s; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
 ::view-transition-old(ec-logo), ::view-transition-new(ec-logo) { height: 100%; width: auto; animation-duration: 0.65s; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.35s; }
+/* The same way, each mode picture on the landing flies into its icon in the header. */
+.home-page .mode:nth-child(1) .mode-media, .modes-switch a:nth-child(1) svg { view-transition-name: ec-mode-1; }
+.home-page .mode:nth-child(2) .mode-media, .modes-switch a:nth-child(2) svg { view-transition-name: ec-mode-2; }
+.home-page .mode:nth-child(3) .mode-media, .modes-switch a:nth-child(3) svg { view-transition-name: ec-mode-3; }
+.home-page .mode:nth-child(4) .mode-media, .modes-switch a:nth-child(4) svg { view-transition-name: ec-mode-4; }
+.home-page .mode-media, .modes-switch svg { view-transition-class: ec-mode; }
+::view-transition-group(*.ec-mode) { animation-duration: 0.65s; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+::view-transition-old(*.ec-mode), ::view-transition-new(*.ec-mode) { width: 100%; height: 100%; object-fit: cover; animation-duration: 0.65s; }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+.map-section { border-top: 1px solid var(--line); padding: 10px 0; }
+.map-section summary { cursor: pointer; }
+.map-section summary h2 { display: inline; margin: 0; }
