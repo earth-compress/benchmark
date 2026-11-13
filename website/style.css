@@ -56,7 +56,6 @@ h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
 .note { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 
 .results { padding: 28px 0 40px; }
-.chart-note { max-width: 900px; margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .pick { display: flex; align-items: center; gap: 12px; }
 select { font: 14px var(--mono); color: var(--ink); background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .chart svg { display: block; width: 100%; height: auto; }

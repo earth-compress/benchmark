@@ -400,14 +400,6 @@ def card(root: str, href: str, image: str | None, name: str, meta: str) -> str:
     )
 
 
-NEAR_NOTE = (
-    "Each point shows a configuration at this budget level. "
-    "The line shows the best observed trade-offs. "
-    "The All corpora view pools size and decode time across samples for configurations "
-    "completed on every corpus with results at this level. Broken promises are listed below."
-)
-
-
 def sample_links(
     cid: str,
     sid: str,
@@ -467,9 +459,8 @@ def lossy_scenes() -> dict[tuple[str, str], list[tuple[str, str, str]]]:
     return found
 
 
-def lossless_block(key: str, caption: str = "") -> str:
-    note = f'<p class="chart-note">{caption}</p>' if caption else ""
-    return f'<section class="results"><div class="chart" data-chart="{key}"></div>{note}</section>'
+def lossless_block(key: str) -> str:
+    return f'<section class="results"><div class="chart" data-chart="{key}"></div></section>'
 
 
 def near_block(key: str, levels: tuple[str, ...]) -> str:
@@ -479,7 +470,7 @@ def near_block(key: str, levels: tuple[str, ...]) -> str:
         for level in levels
     )
     return f"""<section class="results"><div class="pick near-pick"><select id="near-corpus" hidden><option value="{key}">{key}</option></select><select id="near-level" aria-label="Budget level">{options}</select></div>
-<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>"""
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div></section>"""
 
 
 def families(corpora: Path) -> dict[str, str]:
@@ -914,10 +905,6 @@ def build() -> None:
             nav=False,
         )
     )
-    caption = (
-        "Each point shows a codec configuration. "
-        "The line connects the best observed trade-offs."
-    )
     (OUT / "lossless").mkdir(exist_ok=True)
     (OUT / "lossless" / "index.html").write_text(
         layout(
@@ -927,7 +914,7 @@ def build() -> None:
 <h1>Lossless</h1>
 <p class="lead">Lossless decodes reproduce the input values exactly.</p>
 <section class="results"><div class="pick near-pick">{select}</div>
-<div class="chart" data-chart="all" data-select="corpus"></div><p class="chart-note">{caption}</p></section>
+<div class="chart" data-chart="all" data-select="corpus"></div></section>
 <section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in measured)}</div></section>""",
             chart,
         )
@@ -945,7 +932,7 @@ def build() -> None:
 <h1>Near-lossless</h1>
 <p class="lead">Every valid value has an error bound. Zeros and NoData must be preserved. Available levels depend on the corpus. See <a href="../tolerance/">Tolerance</a>.</p>
 <section class="results"><div class="pick near-pick">{near_select.replace('id="corpus"', 'id="near-corpus"')}<select id="near-level" aria-label="Budget level">{levels}</select></div>
-<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div><p class="chart-note">{NEAR_NOTE}</p></section>
+<div class="chart" data-chart="near" data-set="near" data-select="near-corpus,near-level"></div></section>
 <section><h2>Datasets</h2><div class="grid">{"".join(card("../", f"near-lossless/{cid}/", image, cid, meta) for cid, _, image, meta in corpus_cards if cid in budgeted)}</div></section>""",
             chart,
         )
@@ -1079,7 +1066,6 @@ def lossy_panel(case: dict, scene: str, viewer: str = "") -> str:
     return f"""<section class="results"><div class="panel lossy" data-set="{case["key"]}" data-scene="{scene}">
 <div class="pick near-pick"><select class="metric" aria-label="Error">{options}</select></div>
 <div class="lossy-charts"><div class="chart speed"></div><div class="chart rd"></div></div>
-<p class="chart-note">Each point shows a codec setting. Lines connect settings of the same codec. The georvq settings on a line come from one file.</p>
 {viewer}
 </div></section>"""
 
