@@ -440,7 +440,9 @@ def usecase_scenes() -> dict[str, list[tuple[str, str]]]:
             continue
         with path.open(newline="") as stream:
             for sid in sorted({r["id"] for r in csv.DictReader(stream)}):
-                found.setdefault(sid, []).append((case["folder"], case["title"]))
+                found.setdefault(sid, []).append(
+                    (case.get("slug", case["folder"]), case["title"])
+                )
     return found
 
 
@@ -873,7 +875,7 @@ def build() -> None:
                 ("methane", "methane"),
                 ("drainage", "drainage"),
                 ("change-detection", "change detection"),
-                ("clouds-decoded", "clouds"),
+                ("cloud-top-height", "clouds"),
             )
         ],
     )
@@ -1327,6 +1329,8 @@ def change_figure(
     found: tuple[str, str] = ("changed where 2017 and 2025", "have a cosine below 0.8"),
     again: tuple[str, str, str] = ("compress", "both years,", "map again"),
     both: str = "changed on both",
+    title: str = "Compressed copy",
+    original_title: str | None = None,
 ) -> str:
     """How ``metric`` compares the map of the compressed copy with the original
     one, on a grid of pixels."""
@@ -1357,13 +1361,13 @@ def change_figure(
     kept = len(original - lost)
     union = len(original | new)
     return f"""<svg class="explain" viewBox="0 0 760 236" role="img" aria-label="How {metric} compares the {name} of the compressed copy with the original one">
-<g><text class="h" x="0" y="16">Original {name}</text>{before}
+<g><text class="h" x="0" y="16">{original_title or f"Original {name}"}</text>{before}
 <text x="0" y="200">{found[0]}</text><text x="0" y="218">{found[1]}</text></g>
 <g transform="translate(244 0)">
 <text x="0" y="104">{again[0]}</text><text x="0" y="122">{again[1]}</text><text x="0" y="140">{again[2]}</text>
 <path d="M2 154 H58 M50 148 L58 154 L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/>
 </g>
-<g transform="translate(316 0)"><text class="h" x="0" y="16">Compressed copy</text>{after}</g>
+<g transform="translate(316 0)"><text class="h" x="0" y="16">{title}</text>{after}</g>
 <g transform="translate(566 0)">
 <text class="h" x="0" y="16">{metric}</text>
 <text class="m" x="0" y="44">= overlap / union</text>
@@ -1372,6 +1376,216 @@ def change_figure(
 <rect x="0" y="116" width="12" height="12" rx="2" fill="#38bdf8"/><text x="20" y="126">lost</text>
 <rect x="0" y="140" width="12" height="12" rx="2" fill="#f43f5e"/><text x="20" y="150">new</text>
 </g>
+</svg>"""
+
+
+def cell(x: float, y: float, text: str, fill: str, ink: str = "#fff") -> str:
+    """One labelled pixel of a schematic."""
+    return (
+        f'<rect x="{x}" y="{y}" width="40" height="32" rx="2" fill="{fill}"/>'
+        f'<text class="m" x="{x + 20}" y="{y + 20}" text-anchor="middle" '
+        f'style="fill:{ink}">{text}</text>'
+    )
+
+
+def hatch(name: str) -> str:
+    """The pattern of pixels that a metric leaves out."""
+    return (
+        f'<defs><pattern id="{name}" width="6" height="6" patternUnits="userSpaceOnUse" '
+        'patternTransform="rotate(45)"><rect width="6" height="6" fill="#e3eaea"/>'
+        '<rect width="2" height="6" fill="#8aa09f"/></pattern></defs>'
+    )
+
+
+def changed(change: float) -> tuple[str, str]:
+    """The fill and text colours of a change in height, as on the maps."""
+    if change == 0:
+        return "#f7f7f7", "#143031"
+    if abs(change) < 1.5:
+        return ("#92c5de", "#143031") if change < 0 else ("#f4a582", "#143031")
+    return ("#2166ac", "#fff") if change < 0 else ("#b2182b", "#fff")
+
+
+def arrow(*words: str) -> str:
+    lines = "".join(
+        f'<text x="0" y="{104 + 18 * k}">{word}</text>' for k, word in enumerate(words)
+    )
+    return (
+        f'<g transform="translate(244 0)">{lines}<path d="M2 154 H58 M50 148 L58 154 '
+        'L50 160" fill="none" stroke="#8aa09f" stroke-width="2"/></g>'
+    )
+
+
+def height_figure() -> str:
+    """How the height metrics compare two grids of made-up heights, in km."""
+    original = (
+        (2, 2, 3, None, None),
+        (3, 8, 9, 9, None),
+        (3, 9, 10, 10, 9),
+        (None, 8, 9, 9, 8),
+    )
+    copy = (
+        (2, 2, 3, None, 2),
+        (3, 7, 8, 8, None),
+        (4, 8, 9, 8, 8),
+        (None, 8, 8, None, 7),
+    )
+    before, after, changes = [], [], []
+    out = "url(#height-out)"
+    for r, (row0, row1) in enumerate(zip(original, copy, strict=True)):
+        for c, (a, b) in enumerate(zip(row0, row1, strict=True)):
+            x, y = c * 42, 26 + r * 36
+            if a is None or b is None:
+                before.append(cell(x, y, "" if a is None else a, out, "#143031"))
+                after.append(cell(x, y, "" if b is None else b, out, "#143031"))
+            else:
+                before.append(cell(x, y, a, "#143031"))
+                after.append(cell(x, y, b, *changed(b - a)))
+                changes.append(b - a)
+    mae = sum(abs(d) for d in changes) / len(changes)
+    bias = sum(changes) / len(changes)
+    return f"""<svg class="explain" viewBox="0 0 800 236" role="img" aria-label="How the cloud top height metrics compare the heights from compressed data with those from the original data">
+{hatch("height-out")}
+<g><text class="h" x="0" y="16">From original data</text>{"".join(before)}
+<text x="0" y="192">Heights in km. Clouds Decoded gives no height for some</text>
+<text x="0" y="208">cloudy pixels, and which ones can change with compression.</text></g>
+{arrow("compress,", "decode,", "run CD")}
+<g transform="translate(316 0)"><text class="h" x="0" y="16">From compressed data</text>{"".join(after)}</g>
+<g transform="translate(566 0)">
+<text class="m" x="0" y="20">cth_mae  = mean(|change|)</text>
+<text class="m" x="0" y="38">         = {mae:.2f} km</text>
+<text class="m" x="0" y="62">cth_bias = mean(change)</text>
+<text class="m" x="0" y="80">         = {bias:+.2f} km</text>
+<rect x="0" y="102" width="12" height="12" rx="2" fill="#b2182b"/><text x="20" y="112">higher than the original</text>
+<rect x="0" y="124" width="12" height="12" rx="2" fill="#2166ac"/><text x="20" y="134">lower than the original</text>
+<rect x="0" y="146" width="12" height="12" rx="2" fill="#f7f7f7" stroke="#8aa09f"/><text x="20" y="156">unchanged</text>
+<rect x="0" y="168" width="12" height="12" rx="2" fill="{out}"/><text x="20" y="178">left out: no height in both</text>
+</g>
+</svg>"""
+
+
+def tau_figure() -> str:
+    """How the median relative error treats thin and thick cloud alike."""
+    original = (0.5, 1, 2, 5, 10, 20, 50, 80)
+    copy = (0.6, 1.1, 2.2, 5.1, 10.5, 21, 49, 82)
+    errors = [abs(b / a - 1) for a, b in zip(original, copy, strict=True)]
+    ordered = sorted(errors)
+    median = (ordered[3] + ordered[4]) / 2
+    x = [k * 44 for k in range(8)]
+    tops = "".join(cell(x[k], 26, f"{v:g}", "#143031") for k, v in enumerate(original))
+    lows = "".join(cell(x[k], 72, f"{v:g}", "#143031") for k, v in enumerate(copy))
+    errs = "".join(
+        f'<text class="m" x="{x[k] + 20}" y="126" text-anchor="middle">{100 * e:.0f}%</text>'
+        for k, e in enumerate(errors)
+    )
+    return f"""<svg class="explain" viewBox="0 0 800 190" role="img" aria-label="How tau_median_rel_error compares the optical thickness of the compressed copy with the original one">
+<g transform="translate(112 0)">{tops}{lows}{errs}
+<text x="0" y="164">Only pixels with τ above 0 from both are used.</text></g>
+<text class="h" x="0" y="46">Original τ</text><text class="h" x="0" y="92">Compressed τ</text><text x="0" y="126">relative change</text>
+<g transform="translate(484 0)">
+<text class="h" x="0" y="16">tau_median_rel_error</text>
+<text class="m" x="0" y="44">= median(|compressed / original − 1|)</text>
+<text class="m" x="0" y="64">= {100 * median:.1f}%</text>
+</g>
+</svg>"""
+
+
+def radius_figure() -> str:
+    """Which pixels the ice radius metrics use, and how the error is computed."""
+    original = (
+        ("ice", 30),
+        ("ice", 28),
+        ("ice", 35),
+        ("ice", 40),
+        ("mix", None),
+        ("liq", None),
+    )
+    copy = (
+        ("ice", 32),
+        ("ice", 27),
+        ("ice", 35),
+        ("liq", None),
+        ("ice", 31),
+        ("liq", None),
+    )
+    kept = [
+        abs(b[1] - a[1])
+        for a, b in zip(original, copy, strict=True)
+        if a[0] == "ice" and b[0] == "ice"
+    ]
+    out = "url(#radius-out)"
+    top, low, marks = [], [], []
+    for k, (a, b) in enumerate(zip(original, copy, strict=True)):
+        x = k * 44
+        used = a[0] == "ice" and b[0] == "ice"
+        fill = "#7dd3fc" if used else out
+        top.append(cell(x, 26, a[1] if a[1] else a[0], fill, "#143031"))
+        low.append(cell(x, 72, b[1] if b[1] else b[0], fill, "#143031"))
+        marks.append(
+            f'<text x="{x + 20}" y="126" text-anchor="middle">{"used" if used else "out"}</text>'
+        )
+    return f"""<svg class="explain" viewBox="0 0 800 190" role="img" aria-label="How re_ice_mae picks the ice pixels and compares their radius">
+{hatch("radius-out")}
+<g transform="translate(112 0)">{"".join(top)}{"".join(low)}{"".join(marks)}
+<text x="0" y="164">A pixel counts if its ice/liquid ratio is above 0.6 in the original and above 0.5 in compressed.</text>
+<text x="0" y="182">Products with fewer than 1000 such pixels have no value.</text></g>
+<text class="h" x="0" y="46">Original rₑ</text><text class="h" x="0" y="92">Compressed rₑ</text>
+<g transform="translate(484 0)">
+<text class="h" x="0" y="16">re_ice_mae</text>
+<text class="m" x="0" y="44">= mean(|compressed − original|)</text>
+<text class="m" x="0" y="64">= ({" + ".join(str(k) for k in kept)}) / {len(kept)} = {sum(kept) / len(kept):.2f} µm</text>
+<rect x="0" y="86" width="12" height="12" rx="2" fill="#7dd3fc"/><text x="20" y="96">ice in both: used</text>
+<rect x="0" y="108" width="12" height="12" rx="2" fill="{out}"/><text x="20" y="118">left out: flipped or not ice in the original</text>
+</g>
+</svg>"""
+
+
+def texture_figure() -> str:
+    """How the texture ratio compares the steps between neighbouring pixels."""
+    original = (30, 31, 30, 32, 31, 30, 31, 32)
+    copy = (30, 33, 29, 34, 30, 31, 34, 30)
+    ramp = ("#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725")
+    """Viridis from the smallest value, 29, to the largest, 34."""
+
+    def steps(values: tuple) -> list[int]:
+        return [abs(b - a) for a, b in zip(values, values[1:], strict=False)]
+
+    a, b = steps(original), steps(copy)
+
+    def row(values: tuple, gaps: list[int], y: int) -> str:
+        cells = "".join(
+            cell(k * 44, y, v, ramp[v - 29], "#143031" if v >= 33 else "#fff")
+            for k, v in enumerate(values)
+        )
+        marks = "".join(
+            f'<text class="m" x="{42 + k * 44}" y="{y + 50}" text-anchor="middle">{g}</text>'
+            for k, g in enumerate(gaps)
+        )
+        return cells + marks
+
+    return f"""<svg class="explain" viewBox="0 0 800 190" role="img" aria-label="How re_ice_texture compares the steps between neighbouring pixels">
+<g transform="translate(112 0)">{row(original, a, 12)}{row(copy, b, 88)}</g>
+<text class="h" x="0" y="32">Original rₑ</text><text x="0" y="62">steps</text>
+<text class="h" x="0" y="108">Compressed rₑ</text><text x="0" y="138">steps</text>
+<text x="0" y="180">Colour shows the value. Neighbours are taken along rows and columns, on the same ice pixels as re_ice_mae.</text>
+<g transform="translate(484 0)">
+<text class="h" x="0" y="16">re_ice_texture</text>
+<text class="m" x="0" y="44">= mean(compressed steps)</text>
+<text class="m" x="0" y="60">  / mean(original steps)</text>
+<text class="m" x="0" y="80">= {sum(b) / len(b):.2f} / {sum(a) / len(a):.2f} = {sum(b) / sum(a):.2f}</text>
+<text x="0" y="106">1 means no change, above 1 rougher,</text>
+<text x="0" y="124">below 1 smoother.</text>
+</g>
+</svg>"""
+
+
+HEIGHT_LEGEND = """<svg class="explain" style="max-width:420px" viewBox="0 0 420 58" role="img" aria-label="Colour scale of the change in cloud top height, from 3 km lower in blue to 3 km higher in red">
+<defs><linearGradient id="height-change">
+<stop offset="0" stop-color="#053061"/><stop offset="0.1" stop-color="#2166ac"/><stop offset="0.2" stop-color="#4393c3"/><stop offset="0.3" stop-color="#92c5de"/><stop offset="0.4" stop-color="#d1e5f0"/><stop offset="0.5" stop-color="#f7f7f7"/><stop offset="0.6" stop-color="#fddbc7"/><stop offset="0.7" stop-color="#f4a582"/><stop offset="0.8" stop-color="#d6604d"/><stop offset="0.9" stop-color="#b2182b"/><stop offset="1" stop-color="#67001f"/>
+</linearGradient></defs>
+<rect x="0" y="0" width="420" height="14" rx="2" fill="url(#height-change)"/>
+<text x="0" y="32">3 km lower</text><text x="210" y="32" text-anchor="middle">unchanged</text><text x="420" y="32" text-anchor="end">3 km higher</text>
+<text x="0" y="52">Grey: no height in both. Changes beyond 3 km are drawn at the end of the scale.</text>
 </svg>"""
 
 
@@ -1421,20 +1635,103 @@ USECASES = (
         "maps": "Decoded change maps",
         "keys": ("changed on both", "lost", "new"),
     },
-    {
-        "title": "Clouds Decoded",
-        "folder": "clouds-decoded",
-        "metric": "cloud_iou",
-        "caption": "Sentinel-2 over the Bay of Bengal on 21 November 2021, decoded from JPEG XL at distance 0.094.",
-        "figure": change_figure(
-            "cloud_iou",
-            "cloud mask",
-            ("cloud where Clouds Decoded", "finds it on the original"),
-            ("compress", "the bands,", "mask again"),
-            "cloud on both",
-        ),
-        "samples": 100,
-    },
+    *(
+        {
+            "folder": "clouds-decoded",
+            "shared": "Clouds Decoded",
+            "samples": 16,
+            "group": None,
+            "groups": {},
+            "unit": "DN",
+            "short": "DN",
+            "card": "{regime} · {surface}",
+            "keys": ("cloud on both", "lost", "new"),
+            "levels": True,
+            "labels": False,
+            "codecs": {
+                "quant-geozl-med-pivco-rms": ("GeoZL PIVCO", "#2e8c8c"),
+                "quant-geozl-planar-pfor-rms": ("GeoZL PFOR", "#7a68c2"),
+                "jpegxl-distance": ("JPEG XL", "#d0892a"),
+                "georvq-s2-v1": ("georvq", "#d6456b"),
+            },
+            **case,
+        }
+        for case in (
+            {
+                "title": "Cloud mask",
+                "slug": "cloud-mask",
+                "metric": "cloud_iou",
+                "preview": "preview.png",
+                "thumbnail": "mask",
+                "original": "The crop in true colour, with clouds identified by Clouds Decoded in orange.",
+                "caption": "Sentinel-2 over the Bay of Bengal on 29 April 2026, with clouds identified by Clouds Decoded in orange.",
+                "figure": change_figure(
+                    "cloud_iou",
+                    "cloud mask",
+                    ("clouds found by", "Clouds Decoded"),
+                    ("compress,", "decode,", "mask again"),
+                    "cloud on both",
+                    "From compressed data",
+                    "From original data",
+                ),
+                "heading": "cloud mask",
+                "metrics": {"cloud_iou": ("Cloud mask IoU", 1.0)},
+                "maps": "Change in cloud mask",
+            },
+            {
+                "title": "Cloud top height",
+                "slug": "cloud-top-height",
+                "metric": "cth_mae",
+                "preview": "preview-height.png",
+                "thumbnail": "height",
+                "original": "Cloud top height retrieved by Clouds Decoded, from 0 km in purple to 15 km in yellow, over the true-colour crop.",
+                "caption": "Cloud top height retrieved by Clouds Decoded over the Bay of Bengal on 17 November 2018, from 0 km in purple to 15 km in yellow.",
+                "figure": height_figure(),
+                "heading": "cloud top height",
+                "metrics": {
+                    "cth_mae": ("Cloud top height MAE (m)", 0.0),
+                    "cth_bias": ("Cloud top height bias (m)", 0.0),
+                },
+                "maps": "Change in cloud top height",
+                "suffix": "-cth",
+                "keys_legend": HEIGHT_LEGEND,
+            },
+            {
+                "title": "Cloud optical thickness",
+                "slug": "cloud-optical-thickness",
+                "metric": "tau_median_rel_error",
+                "preview": "preview-thickness.png",
+                "thumbnail": "thickness",
+                "original": "Optical thickness retrieved by Clouds Decoded, from 0.1 in black to 100 in pale yellow on a log scale, over the true-colour crop.",
+                "caption": "Cloud optical thickness retrieved by Clouds Decoded over the Bay of Bengal on 19 July 2021, from 0.1 in black to 100 in pale yellow.",
+                "figure": tau_figure(),
+                "heading": "optical thickness",
+                "metrics": {
+                    "tau_median_rel_error": (
+                        "Optical thickness median relative error (%)",
+                        0.0,
+                    ),
+                },
+                "maps": None,
+            },
+            {
+                "title": "Ice effective radius",
+                "slug": "ice-effective-radius",
+                "metric": "re_ice_mae",
+                "preview": "preview-ice.png",
+                "thumbnail": "ice",
+                "original": "Ice effective radius retrieved by Clouds Decoded where the cloud is ice, from 15 µm in blue to 45 µm in yellow, over the true-colour crop.",
+                "caption": "Ice effective radius retrieved by Clouds Decoded in deep convection over the Bay of Bengal on 28 August 2021, from 15 µm in blue to 45 µm in yellow.",
+                "figure": radius_figure() + texture_figure(),
+                "heading": "ice effective radius",
+                "metrics": {
+                    "re_ice_mae": ("Ice effective radius MAE (µm)", 0.0),
+                    "re_ice_texture": ("Ice effective radius texture ratio", 1.0),
+                },
+                "maps": None,
+            },
+        )
+    ),
 )
 HIDDEN_META = {"id", "npz_path", "asset", "asset_2017", "asset_2025", "nodata"}
 
@@ -1503,10 +1800,34 @@ def metric_range(points: list[dict], top: float) -> tuple[float, float]:
     return max(math.floor((worst - top) / step - 1e-9) * step + top, top - 1), top
 
 
-def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) -> str:
+def free_axis(points: list[dict], best: float) -> tuple[tuple[float, float], list]:
+    """A round range and its rules, for a metric with no fixed scale."""
+    values = [p["value"] for p in points] + [best]
+    wanted = (max(values) - min(values)) / 4 or 1
+    power = 10 ** math.floor(math.log10(wanted))
+    step = min(k * power for k in (1, 2, 5, 10) if k * power >= wanted)
+    low = math.floor(min(values) / step) * step
+    high = math.ceil(max(values) / step) * step
+    if low == high:
+        low, high = (low - step, high) if best else (low, high + step)
+    return (low, high), [low + k * step for k in range(round((high - low) / step) + 1)]
+
+
+def scatter(
+    title: str,
+    series: list[tuple],
+    xs,
+    ys,
+    metric: str,
+    short: str,
+    rules: list | None = None,
+    bound: str = "RMSE ≤ ",
+    labels: bool = True,
+) -> str:
     """Each codec at each error bound, its compression ratio against the metric,
-    with the bound next to each point."""
+    with the bound next to each point where ``labels`` is set."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
+    measured = "measured" if rules is None else "RMSE"
     (x0, x1), (low, high) = xs, ys
 
     def x(v: float) -> float:
@@ -1518,10 +1839,11 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) ->
         return top + (high - v) / (high - low) * (h - top - bottom)
 
     out = [f'<text class="title" x="{left}" y="18">{html.escape(title)}</text>']
-    for v in ticks(low, high):
+    for v in rules or ticks(low, high):
+        text = f"{v:g}" if rules else f"{v:.2f}"
         out.append(
             f'<line class="rule" x1="{left}" x2="{w - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
-            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.2f}</text>'
+            f'<text class="tick" x="{left - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{text}</text>'
         )
     for t in RATIO_TICKS:
         if x0 <= t <= x1:
@@ -1542,7 +1864,7 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) ->
             spots.setdefault((round(x(p["ratio"])), round(y(p["value"]))), []).append(p)
         marks = "".join(
             f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["value"]):.1f}" r="4.5">'
-            f"<title>{html.escape(name)} · RMSE ≤ {p['bound']:g} {short}, measured "
+            f"<title>{html.escape(name)} · {bound}{p['bound']:g}{' ' + short if short else ''}, {measured} "
             f"{p['rmse']:.3g} · {p['ratio']:.1f}× · {metric} {p['value']:+.3f}</title></circle>"
             for p in points
         ) + "".join(
@@ -1551,6 +1873,7 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) ->
             f"{group[0]['bound']:g}{'–' + format(group[-1]['bound'], 'g') if len(group) > 1 else ''}"
             f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
             for group in spots.values()
+            if labels
         )
         out.append(
             f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
@@ -1564,7 +1887,8 @@ def scatter(title: str, series: list[tuple], xs, ys, metric: str, short: str) ->
 def results_pages(case: dict, lead: str, about: str) -> str:
     """The results page of a use case, and the page of each of its samples."""
     title, folder, metric = case["title"], case["folder"], case["metric"]
-    header = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", None))}
+    slug = case.get("slug", folder)
+    header = f"""{crumbs("../../../", ("Use cases", "usecases/"), (title, f"usecases/{slug}/"), ("Results", None))}
 <h1>{html.escape(title)}</h1>
 <p class="lead">{inline(lead.strip())}</p>
 <section class="measure"><h2>How it is measured</h2>{case["figure"]}<div class="doc">{about}</div></section>"""
@@ -1574,8 +1898,20 @@ def results_pages(case: dict, lead: str, about: str) -> str:
 <section class="results"><h2>Results</h2><p class="note">Coming soon.</p></section>"""
     group, short = case["group"], case["short"]
     top = 0.0 if metric.startswith("delta") else 1.0
+    codecs = case.get("codecs", CODECS)
+    levels = case.get("levels", False)
+    heading = case.get("heading", metric)
+    points = (
+        "Each point is one level of a codec, named when you point at it"
+        if not case.get("labels", True)
+        else "Each point is one level of a codec, with the number of the level next to it"
+        if levels
+        else "Each point is a bound on the root-mean-square error, written next to "
+        f"it in {case['unit']}"
+    )
+    where = "at each level" if levels else f"at each error bound, in {case['unit']}"
     with path.open(newline="") as stream:
-        rows = list(csv.DictReader(stream))
+        rows = [r for r in csv.DictReader(stream) if r[metric]]
     measured = {r["id"] for r in rows}
     samples = [s for s in manifest(ROOT / "usecases" / folder) if s["id"] in measured]
 
@@ -1583,12 +1919,27 @@ def results_pages(case: dict, lead: str, about: str) -> str:
         return case["groups"].get(row[group], row[group]) if group else "All samples"
 
     def panels(subset: list[dict[str, str]], name: str | None) -> str:
+        """A panel for each group, or for each metric where a case has several."""
+        if "metrics" not in case:
+            return group_panels(subset, name, metric)
+        return "".join(
+            group_panels([r for r in subset if r[column]], title, column, best)
+            for column, (title, best) in case["metrics"].items()
+            if any(r[column] for r in subset)
+        )
+
+    def group_panels(
+        subset: list[dict[str, str]],
+        name: str | None,
+        column: str,
+        best: float | None = None,
+    ) -> str:
         """One panel per group in ``subset`` with every codec, on shared axes."""
         groups = list(dict.fromkeys(label(r) for r in subset))
         curves = {
             g: [
-                (codec_name, colour, curve(found, metric))
-                for codec, (codec_name, colour) in CODECS.items()
+                (codec_name, colour, curve(found, column))
+                for codec, (codec_name, colour) in codecs.items()
                 if (
                     found := [
                         r for r in subset if label(r) == g and r["codec"] == codec
@@ -1600,49 +1951,48 @@ def results_pages(case: dict, lead: str, about: str) -> str:
         every = [
             p for found in curves.values() for _, _, points in found for p in points
         ]
-        xs, ys = ratio_range(every), metric_range(every, top)
+        xs, ys, rules = ratio_range(every), metric_range(every, top), None
+        if best is not None:
+            ys, rules = free_axis(every, best)
         return "".join(
-            scatter(name or g, found, xs, ys, metric, short)
+            scatter(
+                name or g,
+                found,
+                xs,
+                ys,
+                column,
+                short,
+                rules,
+                "level " if levels else "RMSE ≤ ",
+                case.get("labels", True),
+            )
             for g, found in curves.items()
         )
 
     legend = "".join(
         f'<span style="--c:{colour}"><i></i>{html.escape(name)}</span>'
-        for name, colour in CODECS.values()
+        for name, colour in codecs.values()
     )
     keys = "".join(
         f'<span class="key k-{kind}">{html.escape(text)}</span>'
         for kind, text in zip(("kept", "lost", "new"), case["keys"], strict=True)
     )
     root = "../../../../"
-    cards = []
-    for k, s in enumerate(samples):
-        sid = s["id"]
-        source = usecase_png(folder, sid, "original")
-        thumb = resized(source, f"img/usecases/{folder}/{sid}.webp", THUMB, True)
-        large = resized(source, f"img/usecases/{folder}/{sid}-large.webp", LARGE, False)
-        fields = {**s, **({group: label(s)} if group else {})}
-        cards.append(
-            card(
-                "../../../",
-                f"usecases/{folder}/results/{sid}/",
-                thumb,
-                sid,
-                html.escape(case["card"].format(**fields)),
-            )
-        )
-        found = [r for r in rows if r["id"] == sid]
+
+    def gallery(sid: str, found: list[dict], suffix: str, column: str) -> str:
+        """The maps of one sample for every codec, with ``column`` under each."""
         maps = []
-        for codec, (name, _) in CODECS.items():
+        for codec, (name, _) in codecs.items():
             mine = sorted(
                 (r for r in found if r["codec"] == codec),
                 key=lambda r: float(r["rms_bound"]),
             )
             figs = []
             for r in mine:
+                config = r["configuration"]
                 image = resized(
-                    usecase_png(folder, sid, r["configuration"]),
-                    f"img/usecases/{folder}/{sid}/{r['configuration']}.webp",
+                    usecase_png(folder, sid, f"{config}{suffix}"),
+                    f"img/usecases/{folder}/{sid}/{config}{suffix}.webp",
                     LARGE,
                     False,
                 )
@@ -1651,16 +2001,53 @@ def results_pages(case: dict, lead: str, about: str) -> str:
                 bound = f"{float(r['rms_bound']):g} {short}"
                 rmse = float(r["rmse"])
                 done = "lossless" if rmse == 0 else f"measured {rmse:.3g}"
+                point = config if levels else f"RMSE ≤ {bound}"
+                done = f"RMSE {rmse:.3g}" if levels else done
                 figs.append(
-                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {bound}">'
-                    f"<figcaption><strong>RMSE ≤ {bound}</strong>, {done}<br>"
-                    f"{float(r['compression_ratio']):.1f}× · {metric} "
-                    f"{float(r[metric]):+.3f}</figcaption></figure>"
+                    f'<figure><img src="{root}{image}" alt="{html.escape(name)} at {point}">'
+                    f"<figcaption><strong>{point}</strong>, {done}<br>"
+                    f"{float(r['compression_ratio']):.1f}× · {column} "
+                    f"{float(r[column]):+.3f}</figcaption></figure>"
                 )
             if figs:
                 maps.append(
                     f'<h3>{html.escape(name)}</h3><div class="maps">{"".join(figs)}</div>'
                 )
+        return "".join(maps)
+
+    def map_section(name: str, intro: str, body: str) -> str:
+        """The maps of one sample, closed until asked for where a case has several."""
+        if levels:
+            return (
+                f'<details class="decoded map-section"><summary><h2>{html.escape(name)}</h2>'
+                f"</summary>{intro}{body}</details>"
+            )
+        return f'<section class="decoded"><h2>{name}</h2>\n{intro}\n{body}</section>'
+
+    cards = []
+    for k, s in enumerate(samples):
+        sid = s["id"]
+        source = usecase_png(folder, sid, case.get("thumbnail", "original"))
+        thumb = resized(source, f"img/usecases/{slug}/{sid}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{slug}/{sid}-large.webp", LARGE, False)
+        fields = {**s, **({group: label(s)} if group else {})}
+        cards.append(
+            card(
+                "../../../",
+                f"usecases/{slug}/results/{sid}/",
+                thumb,
+                sid,
+                html.escape(case["card"].format(**fields)),
+            )
+        )
+        found = [r for r in rows if r["id"] == sid]
+
+        more = ""
+        if "more_maps" in case:
+            suffix, column, more_title, legend_svg = case["more_maps"]
+            more = map_section(
+                more_title, legend_svg, gallery(sid, found, suffix, column)
+            )
         prev_link = (
             f'<a href="../{samples[k - 1]["id"]}/">← {samples[k - 1]["id"]}</a>'
             if k
@@ -1676,33 +2063,32 @@ def results_pages(case: dict, lead: str, about: str) -> str:
             for key, value in fields.items()
             if key not in HIDDEN_META and value
         )
-        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{folder}/"), ("Results", f"usecases/{folder}/results/"), (sid, None))}
+        body = f"""{crumbs(root, ("Use cases", "usecases/"), (title, f"usecases/{slug}/"), ("Results", f"usecases/{slug}/results/"), (sid, None))}
 <h1>{html.escape(sid)}</h1>
 <div class="sample">
 <div class="figure">{f'<img src="{root}{large}" alt="{html.escape(case["original"])}">' if large else '<div class="noimg"></div>'}
 <p class="note">{html.escape(case["original"])}</p></div>
 <div><h2>Sample</h2><table class="meta-table">{meta}</table></div>
 </div>
-<section class="results"><h2>Compression ratio and {metric}</h2>
-<p class="note">Each point is a bound on the root-mean-square error, written next to it in {case["unit"]}, on this sample.</p>
+<section class="results"><h2>Compression ratio and {heading}</h2>
+<p class="note">{points}, on this sample.</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(found, sid)}</div></section>
-<section class="decoded"><h2>{case["maps"]}</h2>
-<p class="note">The result on the compressed copy at each error bound, in {case["unit"]}.{keys}</p>
-{"".join(maps)}</section>
+{map_section(case["maps"], case.get("keys_legend") or f'<p class="note">The result {"from compressed data" if levels else "on the compressed copy"} {where}.{keys}</p>', gallery(sid, found, case.get("suffix", ""), metric)) if case["maps"] else ""}{more}
 <p class="pager">{prev_link}{next_link}</p>"""
-        target = OUT / "usecases" / folder / "results" / sid / "index.html"
+        target = OUT / "usecases" / slug / "results" / sid / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout(root, f"{sid} · Earth Compress benchmark", body))
 
-    note = (
-        f"Each point is a bound on the root-mean-square error, written next to it in "
-        f"{case['unit']}, at the compression ratio over all the samples of the panel "
-        f"and the median <code>{metric}</code>. Where JPEG XL finds no distance within "
-        "the bound it stores the array losslessly, so those bounds share one point, "
-        "marked lossless."
+    note = f"{points}, at the compression ratio over all the samples of the panel " + (
+        "and the median of the metric. GeoZL and JPEG XL levels are root-mean-square "
+        f"error limits in {case['unit']}, and georvq levels are its rungs."
+        if levels
+        else f"and the median <code>{metric}</code>. Where JPEG XL finds no distance "
+        "within the bound it stores the array losslessly, so those bounds share one "
+        "point, marked lossless."
     )
     return f"""{header}
-<section class="results"><h2>Compression ratio and {metric}</h2><p class="note">{note}</p>
+<section class="results"><h2>Compression ratio and {heading}</h2><p class="note">{note}</p>
 <div class="legend uc-legend">{legend}</div><div class="uc-panels wide">{panels(rows, None)}</div></section>
 <section><h2>Samples</h2><div class="grid">{"".join(cards)}</div></section>"""
 
@@ -1713,8 +2099,13 @@ def usecases() -> None:
     cards = []
     for case in USECASES:
         title, folder, metric = case["title"], case["folder"], case["metric"]
+        slug = case.get("slug", folder)
         lead, *blocks = sections[title].split("\n### ")
-        blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in blocks}
+        # Cases cut from one experiment take what they leave out from its section.
+        shared = (
+            sections[case["shared"]].split("\n### ")[1:] if "shared" in case else []
+        )
+        blocks = {b.split("\n", 1)[0]: b.split("\n", 1)[1] for b in shared + blocks}
 
         def md(text: str, root: str = "../../") -> str:
             return linked(markdown.markdown(text, extensions=["tables"]), root)
@@ -1722,13 +2113,13 @@ def usecases() -> None:
         path = ROOT / "usecases" / folder / "results.csv"
         if path.exists():
             with path.open(newline="") as stream:
-                count = len({r["id"] for r in csv.DictReader(stream)})
+                count = len({r["id"] for r in csv.DictReader(stream) if r[metric]})
         else:
             count = case["samples"]
-        source = ROOT / "usecases" / folder / "preview.png"
+        source = ROOT / "usecases" / folder / case.get("preview", "preview.png")
         source = source if source.exists() else None
-        thumb = resized(source, f"img/usecases/{folder}.webp", THUMB, True)
-        large = resized(source, f"img/usecases/{folder}-large.webp", LARGE, False)
+        thumb = resized(source, f"img/usecases/{slug}.webp", THUMB, True)
+        large = resized(source, f"img/usecases/{slug}-large.webp", LARGE, False)
         # The picture fills the height of the text beside it, so both columns end
         # together.
         figure = (
@@ -1745,13 +2136,13 @@ def usecases() -> None:
 <div class="experiment"><h2>Experiment</h2>{md(blocks["Experiment"])}
 <p><a class="button primary" href="results/">Results</a></p></div>
 </div>"""
-        target = OUT / "usecases" / folder / "index.html"
+        target = OUT / "usecases" / slug / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(layout("../../", f"{title} · Earth Compress benchmark", body))
         about = md(blocks["Metric"], "../../../") + (
             f"<h3>Compression</h3>{md(blocks['Compression'], '../../../')}"
         )
-        target = OUT / "usecases" / folder / "results" / "index.html"
+        target = OUT / "usecases" / slug / "results" / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
             layout(
@@ -1763,10 +2154,15 @@ def usecases() -> None:
         cards.append(
             card(
                 "../",
-                f"usecases/{folder}/",
+                f"usecases/{slug}/",
                 thumb,
                 title,
-                f"{count} samples · <code>{metric}</code>",
+                f"{count} samples · "
+                + (
+                    f"{len(case['metrics'])} metrics"
+                    if len(case.get("metrics", ())) > 1
+                    else f"<code>{metric}</code>"
+                ),
             )
         )
     (OUT / "usecases").mkdir(exist_ok=True)

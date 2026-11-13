@@ -1,13 +1,16 @@
 # Use cases
 
-These use cases check whether compression changes methane plume detection, drainage mapping, land change detection or cloud masks. Each analysis runs on original data and decoded copies, then compares the outputs. Settings fitted on the original are reused. Labels are never compressed. Each case lists its codec configurations and error bounds.
+These use cases check whether compression changes methane plume detection, drainage mapping, land change detection, cloud masks, cloud top height, optical thickness or ice effective radius. Each analysis runs on original data and decoded copies, then compares the outputs. Settings fitted on the original are reused. Labels are never compressed. Each case lists its codec configurations and error bounds.
 
 | use case | data | samples | metric |
 | --- | --- | ---: | --- |
 | [Methane plumes](#methane-plumes) | MethaneSET, Sentinel-2 and Landsat 8/9 | 20 | `delta_iou` |
 | [Drainage networks](#drainage-networks) | `cop-dem-glo30` | 10 | `stream_f1` |
 | [Change detection](#change-detection) | AlphaEarth, 2017 and 2025 | 13 | `change_iou` |
-| [Clouds Decoded](#clouds-decoded) | `EC-prototype-S2L1C`, Sentinel-2 L1C | 100 | `cloud_iou` |
+| [Cloud mask](#cloud-mask) | Sentinel-2 L1C | 16 | `cloud_iou` |
+| [Cloud top height](#cloud-top-height) | Sentinel-2 L1C | 16 | `cth_mae`, `cth_bias` |
+| [Cloud optical thickness](#cloud-optical-thickness) | Sentinel-2 L1C | 16 | `tau_median_rel_error` |
+| [Ice effective radius](#ice-effective-radius) | Sentinel-2 L1C | 11 | `re_ice_mae`, `re_ice_texture` |
 
 Code, manifests and results live in `usecases/<use-case>/`. `run.py` reads the samples and writes one row per sample and configuration to `results.csv`. Where provided, `build.py` rebuilds samples from their source.
 
@@ -15,6 +18,7 @@ Code, manifests and results live in `usecases/<use-case>/`. `run.py` reads the s
 uv run --extra corpus python usecases/methane/run.py
 uv run --extra corpus python usecases/drainage/run.py
 uv run --extra corpus python usecases/change-detection/run.py
+uv run --extra corpus python usecases/clouds-decoded/run.py
 ```
 
 ## Methane plumes
@@ -106,25 +110,86 @@ Both years are compressed separately with GeoZL PIVCO, GeoZL PFOR and JPEG XL. T
 
 ## Clouds Decoded
 
-Does compression change the clouds that Clouds Decoded finds in Sentinel-2?
+Does compression change the cloud mask or cloud properties that Clouds Decoded produces from Sentinel-2 data?
 
 ### Experiment
 
-We use 100 Sentinel-2 Level-1C products of one Bay of Bengal tile, sensed between 2017 and 2026. The products were compressed with georvq, SZ3 and JPEG XL and are on [Hugging Face](https://huggingface.co/datasets/earth-compress/EC-prototype-S2L1C). We run Clouds Decoded on each original product and each compressed copy. `cloud_iou` measures the overlap between the two cloud masks. Results are coming soon.
+We cut 16 crops from Sentinel-2 Level-1C products sensed between 2017 and 2026: 8 over the Bay of Bengal and 8 over land. Each shows a different cloud regime or surface, from a few small clouds over the sea to deep convection, thin cirrus, snow and sea ice. We run Clouds Decoded on each original crop and its compressed copies. The four use cases compare cloud mask, cloud top height, optical thickness and ice effective radius separately.
 
 ### Data
 
-All products are of tile T44PNB, with the 13 bands at their native 10, 20 and 60 m as uint16 DN. They show one stretch of tropical sea and its clouds over ten years. Each product is a `.SAFE` directory with the original metadata and the compressed bands at every level of one codec. The `compressed-readers` branch of [Clouds Decoded](https://github.com/asterisk-labs/clouds-decoded) reads them like ESA products. The products follow the Copernicus Sentinel data terms.
+Each crop is 2520 × 2520 pixels at 10 m, 1260 at 20 m and 420 at 60 m, with 13 bands as uint16 DN. It starts on a 60 m pixel and spans 70 georvq windows of 36 pixels. `manifest.csv` records each crop's product, offset and regime. `build.py` cuts the crops from the full products:
+
+```bash
+uv run --extra corpus python usecases/clouds-decoded/build.py /data/s2get/Sentinel-2/MSI/L1C
+```
+
+`crops/<id>.zip` holds a `.SAFE` directory with the product and granule metadata, detector footprints and ECMWF auxiliary data that Clouds Decoded reads alongside the band images. The 13 bands are in `bands.npz`; `COMPRESSED.json` points Clouds Decoded to them. The crops follow the Copernicus Sentinel data terms.
 
 ### Analysis
 
-1. Clouds Decoded makes the cloud mask of the original product, cloud or clear for each pixel.
-2. It makes the mask again for each compressed copy, with the same settings.
+1. `run.py` reads each crop with the `compressed-readers` branch of [Clouds Decoded](https://github.com/asterisk-labs/clouds-decoded) (CD). It runs the full workflow: the SEnSeIv2 cloud mask, cloud height emulator, albedo estimate, refocusing and property inversion.
+2. It compresses the 13 bands, substitutes the decoded bands for the originals and runs CD again with the same settings.
+3. It compares the outputs and writes `results.csv`.
+
+CD's outputs for each original crop are in `reference/<id>.npz`. `run.py` reports any output that does not match the reference exactly, catching differences between CD installations before their results are read. Two runs on the same machine match bit for bit. A crop also gives the same outputs as `--crop-window` on the full product.
+
+CD would read ECMWF wind with `cfgrib`. Because `cfgrib` is not installed, it sets the wind features to 0. CD estimates albedo from the crop, so its albedo differs from a run on the full product.
+
+The compression ratio divides the size of the 13 uint16 bands by their compressed size. Root-mean-square error compares the decoded and original bands in DN across all pixels of all 13 bands.
 
 ### Compression
 
-georvq, SZ3 and JPEG XL compress all 13 bands. georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at levels 8-8, 8-4 and 8-0. SZ3 codes each band separately with an absolute error limit of 45, 63, 90, 125 or 180 DN. JPEG XL codes each band separately as a 16-bit image at distances 0.094, 0.17, 0.33, 0.63 and 1.2, with effort 7. The SZ3 and JPEG XL settings were tuned on 4 products to match the georvq rates. Both cut each band into 10 × 10 tiles and store the zero mask of each tile losslessly. Rates are in bits per 10 m pixel. The 13 original bands take about 52 in lossless JPEG 2000.
+GeoZL PIVCO, GeoZL PFOR and JPEG XL compress the 10, 20 and 60 m bands as three stacks. The root-mean-square error limit doubles from 5 to 80 DN. The GeoZL recipes (`geozl-med-pivco` and `geozl-planar-pfor`) use the same lossy quantiser. They decode to identical arrays but differ in compressed size. JPEG XL searches for a distance within the limit and stores a stack losslessly if none fits.
+
+georvq s2-v1 codes the 13 bands of each 36 pixel window together with learned codebooks, at nine levels from 8-8 to 8-0. It has no error limit, so its rows report the error reached.
+
+## Cloud mask
+
+Does compression change where Clouds Decoded finds clouds?
+
+### Experiment
+
+We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8 over land, and on their compressed copies. The crops range from a few small clouds over the sea to deep convection, thin cirrus, snow and sea ice. We compare each copy's cloud mask with that of the original crop.
 
 ### Metric
 
-`cloud_iou` is the intersection over union of the cloud masks from the compressed copy and the original. It is 1 when they agree.
+`cloud_iou` is the intersection over union of the cloud mask from the compressed copy and the one from the original. It is 1 when the two masks agree.
+
+## Cloud top height
+
+Does compression change the cloud top height retrieved by Clouds Decoded?
+
+### Experiment
+
+We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8 over land, and on their compressed copies. The crops range from a few small clouds over the sea to deep convection, thin cirrus, snow and sea ice. We compare cloud top height where both the original and compressed outputs have a height.
+
+### Metric
+
+`cth_mae` is the mean absolute change in cloud top height, in metres, over the pixels with a height in both. `cth_bias` is the mean change, so a negative value means the compressed copy puts clouds lower. Both are 0 when the heights agree.
+
+## Cloud optical thickness
+
+Does compression change the cloud optical thickness retrieved by Clouds Decoded?
+
+### Experiment
+
+We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8 over land, and on their compressed copies. The crops range from a few small clouds over the sea to deep convection, thin cirrus, snow and sea ice. We compare optical thickness where both the original and compressed outputs are positive.
+
+### Metric
+
+`tau_median_rel_error` is the median absolute relative change in optical thickness, in %, over the pixels where both are positive. It is 0 when the two agree.
+
+## Ice effective radius
+
+Does compression change the ice effective radius retrieved by Clouds Decoded?
+
+### Experiment
+
+We run Clouds Decoded on 16 Sentinel-2 L1C crops, 8 over the Bay of Bengal and 8 over land, and on their compressed copies. The crops range from a few small clouds over the sea to deep convection, thin cirrus, snow and sea ice. We compare ice effective radius where a pixel is ice in the original and remains ice in the copy.
+
+### Metric
+
+`re_ice_mae` is the mean absolute change in ice effective radius, in µm. `re_ice_texture` is the mean difference between neighbouring pixels of ice effective radius on the compressed copy, divided by the same on the original. It is 1 with no change, above 1 when the field gets rougher and below 1 when it gets smoother.
+
+When fewer than 1000 pixels remain ice, a crop has no radius metrics. This leaves 11 crops.

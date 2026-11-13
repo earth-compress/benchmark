@@ -331,3 +331,7 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 32px; font-size: 12p
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+.map-section { border-top: 1px solid var(--line); padding: 10px 0; }
+.map-section summary { cursor: pointer; }
+.map-section summary h2 { display: inline; margin: 0; }

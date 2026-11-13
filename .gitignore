@@ -226,6 +226,9 @@ corpora/*/png/
 # Use case samples are rebuilt by their build.py
 usecases/*/npz/
 usecases/*/png/
+usecases/clouds-decoded/crops/
+usecases/clouds-decoded/safe/
+usecases/clouds-decoded/reference/
 website/dist/
 website/dist.next/
 website/dist.old/
