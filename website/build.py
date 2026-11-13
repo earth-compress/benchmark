@@ -1824,8 +1824,8 @@ def scatter(
     bound: str = "RMSE ≤ ",
     labels: bool = True,
 ) -> str:
-    """Each codec at each error bound, its compression ratio against the metric,
-    with the bound next to each point where ``labels`` is set."""
+    """Each codec at each error bound, its compression ratio against the metric.
+    Where ``labels`` is set, hovering a point shows its bound."""
     w, h, left, right, top, bottom = 460, 300, 50, 16, 34, 46
     measured = "measured" if rules is None else "RMSE"
     (x0, x1), (low, high) = xs, ys
@@ -1862,19 +1862,26 @@ def scatter(
         spots: dict[tuple, list] = {}
         for p in points:
             spots.setdefault((round(x(p["ratio"])), round(y(p["value"]))), []).append(p)
-        marks = "".join(
-            f'<circle cx="{x(p["ratio"]):.1f}" cy="{y(p["value"]):.1f}" r="4.5">'
-            f"<title>{html.escape(name)} · {bound}{p['bound']:g}{' ' + short if short else ''}, {measured} "
-            f"{p['rmse']:.3g} · {p['ratio']:.1f}× · {metric} {p['value']:+.3f}</title></circle>"
-            for p in points
-        ) + "".join(
-            f'<text class="label" x="{x(group[-1]["ratio"]) + 6:.1f}" '
-            f'y="{y(group[-1]["value"]) - 7:.1f}">'
-            f"{group[0]['bound']:g}{'–' + format(group[-1]['bound'], 'g') if len(group) > 1 else ''}"
-            f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
-            for group in spots.values()
-            if labels
-        )
+
+        def mark(name: str, group: list) -> str:
+            last = group[-1]
+            cx, cy = x(last["ratio"]), y(last["value"])
+            dots = "".join(
+                f'<circle class="dot" cx="{cx:.1f}" cy="{cy:.1f}" r="3.2">'
+                f"<title>{html.escape(name)} · {bound}{p['bound']:g}{' ' + short if short else ''}, {measured} "
+                f"{p['rmse']:.3g} · {p['ratio']:.1f}× · {metric} {p['value']:+.3f}</title></circle>"
+                for p in group
+            )
+            label = (
+                f'<text class="label" x="{cx + 8:.1f}" y="{cy - 8:.1f}">'
+                f"{group[0]['bound']:g}{'–' + format(last['bound'], 'g') if len(group) > 1 else ''}"
+                f"{' lossless' if all(p['rmse'] == 0 for p in group) else ''}</text>"
+                if labels
+                else ""
+            )
+            return f'<g class="pt"><circle class="hit" cx="{cx:.1f}" cy="{cy:.1f}" r="10"/>{dots}{label}</g>'
+
+        marks = "".join(mark(name, group) for group in spots.values())
         out.append(
             f'<g class="series" style="--c:{colour}"><polyline points="{path}"/>{marks}</g>'
         )

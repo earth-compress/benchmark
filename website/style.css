@@ -136,9 +136,15 @@ h1 + .pick { margin: 0; justify-content: flex-end; }
 .decoded h3 { margin: 24px 0 10px; font-size: 16px; }
 .decoded .maps { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .decoded .maps figcaption { font-size: 12px; line-height: 1.45; }
+.uc-panel .series { transition: opacity 0.15s ease; }
 .uc-panel .series polyline { stroke-width: 1.2; stroke-opacity: 0.55; }
-.uc-panel .series circle { stroke: var(--page); stroke-width: 1; }
+.uc-panel .series .dot { stroke: var(--page); stroke-width: 1; transform-box: fill-box; transform-origin: center; transition: transform 0.15s ease; }
+.uc-panel .series .hit { fill: transparent; }
+.uc-panel .series .label { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+.uc-panel svg:has(.series:hover) .series:not(:hover) { opacity: 0.3; }
 .uc-panel .series:hover polyline { stroke-width: 2.4; stroke-opacity: 1; }
+.uc-panel .pt:hover .dot { transform: scale(1.9); }
+.uc-panel .pt:hover .label { opacity: 1; }
 .maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
 .maps figure { margin: 0; }
 .maps img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--tint); }
