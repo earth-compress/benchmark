@@ -518,6 +518,8 @@ def speed(entry: dict) -> float:
 
 
 VERSION: dict[str, str] = {}
+# The analysis buttons and download link of each sample, by corpus and sample id.
+SAMPLE_LINKS: dict[tuple[str, str], str] = {}
 
 HIDDEN = {"npz_path", "png_path"}
 
@@ -654,12 +656,24 @@ def build() -> None:
                 else "<span></span>"
             )
             download = f"{HF}/{cid}/{s['npz_path']}" if s.get("npz_path") else ""
+            links = sample_links(
+                cid,
+                s["id"],
+                s["id"] in by_sample,
+                bool(near_by_sample.get(s["id"])),
+                lossy_by_sample.get((cid, s["id"]), []),
+                uses_by_sample.get(s["id"], []),
+            ) + (
+                f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>'
+                if download
+                else ""
+            )
+            SAMPLE_LINKS[(cid, s["id"])] = links
             body = f"""{crumbs("../../../", ("Datasets", "datasets/"), (cid, f"datasets/{cid}/"), (s["id"], None))}
 <h1>{html.escape(s["id"])}</h1>
 <div class="sample">
 <div class="figure">{f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">' if large else '<div class="noimg"></div>'}
-{sample_links(cid, s["id"], s["id"] in by_sample, bool(near_by_sample.get(s["id"])), lossy_by_sample.get((cid, s["id"]), []), uses_by_sample.get(s["id"], []))}
-{f'<p><a class="button" href="{download}">Download {html.escape(Path(s["npz_path"]).name)}</a></p>' if download else ""}</div>
+{links}</div>
 <div><h2>Metadata</h2>
 {metadata(s)}</div>
 </div>
@@ -675,9 +689,13 @@ def build() -> None:
             )
             where = html.escape(" · ".join(x for x in (s.get("site", ""), when) if x))
             figure = (
-                f'<div class="figure"><img src="../../../{large}" alt="Preview of {html.escape(s["id"])}"></div>'
-                if large
-                else ""
+                '<div class="sample"><div class="figure">'
+                + (
+                    f'<img src="../../../{large}" alt="Preview of {html.escape(s["id"])}">'
+                    if large
+                    else '<div class="noimg"></div>'
+                )
+                + f"{links}</div><div><h2>Metadata</h2>{metadata(s)}</div></div>"
             )
             for mode, title, cards, block, payload in (
                 (
@@ -1096,6 +1114,14 @@ def lossy_viewer(case: dict, sample: str) -> str:
 </div>"""
 
 
+def lossy_sample(cid: str, row: dict | None) -> str:
+    """The buttons and metadata of the corpus sample behind a lossy scene."""
+    if row is None:
+        return ""
+    links = SAMPLE_LINKS.get((cid, row["id"]), "")
+    return f'<div class="sample"><div>{links}</div><div><h2>Metadata</h2>{metadata(row)}</div></div>'
+
+
 def lossy_site(corpus_rows: dict[str, dict], sid: str) -> str:
     return corpus_rows.get(sid, {}).get("site", sid).replace("-", " ").title()
 
@@ -1195,6 +1221,7 @@ def lossy_page() -> None:
 <h1>{html.escape(sid)}</h1>
 <p class="lead">{html.escape(lossy_site(corpus_rows, sid))}</p>
 {lossy_panel(case, str(i), lossy_viewer(case, sid) if sid in samples else "")}
+{lossy_sample(case["corpus"], corpus_rows.get(sid))}
 <p class="pager">{prev_link}{next_link}</p>"""
             target = OUT / "lossy" / key / sid / "index.html"
             target.parent.mkdir(parents=True, exist_ok=True)
