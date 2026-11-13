@@ -321,6 +321,14 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 32px; font-size: 12p
 ::view-transition-group(ec-logo) { animation-duration: 0.65s; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
 ::view-transition-old(ec-logo), ::view-transition-new(ec-logo) { height: 100%; width: auto; animation-duration: 0.65s; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.35s; }
+/* The same way, each mode picture on the landing flies into its icon in the header. */
+.home-page .mode:nth-child(1) .mode-media, .modes-switch a:nth-child(1) svg { view-transition-name: ec-mode-1; }
+.home-page .mode:nth-child(2) .mode-media, .modes-switch a:nth-child(2) svg { view-transition-name: ec-mode-2; }
+.home-page .mode:nth-child(3) .mode-media, .modes-switch a:nth-child(3) svg { view-transition-name: ec-mode-3; }
+.home-page .mode:nth-child(4) .mode-media, .modes-switch a:nth-child(4) svg { view-transition-name: ec-mode-4; }
+.home-page .mode-media, .modes-switch svg { view-transition-class: ec-mode; }
+::view-transition-group(*.ec-mode) { animation-duration: 0.65s; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+::view-transition-old(*.ec-mode), ::view-transition-new(*.ec-mode) { width: 100%; height: 100%; object-fit: cover; animation-duration: 0.65s; }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
