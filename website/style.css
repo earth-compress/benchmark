@@ -156,8 +156,13 @@ h1 + .pick { margin: 0; justify-content: flex-end; }
 .experiment li { margin: 8px 0; }
 .results .doc { padding: 16px 0 0; }
 
-footer { border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 13px; color: var(--muted); }
-footer p { margin: 0 0 8px; }
+/* The footer of the GeoZL site, with the Earth Compress partners */
+footer { border-top: 1px solid var(--line); padding: 28px 0 32px; font-size: 12px; line-height: 1.2; color: var(--faint); }
+.colophon .wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.colophon .partners { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px 40px; }
+.colophon .partners a { display: inline-flex; opacity: .72; filter: grayscale(1); transition: opacity 160ms ease, filter 160ms ease; }
+.colophon .partners a:hover, .colophon .partners a:focus-visible { opacity: 1; filter: none; }
+.colophon .partners img { display: block; width: auto; }
 
 @media (max-width: 760px) {
   nav { gap: 12px; font-size: 13px; }
@@ -292,7 +297,6 @@ footer p { margin: 0 0 8px; }
 .home-page .mode-name { font-size: 22px; }
 .home-page .mode-text { font-size: 14px; }
 .home-page .mode-stat { padding-top: 10px; font-size: 12px; }
-.home-page footer p { margin: 0; }
 @media (max-width: 1000px) { .home-page .modes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .home-page .modes-grid { grid-template-columns: minmax(0, 1fr); } }
 .home-page footer { padding: 14px 0 18px; }

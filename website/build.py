@@ -359,7 +359,15 @@ def layout(
 {header}<main class="wrap">
 {body}
 </main>
-<footer><div class="wrap"><p>Part of <a href="https://asterisk.coop/project-pages/earth-compress.html">Earth Compress</a>, funded by <a href="https://www.aria.org.uk/">ARIA</a> and led by the <a href="https://noc.ac.uk/">National Oceanography Centre</a> and <a href="https://asterisk.coop/">Asterisk Labs</a>. <a href="{REPO}/blob/main/LICENSE">Apache 2.0</a>.</p></div></footer>
+<footer class="colophon"><div class="wrap">
+<span>Part of Earth Compress, led by Asterisk Labs and the National Oceanography Centre and funded by ARIA.</span>
+<div class="partners">
+<a href="https://asterisk.coop" rel="noopener noreferrer"><img src="{root}partners/asterisk.svg" alt="Asterisk Labs" height="20"></a>
+<a href="https://asterisk.coop/project-pages/earth-compress.html" rel="noopener noreferrer"><img src="{root}partners/earth-compress.svg" alt="Earth Compress" height="22"></a>
+<a href="https://noc.ac.uk/" rel="noopener noreferrer"><img src="{root}partners/noc.svg" alt="National Oceanography Centre" height="30"></a>
+<a href="https://www.aria.org.uk/" rel="noopener noreferrer"><img src="{root}partners/aria.svg" alt="ARIA" height="28"></a>
+</div>
+</div></footer>
 {data}
 <script>document.querySelectorAll(".modes-switch a").forEach(a => {{ if (location.pathname.startsWith(new URL(a.href).pathname)) a.setAttribute("aria-current", "page"); }});</script>
 </body>
@@ -1797,6 +1805,7 @@ def main() -> None:
     shutil.copy(
         ROOT / "docs" / "assets" / "earth-compress.svg", OUT / "earth-compress.svg"
     )
+    shutil.copytree(ROOT / "docs" / "assets" / "partners", OUT / "partners")
     for name in ("style.css", "chart.js", "lossy.js"):
         content = (HERE / name).read_bytes()
         (OUT / name).write_bytes(content)
