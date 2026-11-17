@@ -246,6 +246,7 @@ NAV = (
     ("Protocol", "protocol/"),
     ("Codecs", "codecs/"),
     ("Tolerance", "tolerance/"),
+    ("Deck", "deck/"),
 )
 DOCS = {"protocol": "PROTOCOL.md", "codecs": "CODECS.md", "tolerance": "TOLERANCE.md"}
 PAGES = {
@@ -917,11 +918,21 @@ def build() -> None:
         f"<p>Compression results for {samples} samples in {len(measured)} corpora of imagery, "
         "environmental fields and embeddings.</p></div>"
     )
+    # A slide drawn in the line style of the mode icons, opening the deck.
+    deck = (
+        '<a class="home-deck" href="deck/" aria-label="Deck" data-label="Deck">'
+        '<svg viewBox="0 0 160 90" aria-hidden="true">'
+        '<rect x="1" y="1" width="158" height="88"/><path d="M12 16h136"/>'
+        '<path class="bold" d="M12 30h70"/>'
+        '<rect x="12" y="44" width="38" height="32"/><rect x="61" y="44" width="38" height="32"/>'
+        '<rect x="110" y="44" width="38" height="32" class="fill"/>'
+        '<path d="M50 60h11M99 60h11"/></svg></a>'
+    )
     (OUT / "index.html").write_text(
         layout(
             "",
             "Earth Compress benchmark",
-            f'<div class="home">{intro}<div class="modes-grid">{entries}</div></div>',
+            f'<div class="home"><div class="home-top">{intro}{deck}</div><div class="modes-grid">{entries}</div></div>',
             nav=False,
         )
     )
@@ -2222,6 +2233,7 @@ def main() -> None:
         ROOT / "docs" / "assets" / "earth-compress.svg", OUT / "earth-compress.svg"
     )
     shutil.copytree(ROOT / "docs" / "assets" / "partners", OUT / "partners")
+    shutil.copytree(HERE / "deck", OUT / "deck")
     for name in ("style.css", "chart.js", "lossy.js"):
         content = (HERE / name).read_bytes()
         (OUT / name).write_bytes(content)

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="How the Earth Compress benchmark measures compression of Earth observation arrays, and how to take part.">
+  <title>Earth Compress benchmark · deck</title>
+  <link rel="icon" href="../earth-compress.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=League+Spartan:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=7">
+  <script defer src="app.js?v=1"></script>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <a class="site-back" href="../" aria-label="Back to the benchmark website">←</a>
+
+  <main class="deck" id="deck" aria-label="Earth Compress benchmark">
+    <section class="slide cover active" aria-label="Cover">
+      <div class="cover-inner">
+        <img class="cover-logo" src="../earth-compress.svg" alt="Earth Compress">
+        <p>A compression benchmark for Earth observation data</p>
+      </div>
+      <div class="cover-partners">
+        <img src="../partners/asterisk.svg" alt="Asterisk Labs" height="24">
+        <img src="../partners/aria.svg" alt="ARIA" height="30">
+        <img src="../partners/noc.svg" alt="National Oceanography Centre" height="34">
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Why a benchmark">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">02 / 14</span></header>
+      <h1>Every codec paper measures on its own terms</h1>
+      <figure class="fig">
+        <svg viewBox="0 0 864 330" role="img" aria-label="On the left, three papers, each with its own data, its own error rule and its own machine. On the right, the benchmark runs every codec on the same corpora, under one protocol, on one machine, with every result in git.">
+          <text class="f-term" x="0" y="22">Today</text>
+          <rect class="f-wash" x="0" y="44" width="380" height="56"/>
+          <text class="f-name" x="16" y="66">different data</text>
+          <text class="f-text" x="16" y="88">a few scenes picked by each author</text>
+          <rect class="f-wash" x="0" y="112" width="380" height="56"/>
+          <text class="f-name" x="16" y="134">different starting bytes</text>
+          <text class="f-text" x="16" y="156">floats in one, the same values as integers in another</text>
+          <rect class="f-wash" x="0" y="180" width="380" height="56"/>
+          <text class="f-name" x="16" y="202">different error rules</text>
+          <text class="f-text" x="16" y="224">PSNR in one, a bound in another, NoData ignored</text>
+          <rect class="f-wash" x="0" y="248" width="380" height="56"/>
+          <text class="f-name" x="16" y="270">different machines</text>
+          <text class="f-text" x="16" y="292">threads, files and network mixed into the timing</text>
+          <text class="f-small" x="0" y="326">There are no shared rules, so the numbers cannot be put side by side.</text>
+
+          <text class="f-term" x="484" y="22">Earth Compress</text>
+          <rect class="f-on" x="484" y="44" width="380" height="260"/>
+          <a href="../datasets/"><text class="f-name f-link" x="504" y="78">the same 27 corpora →</text></a>
+          <text class="f-text" x="504" y="100">rebuilt from their sources, shared on Hugging Face</text>
+          <a href="../protocol/"><text class="f-name f-link" x="504" y="142">one protocol →</text></a>
+          <text class="f-text" x="504" y="164">the same starting bytes, promises and error budgets</text>
+          <text class="f-name" x="504" y="206">one machine, one thread</text>
+          <text class="f-text" x="504" y="228">the machine and versions recorded with each run</text>
+          <a href="https://github.com/earth-compress/benchmark"><text class="f-name f-link" x="504" y="270">every result in git →</text></a>
+          <text class="f-text" x="504" y="292">anyone can run it again and diff</text>
+          <path class="f-line on" d="M396 174 H468" marker-end="url(#ec-arrow)"/>
+          <defs><marker id="ec-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2f8a96"/></marker></defs>
+        </svg>
+      </figure>
+    </section>
+
+    <section class="slide" aria-label="One measurement" data-steps="3" data-step="1">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">03 / 14</span></header>
+      <h1>One measurement is one array, in memory</h1>
+      <p class="lead">The whole array goes to the codec in one call, on one thread. No files, no network.</p>
+      <figure class="fig">
+        <svg viewBox="0 0 864 270" role="img" aria-label="The array is encoded once into bytes, which gives the compressed size. The bytes are decoded 3 to 10 times and the median is the decode time. The decoded array is compared with the input, which gives the distortion and the promise checks.">
+          <defs><marker id="ms-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#777"/></marker></defs>
+          <rect class="f-box" x="0" y="40" width="130" height="80"/>
+          <text class="f-name f-mid" x="65" y="74">array</text>
+          <text class="f-small f-mid" x="65" y="96">integers, in memory</text>
+
+          <path class="f-line" d="M130 80 H176" marker-end="url(#ms-arrow)"/>
+          <rect class="f-on" x="180" y="40" width="140" height="80"/>
+          <text class="f-name f-mid" x="250" y="74">encode</text>
+          <text class="f-small f-mid" x="250" y="96">one call</text>
+          <path class="f-line" d="M320 80 H366" marker-end="url(#ms-arrow)"/>
+          <rect class="f-wash" x="370" y="40" width="124" height="80"/>
+          <text class="f-name f-mid" x="432" y="74">bytes</text>
+          <text class="f-small f-mid" x="432" y="96">one frame</text>
+          <text class="f-mono f-mid" x="432" y="162">compressed size</text>
+          <text class="f-small f-mid" x="432" y="182">ratio, bits per value</text>
+          <text class="f-mono ink f-mid" x="250" y="162">encode time</text>
+          <text class="f-small f-mid" x="250" y="182">indicative, one call</text>
+
+          <g data-at="2">
+            <path class="f-line" d="M494 80 H540" marker-end="url(#ms-arrow)"/>
+            <rect class="f-on" x="544" y="40" width="140" height="80"/>
+            <text class="f-name f-mid" x="614" y="74">decode</text>
+            <text class="f-small f-mid" x="614" y="96">3 to 10 calls</text>
+            <text class="f-mono f-mid" x="614" y="162">decode time</text>
+            <text class="f-small f-mid" x="614" y="182">the median, stop after 0.5 s</text>
+          </g>
+
+          <g data-at="3">
+            <path class="f-line" d="M684 80 H730" marker-end="url(#ms-arrow)"/>
+            <rect class="f-box" x="734" y="40" width="130" height="80"/>
+            <text class="f-name f-mid" x="799" y="74">array back</text>
+            <text class="f-small f-mid" x="799" y="96">same shape and dtype</text>
+            <path class="f-dash" d="M799 120 V220 H65 V120"/>
+            <rect fill="#fff" x="316" y="206" width="232" height="28"/>
+            <text class="f-name f-mid" x="432" y="225">compare with the input</text>
+            <text class="f-mono f-mid" x="799" y="162">distortion</text>
+            <text class="f-small f-mid" x="799" y="182">max error, RMSE, PSNR</text>
+            <text class="f-text f-mid" x="432" y="262">and check every promise of the mode</text>
+          </g>
+        </svg>
+      </figure>
+      <p class="more"><a href="../protocol/">How the protocol measures →</a><span class="step-hint">click to step</span></p>
+    </section>
+
+    <section class="slide" aria-label="The corpora">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">04 / 14</span></header>
+      <h1>27 corpora, from satellites to embeddings</h1>
+      <div class="corpora">
+        <p class="corpora-family">Sentinel-2<small>3 corpora</small></p>
+        <div class="corpora-row">
+          <figure><a href="../datasets/s2-l1c-10m-4/"><img src="../img/s2-l1c-10m-4/s2-l1c-10m-4-00.webp" alt=""><figcaption>s2-l1c-10m-4</figcaption></a></figure>
+          <figure><a href="../datasets/s2-l1c-20m-6/"><img src="../img/s2-l1c-20m-6/s2-l1c-20m-6-00.webp" alt=""><figcaption>s2-l1c-20m-6</figcaption></a></figure>
+          <figure><a href="../datasets/s2-l1c-60m-3/"><img src="../img/s2-l1c-60m-3/s2-l1c-60m-3-00.webp" alt=""><figcaption>s2-l1c-60m-3</figcaption></a></figure>
+        </div>
+        <p class="corpora-family">Landsat 1 to 8<small>9 corpora</small></p>
+        <div class="corpora-row">
+          <figure><a href="../datasets/lm-mss-4/"><img src="../img/lm-mss-4/lm-mss-4-00.webp" alt=""><figcaption>lm-mss-4</figcaption></a></figure>
+          <figure><a href="../datasets/l5-tm-6/"><img src="../img/l5-tm-6/l5-tm-6-00.webp" alt=""><figcaption>l5-tm-6</figcaption></a></figure>
+          <figure><a href="../datasets/l5-tm-tir/"><img src="../img/l5-tm-tir/l5-tm-tir-00.webp" alt=""><figcaption>l5-tm-tir</figcaption></a></figure>
+          <figure><a href="../datasets/l7-etm-6/"><img src="../img/l7-etm-6/l7-etm-6-00.webp" alt=""><figcaption>l7-etm-6</figcaption></a></figure>
+          <figure><a href="../datasets/l7-etm-pan/"><img src="../img/l7-etm-pan/l7-etm-pan-00.webp" alt=""><figcaption>l7-etm-pan</figcaption></a></figure>
+          <figure><a href="../datasets/l7-etm-tir-2/"><img src="../img/l7-etm-tir-2/l7-etm-tir-2-00.webp" alt=""><figcaption>l7-etm-tir-2</figcaption></a></figure>
+          <figure><a href="../datasets/l8-oli-8/"><img src="../img/l8-oli-8/l8-oli-8-00.webp" alt=""><figcaption>l8-oli-8</figcaption></a></figure>
+          <figure><a href="../datasets/l8-oli-pan/"><img src="../img/l8-oli-pan/l8-oli-pan-00.webp" alt=""><figcaption>l8-oli-pan</figcaption></a></figure>
+          <figure><a href="../datasets/l8-tirs-2/"><img src="../img/l8-tirs-2/l8-tirs-2-00.webp" alt=""><figcaption>l8-tirs-2</figcaption></a></figure>
+        </div>
+        <p class="corpora-family">More sensors<small>6 corpora</small></p>
+        <div class="corpora-row">
+          <figure><a href="../datasets/goes-abi-16/"><img src="../img/goes-abi-16/goes-abi-16-00.webp" alt=""><figcaption>goes-abi-16</figcaption></a></figure>
+          <figure><a href="../datasets/s1-grd-iw-2/"><img src="../img/s1-grd-iw-2/s1-grd-iw-2-00.webp" alt=""><figcaption>s1-grd-iw-2</figcaption></a></figure>
+          <figure><a href="../datasets/emit-l2a-285/"><img src="../img/emit-l2a-285/emit-l2a-285-00.webp" alt=""><figcaption>emit-l2a-285</figcaption></a></figure>
+          <figure><a href="../datasets/cop-dem-glo30/"><img src="../img/cop-dem-glo30/cop-dem-glo30-00.webp" alt=""><figcaption>cop-dem-glo30</figcaption></a></figure>
+          <figure><a href="../datasets/esa-wc-v200/"><img src="../img/esa-wc-v200/esa-wc-v200-00.webp" alt=""><figcaption>esa-wc-v200</figcaption></a></figure>
+          <figure><a href="../datasets/imerg-pcp-12/"><img src="../img/imerg-pcp-12/imerg-pcp-12-00.webp" alt=""><figcaption>imerg-pcp-12</figcaption></a></figure>
+        </div>
+        <p class="corpora-family">ERA5<small>5 corpora</small></p>
+        <div class="corpora-row">
+          <figure><a href="../datasets/era5-msl-1h/"><img src="../img/era5-msl-1h/era5-msl-1h-00.webp" alt=""><figcaption>era5-msl-1h</figcaption></a></figure>
+          <figure><a href="../datasets/era5-t2m-1h/"><img src="../img/era5-t2m-1h/era5-t2m-1h-00.webp" alt=""><figcaption>era5-t2m-1h</figcaption></a></figure>
+          <figure><a href="../datasets/era5-tcc-1h/"><img src="../img/era5-tcc-1h/era5-tcc-1h-00.webp" alt=""><figcaption>era5-tcc-1h</figcaption></a></figure>
+          <figure><a href="../datasets/era5-tp-1h/"><img src="../img/era5-tp-1h/era5-tp-1h-00.webp" alt=""><figcaption>era5-tp-1h</figcaption></a></figure>
+          <figure><a href="../datasets/era5-u10-1h/"><img src="../img/era5-u10-1h/era5-u10-1h-00.webp" alt=""><figcaption>era5-u10-1h</figcaption></a></figure>
+        </div>
+        <p class="corpora-family">Embeddings<small>4 corpora</small></p>
+        <div class="corpora-row">
+          <figure><a href="../datasets/alphaearth-v1-64/"><img src="../img/alphaearth-v1-64/alphaearth-v1-64-00.webp" alt=""><figcaption>alphaearth-v1-64</figcaption></a></figure>
+          <figure><a href="../datasets/tessera-v2-codes/"><img src="../img/tessera-v2-codes/tessera-v2-codes-00.webp" alt=""><figcaption>tessera-v2-codes</figcaption></a></figure>
+          <figure><a href="../datasets/tessera-v2-scales/"><img src="../img/tessera-v2-scales/tessera-v2-scales-00.webp" alt=""><figcaption>tessera-v2-scales</figcaption></a></figure>
+          <figure><a href="../datasets/clay-embeddings/"><img src="../img/clay-embeddings/clay-embeddings-00.webp" alt=""><figcaption>clay-embeddings</figcaption></a></figure>
+        </div>
+      </div>
+      <p class="more"><a href="../datasets/">All datasets →</a></p>
+    </section>
+
+    <section class="slide" aria-label="Inside a corpus folder">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">05 / 14</span></header>
+      <h1>A corpus is a folder you can rebuild</h1>
+      <div class="split">
+        <pre class="code"><a class="tok-com" href="https://github.com/earth-compress/benchmark/tree/main/corpora/s2-l1c-10m-4">corpora/s2-l1c-10m-4/</a>
+  spec.md          <span class="tok-com"># source, samples, licence</span>
+  build.py         <span class="tok-com"># select and build the samples</span>
+  manifest.csv     <span class="tok-com"># asset, CRS, dates, bands, sha256</span>
+  npz/             <span class="tok-com"># the samples, from Hugging Face</span>
+  png/             <span class="tok-com"># previews</span>
+  results.csv      <span class="tok-com"># one row per sample and codec</span>
+  environment.json <span class="tok-com"># machine and versions of the run</span></pre>
+        <div class="notes">
+          <div class="note"><h2>Samples come ready</h2><p>The first run downloads them from the Hugging Face dataset <a href="https://huggingface.co/datasets/earth-compress/benchmark"><code>earth-compress/benchmark</code></a>.</p></div>
+          <div class="note"><h2>Or rebuild them</h2><p><code>build.py</code> fetches every source asset again and checks each sample against its <code>sha256</code>.</p></div>
+          <div class="note"><h2>Results sit beside the data</h2><p>So a new run shows up as a diff of <code>results.csv</code>.</p></div>
+        </div>
+      </div>
+      <p class="more"><a href="../datasets/s2-l1c-10m-4/">s2-l1c-10m-4 on the site →</a><a href="https://github.com/earth-compress/benchmark/blob/main/DATASETS.md">DATASETS.md →</a></p>
+    </section>
+
+    <section class="slide" aria-label="The starting representation">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">06 / 14</span></header>
+      <h1>Codecs see integers plus a scale and offset</h1>
+      <p class="lead">When integers reproduce the published values bit for bit, the corpus stores them that way. Every codec starts from the same bytes.</p>
+      <figure class="fig">
+        <svg viewBox="0 0 864 250" role="img" aria-label="A published value equals offset plus scale times an integer q. Examples from four corpora.">
+          <text class="f-term f-mid" x="432" y="30">value = offset + scale × q</text>
+          <rect class="f-wash" x="0" y="62" width="864" height="34"/>
+          <text class="f-name" x="16" y="84">corpus</text>
+          <text class="f-name" x="250" y="84">q</text>
+          <text class="f-name" x="400" y="84">scale</text>
+          <text class="f-name" x="640" y="84">offset</text>
+          <a href="../datasets/s2-l1c-10m-4/"><text class="f-mono f-link" x="16" y="124">s2-l1c-10m-4</text></a>
+          <text class="f-mono ink" x="250" y="124">uint16</text>
+          <text class="f-text" x="400" y="124">1 DN</text>
+          <text class="f-text" x="640" y="124">0</text>
+          <a href="../datasets/imerg-pcp-12/"><text class="f-mono f-link" x="16" y="158">imerg-pcp-12</text></a>
+          <text class="f-mono ink" x="250" y="158">uint16</text>
+          <text class="f-text" x="400" y="158">0.01 mm/h</text>
+          <text class="f-text" x="640" y="158">0</text>
+          <a href="../datasets/era5-t2m-1h/"><text class="f-mono f-link" x="16" y="192">era5-t2m-1h</text></a>
+          <text class="f-mono ink" x="250" y="192">uint16</text>
+          <text class="f-text" x="400" y="192">2⁻⁹ K</text>
+          <text class="f-text" x="640" y="192">one per hour</text>
+          <a href="../datasets/goes-abi-16/"><text class="f-mono f-link" x="16" y="226">goes-abi-16</text></a>
+          <text class="f-mono ink" x="250" y="226">uint16</text>
+          <text class="f-text" x="400" y="226">one per channel</text>
+          <text class="f-text" x="640" y="226">one per channel</text>
+          <path class="f-dash" d="M0 136 H864 M0 170 H864 M0 204 H864"/>
+        </svg>
+      </figure>
+      <p class="more"><a href="../datasets/">Every corpus with its scale and offset →</a></p>
+    </section>
+
+    <section class="slide" aria-label="Modes and promises" data-steps="2" data-step="1">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">07 / 14</span></header>
+      <h1>Three modes, each with its promises</h1>
+      <figure class="fig">
+        <svg viewBox="0 0 864 330" role="img" aria-label="Lossless promises structure, determinism and exactness. Near-lossless promises structure, determinism, a bound on every value, sentinels and zeros. Lossy promises structure, determinism, a bound on the RMS error and sentinels. A broken promise is reported as a violation, a crash as a crash.">
+          <rect class="f-on" x="0" y="0" width="272" height="44"/>
+          <a href="../lossless/"><text class="f-term f-mid f-link" x="136" y="29">lossless →</text></a>
+          <rect class="f-on" x="296" y="0" width="272" height="44"/>
+          <a href="../near-lossless/"><text class="f-term f-mid f-link" x="432" y="29">near-lossless →</text></a>
+          <rect class="f-on" x="592" y="0" width="272" height="44"/>
+          <a href="../lossy/"><text class="f-term f-mid f-link" x="728" y="29">lossy →</text></a>
+
+          <g>
+            <text class="f-mono" x="0" y="80">structure</text><text class="f-small" x="0" y="98">same shape and dtype</text>
+            <text class="f-mono" x="0" y="130">determinism</text><text class="f-small" x="0" y="148">same bytes, same array</text>
+            <text class="f-mono" x="0" y="180">exactness</text><text class="f-small" x="0" y="198">every value comes back equal</text>
+
+            <text class="f-mono" x="296" y="80">structure</text><text class="f-small" x="296" y="98">same shape and dtype</text>
+            <text class="f-mono" x="296" y="130">determinism</text><text class="f-small" x="296" y="148">same bytes, same array</text>
+            <text class="f-mono" x="296" y="180">bound</text><text class="f-small" x="296" y="198">every value within tau</text>
+            <text class="f-mono" x="296" y="230">sentinel</text><text class="f-small" x="296" y="248">NoData stays where it was</text>
+            <text class="f-mono" x="296" y="280">zero</text><text class="f-small" x="296" y="298">zeros come back as zeros</text>
+
+            <text class="f-mono" x="592" y="80">structure</text><text class="f-small" x="592" y="98">same shape and dtype</text>
+            <text class="f-mono" x="592" y="130">determinism</text><text class="f-small" x="592" y="148">same bytes, same array</text>
+            <text class="f-mono" x="592" y="180">rms</text><text class="f-small" x="592" y="198">RMS error within tau</text>
+            <text class="f-mono" x="592" y="230">sentinel</text><text class="f-small" x="592" y="248">NoData stays where it was</text>
+          </g>
+
+          <g data-at="2">
+            <rect class="f-hot" x="0" y="258" width="272" height="64"/>
+            <text class="f-name" x="14" y="282">A broken promise is a result</text>
+            <text class="f-small" x="14" y="302">status violation, or crash, in results.csv</text>
+            <rect class="f-hot" x="592" y="268" width="272" height="54"/>
+            <text class="f-name" x="606" y="291">Nothing is dropped</text>
+            <text class="f-small" x="606" y="310">the row keeps every measurement</text>
+          </g>
+        </svg>
+      </figure>
+      <p class="more"><a href="../protocol/">The promises in the protocol →</a><span class="step-hint">click to step</span></p>
+    </section>
+
+    <section class="slide" aria-label="Error budgets" data-steps="3" data-step="1">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">08 / 14</span></header>
+      <h1>The error budget comes from the data's own noise</h1>
+      <p class="lead">Each corpus has a reference error sigma, from instrument noise, retrieval error or model spread. The bound tau is set from it.</p>
+      <figure class="fig">
+        <svg viewBox="0 0 864 250" role="img" aria-label="An axis of error. For Sentinel-2 L1C at 10 m, sigma is about 10 DN. Conservative is sigma over four, 2 DN. Matched is sigma, 10 DN. Aggressive is four sigma, 40 DN.">
+          <line class="f-line" x1="0" y1="150" x2="864" y2="150"/>
+          <text class="f-small f-mid" x="20" y="176">0</text>
+          <text class="f-small f-end" x="864" y="176">error per value, to scale</text>
+          <g>
+            <line class="f-line on" x1="60" y1="110" x2="60" y2="150"/>
+            <circle cx="60" cy="150" r="5" fill="#2f8a96"/>
+            <text class="f-name f-mid" x="60" y="70">conservative</text>
+            <text class="f-mono f-mid" x="60" y="94">sigma / 4</text>
+            <text class="f-term f-mid" x="60" y="210">2 DN</text>
+          </g>
+          <g data-at="2">
+            <line class="f-line on" x1="220" y1="110" x2="220" y2="150"/>
+            <circle cx="220" cy="150" r="5" fill="#2f8a96"/>
+            <text class="f-name f-mid" x="220" y="70">matched</text>
+            <text class="f-mono f-mid" x="220" y="94">sigma</text>
+            <text class="f-term f-mid" x="220" y="210">10 DN</text>
+          </g>
+          <g data-at="3">
+            <line class="f-line on" x1="820" y1="110" x2="820" y2="150"/>
+            <circle cx="820" cy="150" r="5" fill="#2f8a96"/>
+            <text class="f-name f-mid" x="820" y="70">aggressive</text>
+            <text class="f-mono f-mid" x="820" y="94">4 · sigma</text>
+            <text class="f-term f-mid" x="820" y="210">40 DN</text>
+          </g>
+          <text class="f-text" x="0" y="244">Sentinel-2 L1C at 10 m, sigma about 10 DN. Integer bounds round down to whole steps.</text>
+        </svg>
+      </figure>
+      <p class="more"><a href="../tolerance/">Sigma and the bounds of every corpus →</a><span class="step-hint">click to step</span></p>
+    </section>
+
+    <section class="slide" aria-label="The codecs">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">09 / 14</span></header>
+      <h1>Codecs from GIS, imaging and science</h1>
+      <div class="modes">
+        <div class="mode-col">
+          <h2>lossless</h2>
+          <p>Byte codecs, TIFF predictors, numeric codecs and OpenZL graphs.</p>
+          <ul><li>zstd</li><li>deflate</li><li>lzw</li><li>hdiff-zstd9</li><li>blosc</li><li>pco</li><li>openzl</li><li>geozl</li><li>jpeg2000</li></ul>
+        </div>
+        <div class="mode-col">
+          <h2>near-lossless</h2>
+          <p>A bound on every value. Each codec at each budget level.</p>
+          <ul><li>geozl</li><li>lerc</li><li>jpeg-ls near</li><li>sz3</li><li>zfp</li><li>sperr</li><li class="group">quant + any lossless</li><li class="group">safeguards + a codec</li></ul>
+        </div>
+        <div class="mode-col">
+          <h2>lossy</h2>
+          <p>A bound on the RMS error. The setting may be searched.</p>
+          <ul><li>jpeg2000</li><li>jpeg-xl</li><li>sperr</li><li>sz3</li><li class="group">quant + pco</li></ul>
+        </div>
+      </div>
+      <p class="join-foot">Quantize then compress, or add safeguards to any codec. Both count as their own family.</p>
+      <p class="more"><a href="../codecs/">Every configuration and version →</a></p>
+    </section>
+
+    <section class="slide" aria-label="Add a codec">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">10 / 14</span></header>
+      <h1>Adding a codec is one Python module</h1>
+      <div class="split">
+        <pre class="code"><span class="tok-com"># earthcompress/codecs/mycodec.py</span>
+<span class="tok-kw">import</span> mycodec
+<span class="tok-kw">from</span> ..spec <span class="tok-kw">import</span> ArraySpec
+<span class="tok-kw">from</span> .base <span class="tok-kw">import</span> lossless, unpack
+
+<span class="tok-kw">class</span> <span class="tok-fn">MyCodec</span>:
+    <span class="tok-kw">def</span> <span class="tok-fn">__init__</span>(self, spec: ArraySpec):
+        self.spec = spec
+
+    <span class="tok-kw">def</span> <span class="tok-fn">encode</span>(self, array):
+        <span class="tok-kw">return</span> mycodec.compress(array.tobytes())
+
+    <span class="tok-kw">def</span> <span class="tok-fn">decode</span>(self, data):
+        <span class="tok-kw">return</span> unpack(mycodec.decompress(data), self.spec)
+
+CONFIGURATIONS = (lossless(<span class="tok-str">"mycodec"</span>, <span class="tok-str">"mycodec"</span>,
+                           mycodec.__version__, MyCodec),)</pre>
+        <div class="notes">
+          <div class="note"><h2>Two methods</h2><p><code>encode</code> takes the array and returns bytes. <code>decode</code> gives the array back.</p></div>
+          <div class="note"><h2>Found on its own</h2><p>The runner loads every module in <a href="https://github.com/earth-compress/benchmark/tree/main/earthcompress/codecs"><code>earthcompress/codecs/</code></a>.</p></div>
+          <div class="note"><h2>Bounded modes</h2><p><code>FAMILIES</code> for near-lossless and <code>LOSSY</code> for lossy. The codec receives tau.</p></div>
+        </div>
+      </div>
+      <p class="more"><a href="../codecs/">Adding a codec, step by step →</a></p>
+    </section>
+
+    <section class="slide" aria-label="Run it">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">11 / 14</span></header>
+      <h1>Run it, then git diff</h1>
+      <div class="split">
+        <pre class="code"><span class="tok-com"># get the benchmark</span>
+git clone https://github.com/earth-compress/benchmark
+cd benchmark
+
+<span class="tok-com"># every codec on one corpus</span>
+uv run earthcompress corpora/s2-l1c-10m-4
+
+<span class="tok-com"># only yours</span>
+uv run earthcompress corpora/s2-l1c-10m-4 --codec mycodec
+
+<span class="tok-com"># against the published results</span>
+git diff corpora/s2-l1c-10m-4/results.csv</pre>
+        <div class="notes">
+          <div class="note"><h2>First run</h2><p>Downloads the samples of that corpus.</p></div>
+          <div class="note"><h2>Written in place</h2><p>Results go over the published <code>results.csv</code>. A run replaces only the rows of the configurations it measures.</p></div>
+          <div class="note"><h2>With its machine</h2><p><code>environment.json</code> records the CPU, the platform and the versions.</p></div>
+        </div>
+      </div>
+      <p class="more"><a href="https://github.com/earth-compress/benchmark">github.com/earth-compress/benchmark →</a></p>
+    </section>
+
+    <section class="slide" aria-label="Beyond pixels">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">12 / 14</span></header>
+      <h1>Does the error matter for the task?</h1>
+      <div class="beyond">
+      <div class="cases">
+        <a class="case" href="../usecases/methane/"><img src="../img/usecases/methane.webp" alt=""><h3>Methane</h3><p>plume mask overlap</p></a>
+        <a class="case" href="../usecases/drainage/"><img src="../img/usecases/drainage.webp" alt=""><h3>Drainage</h3><p>stream network F1</p></a>
+        <a class="case" href="../usecases/change-detection/"><img src="../img/usecases/change-detection.webp" alt=""><h3>Change</h3><p>change mask overlap</p></a>
+        <a class="case" href="../usecases/cloud-mask/"><img src="../img/usecases/cloud-mask.webp" alt=""><h3>Cloud mask</h3><p>cloud mask overlap</p></a>
+        <a class="case" href="../usecases/cloud-top-height/"><img src="../img/usecases/cloud-top-height.webp" alt=""><h3>Cloud top height</h3><p>error and bias</p></a>
+        <a class="case" href="../usecases/cloud-optical-thickness/"><img src="../img/usecases/cloud-optical-thickness.webp" alt=""><h3>Optical thickness</h3><p>relative error</p></a>
+        <a class="case" href="../usecases/ice-effective-radius/"><img src="../img/usecases/ice-effective-radius.webp" alt=""><h3>Ice radius</h3><p>error and texture</p></a>
+      </div>
+      <div class="track">
+        <a href="../usecases/"><h2>Use cases →</h2><p>Run a real product on decoded data and score the product, not the pixels. <code>usecases/&lt;case&gt;/run.py</code></p></a>
+        <a href="../lossy/"><h2>Lossy track →</h2><p>The learned codec georvq against the lossy configurations, on Sentinel-2 and AlphaEarth. <code>lossy/&lt;track&gt;/run.py</code></p></a>
+      </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Take part">
+      <header><img class="brand" src="../earth-compress.svg" alt="Earth Compress"><span class="count">13 / 14</span></header>
+      <h1>Three ways to take part</h1>
+      <div class="join">
+        <div>
+          <h2><a href="../codecs/">A codec →</a></h2>
+          <p>One module that encodes and decodes. Run it on the corpora and send the new rows.</p>
+          <pre>earthcompress/codecs/
+  mycodec.py</pre>
+        </div>
+        <div>
+          <h2><a href="../datasets/">A corpus →</a></h2>
+          <p>Samples anyone can rebuild, with a sigma for the error budgets.</p>
+          <pre>corpora/&lt;id&gt;/
+  spec.md
+  build.py
+  manifest.csv</pre>
+        </div>
+        <div>
+          <h2><a href="../usecases/">A use case →</a></h2>
+          <p>A product people rely on, and a score that says when compression changed it.</p>
+          <pre>usecases/&lt;case&gt;/
+  manifest.csv
+  run.py</pre>
+        </div>
+      </div>
+      <p class="join-foot">Open a pull request on <a href="https://github.com/earth-compress/benchmark">github.com/earth-compress/benchmark</a>.</p>
+    </section>
+
+    <section class="slide cover closing" aria-label="Closing">
+      <div class="cover-inner">
+        <img class="cover-logo" src="../earth-compress.svg" alt="Earth Compress">
+        <p class="end-install">uv run earthcompress corpora/s2-l1c-10m-4</p>
+        <div class="end-links">
+          <a href="../">Results</a>
+          <a href="https://github.com/earth-compress/benchmark">GitHub</a>
+          <a href="https://huggingface.co/datasets/earth-compress/benchmark">Hugging Face</a>
+        </div>
+      </div>
+      <div class="cover-partners">
+        <img src="../partners/asterisk.svg" alt="Asterisk Labs" height="24">
+        <img src="../partners/aria.svg" alt="ARIA" height="30">
+        <img src="../partners/noc.svg" alt="National Oceanography Centre" height="34">
+      </div>
+    </section>
+  </main>
+</body>
+</html>
