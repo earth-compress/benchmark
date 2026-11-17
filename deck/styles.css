@@ -1,0 +1,208 @@
+*, *::before, *::after { box-sizing: border-box; }
+/* clip, not hidden, so focusing a control inside a scaled slide never scrolls the page */
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; overflow: clip; }
+:root {
+  color-scheme: light;
+  --ink: #000;
+  --soft: #2b2f36;
+  --dim: #5c6370;
+  --faint: #8a919c;
+  --rule: #dedede;
+  --teal: #2f8a96;
+  --teal-deep: #143031;
+  --teal-soft: #e3f2f3;
+  --red: #c2410c;
+  --red-soft: #ffeae1;
+  --wash: #f6f6f4;
+  --sans: 'League Spartan', Inter, ui-sans-serif, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'SFMono-Regular', monospace;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+.deck {
+  position: relative;
+  flex: none;
+  width: 960px;
+  height: 540px;
+  transform-origin: center;
+  background: #fff;
+  box-shadow: 0 18px 55px #0002;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 48px 24px;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s ease;
+  overflow: hidden;
+}
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide.cover { align-items: center; justify-content: center; padding: 0; }
+.cover-asterisk { position: absolute; top: 32px; right: 48px; display: block; height: 26px; width: auto; }
+.cover-inner { display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
+.cover-logo { display: block; width: 520px; height: auto; }
+.cover p { margin: 0 0 0 4px; color: var(--soft); font-size: 25px; }
+.cover-partners { position: absolute; bottom: 30px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 40px; }
+.cover-partners img { display: block; width: auto; }
+.closing .cover-inner { gap: 20px; }
+.end-install { display: inline-flex; align-items: center; gap: 12px; padding: 10px 22px; border: 0; background: var(--wash); color: var(--ink); font: 500 18px var(--mono); }
+.end-install::before { color: var(--teal); content: "$"; }
+.end-links { display: flex; gap: 12px; }
+.end-links a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid var(--teal); color: var(--teal); font: 500 17px var(--sans); text-decoration: none; }
+.end-links a:hover,
+.end-links a:focus-visible { background: var(--teal-soft); outline: none; }
+.slide header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+.brand { display: block; height: 24px; width: auto; }
+.count { color: var(--dim); font: 500 11px var(--mono); }
+h1 {
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -.042em;
+  font-weight: 600;
+  margin: 0;
+}
+.title-mark { position: relative; isolation: isolate; display: inline-block; }
+.title-mark::before { position: absolute; inset: .56em -.06em .02em -.04em; z-index: -1; content: ''; background: #c4ffc2; transform: rotate(-.8deg); }
+.title-mark.red::before { background: #ffc4c2; }
+p { margin: 0; }
+code, pre { font-family: var(--mono); font-variant-ligatures: none; }
+.lead { margin-top: 10px; color: var(--dim); font-size: 19px; line-height: 1.25; }
+
+/* Schematic figures, drawn in the deck fonts. Teal is the benchmark, red is a broken promise. */
+.fig { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.fig svg { display: block; width: 100%; height: auto; overflow: visible; }
+.fig text { font-family: var(--sans); fill: var(--ink); }
+.fig .f-term { font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.fig .f-name { font-size: 15px; font-weight: 600; }
+.fig .f-text { font-size: 13.5px; fill: var(--dim); }
+.fig .f-small { font-size: 12px; fill: var(--dim); }
+.fig .f-mono { font: 500 13px var(--mono); fill: var(--teal); }
+.fig .f-mono.ink { fill: var(--soft); }
+.fig .f-mono.red { fill: var(--red); }
+.fig .f-mid { text-anchor: middle; }
+.fig .f-end { text-anchor: end; }
+.f-box { fill: #fff; stroke: #777; stroke-width: 1.3; }
+.f-wash { fill: var(--wash); stroke: #c9c9c9; stroke-width: 1; }
+.f-on { fill: var(--teal-soft); stroke: var(--teal); stroke-width: 1.5; }
+.f-hot { fill: var(--red-soft); stroke: #fe6b37; stroke-width: 1.5; }
+.f-line { fill: none; stroke: #777; stroke-width: 1.3; }
+.f-line.on { stroke: var(--teal); stroke-width: 1.6; }
+.f-dash { fill: none; stroke: #b5b5b5; stroke-width: 1; stroke-dasharray: 3 4; }
+
+/* Stepped figures. Parts with data-at="N" appear once the slide reaches step N. */
+.slide [data-at] { opacity: 0; transition: opacity .25s ease; }
+.slide[data-step="2"] [data-at="2"],
+.slide[data-step="3"] [data-at="2"], .slide[data-step="3"] [data-at="3"],
+.slide[data-step="4"] [data-at="2"], .slide[data-step="4"] [data-at="3"], .slide[data-step="4"] [data-at="4"] { opacity: 1; }
+.step-hint { color: var(--faint); font: 500 11px var(--mono); }
+
+/* 04 The corpora, one row of thumbnails per family. */
+.corpora { flex: 1; display: grid; grid-template-columns: 112px 1fr; align-content: center; row-gap: 10px; column-gap: 14px; }
+.corpora-family { align-self: center; color: var(--soft); font-size: 15px; font-weight: 600; line-height: 1.1; }
+.corpora-family small { display: block; margin-top: 3px; color: var(--faint); font: 500 10.5px var(--mono); }
+.corpora-row { display: flex; gap: 8px; }
+.corpora-row figure { margin: 0; width: 72px; }
+.corpora-row img { display: block; width: 72px; height: 52px; object-fit: cover; background: var(--wash); }
+.corpora-row figcaption { margin-top: 3px; overflow: hidden; color: var(--dim); font: 500 7.5px/1.15 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+
+/* 08 The codecs, one column per mode. */
+.modes { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-content: center; }
+.mode-col { padding: 16px 18px; border-top: 3px solid var(--teal); background: var(--wash); }
+.mode-col h2 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+.mode-col p { color: var(--dim); font-size: 14.5px; line-height: 1.25; }
+.mode-col ul { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.mode-col li { padding: 3px 7px; border: 1px solid #c9c9c9; background: #fff; font: 500 11.5px var(--mono); }
+.mode-col li.group { border-color: var(--teal); color: var(--teal); }
+
+/* 09 and 10 Code, in the colours of the site code blocks. */
+.code { align-self: stretch; margin: 0; padding: 14px 20px; background: var(--wash); color: var(--ink); font: 13.5px/1.6 var(--mono); white-space: pre; }
+.tok-kw { color: #7c3aed; }
+.tok-fn { color: #0a5fb4; }
+.tok-str { color: #17803d; }
+.tok-com { color: var(--faint); }
+.tok-out { color: var(--dim); }
+.split { flex: 1; display: grid; grid-template-columns: 1.35fr 1fr; gap: 26px; align-items: center; }
+.split .code { align-self: center; font-size: 12.5px; line-height: 1.55; }
+.notes { display: flex; flex-direction: column; gap: 16px; }
+.note h2 { margin: 0 0 4px; font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.note p { color: var(--dim); font-size: 15.5px; line-height: 1.3; }
+.note code { color: var(--soft); font-size: 13px; }
+
+/* 12 Use cases, one card per task. */
+.beyond { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.cases { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.case img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--wash); }
+.case h3 { margin: 6px 0 2px; font-size: 13.5px; font-weight: 600; line-height: 1.05; }
+.case p { color: var(--dim); font-size: 11.5px; line-height: 1.2; }
+.track { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+.track h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+.track p { color: var(--dim); font-size: 14.5px; line-height: 1.25; }
+.track code { color: var(--soft); font-size: 12.5px; }
+
+/* 12 Ways to take part. */
+.join { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-content: center; }
+.join > div { padding: 16px 18px; border: 1px solid #c9c9c9; }
+.join h2 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+.join p { color: var(--dim); font-size: 14.5px; line-height: 1.3; }
+.join pre { margin: 12px 0 0; padding: 10px 12px; background: var(--wash); font: 12px/1.55 var(--mono); color: var(--soft); }
+.join-foot { margin-top: 14px; color: var(--soft); font-size: 17px; text-align: center; }
+
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  height: 3px;
+  background: var(--teal);
+  transition: width .25s ease;
+}
+.site-back {
+  position: fixed;
+  top: 13px;
+  left: 15px;
+  z-index: 1000;
+  color: var(--soft);
+  font: 500 12px var(--mono);
+  text-decoration: none;
+}
+.site-back:hover, .site-back:focus-visible { color: var(--teal); }
+@media (prefers-reduced-motion: reduce) { .slide, .progress, .slide [data-at] { transition: none; } }
+@media print {
+  html, body { height: auto; overflow: visible; background: white; }
+  .deck { width: 960px; height: auto; transform: none !important; box-shadow: none; }
+  .slide { position: relative; width: 960px; height: 540px; opacity: 1; pointer-events: auto; page-break-after: always; break-after: page; }
+  .slide [data-at] { opacity: 1; }
+  .site-back, .progress, .step-hint { display: none; }
+}
+
+/* Links into the live site. */
+.slide a { color: inherit; text-decoration: none; }
+.fig a .f-link { fill: var(--teal); }
+.fig a:hover .f-link { text-decoration: underline; }
+.more { display: flex; justify-content: flex-end; align-items: baseline; gap: 18px; margin-top: 8px; }
+.more a { color: var(--teal); font-size: 15px; font-weight: 500; }
+.more a:hover, .note a:hover, .join a:hover, .track a:hover h2 { text-decoration: underline; }
+.more .step-hint { margin-left: 18px; }
+.note a, .join h2 a, .join-foot a, .track h2 { color: var(--teal); }
+.corpora-row a { display: block; }
+.corpora-row a:hover img { outline: 2px solid var(--teal); outline-offset: 1px; }
+.case:hover img { outline: 2px solid var(--teal); outline-offset: 1px; }
+.track > a { display: block; padding: 12px 16px; background: var(--wash); }
+.slide .end-links a { color: var(--teal); }
